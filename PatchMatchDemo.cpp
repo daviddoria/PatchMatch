@@ -13,6 +13,12 @@ typedef itk::Image<itk::CovariantVector<float, 3>, 2> ImageType;
 
 int main(int argc, char*argv[])
 {
+  if(argc < 4)
+  {
+    std::cerr << "Required arguments: image mask output" << std::endl;
+    return EXIT_FAILURE;
+  }
+
   std::string imageFilename = argv[1];
   std::string maskFilename = argv[2];
   std::string outputFilename = argv[3];
@@ -32,8 +38,12 @@ int main(int argc, char*argv[])
   maskReader->Update();
 
   PatchMatch patchMatch;
+  patchMatch.SetImage(imageReader->GetOutput());
+  patchMatch.SetMask(maskReader->GetOutput());
   patchMatch.SetIterations(20);
   patchMatch.SetPatchDiameter(15);
+
+  patchMatch.Compute(NULL);
 
   typedef itk::VectorImage<float, 2> VectorImageType;
   VectorImageType::Pointer output = VectorImageType::New();

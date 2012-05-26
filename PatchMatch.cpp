@@ -13,6 +13,15 @@ PatchMatch::PatchMatch()
 
 void PatchMatch::Compute(PMImageType* const initialization)
 {
+  if(initialization)
+  {
+    ITKHelpers::DeepCopy(initialization, this->Output.GetPointer());
+  }
+  else
+  {
+    RandomInit();
+  }
+
   unsigned int width = Image->GetLargestPossibleRegion().GetSize()[0];
   unsigned int height = Image->GetLargestPossibleRegion().GetSize()[1];
   
