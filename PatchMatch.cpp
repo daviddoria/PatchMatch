@@ -46,24 +46,24 @@ void PatchMatch::Compute(PMImageType* const initialization)
     if (forwardSearch)
     {
       // Iterate over patch centers
-      itk::ImageRegionIteratorWithIndex<PMImageType> imageIterator(this->Output,
+      itk::ImageRegionIteratorWithIndex<PMImageType> outputIterator(this->Output,
                                                                    this->Output->GetLargestPossibleRegion());
 
       // Forward propagation - compare left (-1, 0), center (0,0) and up (0, -1)
 
-      while(!imageIterator.IsAtEnd())
+      while(!outputIterator.IsAtEnd())
       {
-        itk::Index<2> center = imageIterator.GetIndex();
+        itk::Index<2> center = outputIterator.GetIndex();
 
-        itk::Index<2> left = imageIterator.GetIndex();
+        itk::Index<2> left = outputIterator.GetIndex();
         left[0] += -1;
 
-        itk::Index<2> up = imageIterator.GetIndex();
+        itk::Index<2> up = outputIterator.GetIndex();
         up[1] += -1;
 
-        Match currentMatch = imageIterator.Get();
+        Match currentMatch = outputIterator.Get();
 
-        if(imageIterator.Get().Score > 0) // Is this necessary?
+        if(outputIterator.Get().Score > 0) // Is this necessary?
         {
           float distLeft = distance(ITKHelpers::GetRegionInRadiusAroundPixel(center, patchRadius),
                                     ITKHelpers::GetRegionInRadiusAroundPixel(left, patchRadius),
@@ -84,32 +84,35 @@ void PatchMatch::Compute(PMImageType* const initialization)
             currentMatch.Region = ITKHelpers::GetRegionInRadiusAroundPixel(up, patchRadius);
             currentMatch.Score = distUp;
           }
+
+          outputIterator.Set(currentMatch);
         }
-        ++imageIterator;
+
+        ++outputIterator;
       } // end forward loop
 
     } // end if (forwardSearch)
     else
     {
       // Iterate over patch centers in reverse
-      itk::ImageRegionReverseIterator<PMImageType> imageIterator(this->Output,
+      itk::ImageRegionReverseIterator<PMImageType> outputIterator(this->Output,
                                                                  this->Output->GetLargestPossibleRegion());
 
       // Backward propagation - compare right (1, 0) , center (0,0) and down (0, 1)
 
-      while(!imageIterator.IsAtEnd())
+      while(!outputIterator.IsAtEnd())
       {
-        itk::Index<2> center = imageIterator.GetIndex();
+        itk::Index<2> center = outputIterator.GetIndex();
 
-        itk::Index<2> right = imageIterator.GetIndex();
+        itk::Index<2> right = outputIterator.GetIndex();
         right[0] += 1;
 
-        itk::Index<2> down = imageIterator.GetIndex();
+        itk::Index<2> down = outputIterator.GetIndex();
         down[1] += 1;
 
-        Match currentMatch = imageIterator.Get();
+        Match currentMatch = outputIterator.Get();
 
-        if(imageIterator.Get().Score > 0) // Is this necessary?
+        if(outputIterator.Get().Score > 0) // Is this necessary?
         {
           float distRight = distance(ITKHelpers::GetRegionInRadiusAroundPixel(center, patchRadius),
                                      ITKHelpers::GetRegionInRadiusAroundPixel(right, patchRadius),
@@ -130,8 +133,10 @@ void PatchMatch::Compute(PMImageType* const initialization)
             currentMatch.Region = ITKHelpers::GetRegionInRadiusAroundPixel(down, patchRadius);
             currentMatch.Score = distDown;
           }
+
+          outputIterator.Set(currentMatch);
         }
-        ++imageIterator;
+        ++outputIterator;
       } // end backward loop
     } // end else ForwardSearch
 
@@ -140,26 +145,23 @@ void PatchMatch::Compute(PMImageType* const initialization)
     // RANDOM SEARCH
 
     // Iterate over patch centers
-    itk::ImageRegionIteratorWithIndex<PMImageType> imageIterator(this->Output,
+    itk::ImageRegionIteratorWithIndex<PMImageType> outputIterator(this->Output,
                                                                  this->Output->GetLargestPossibleRegion());
-
-    // Forward propagation - compare left (-1, 0), center (0,0) and up (0, -1)
-
-    while(!imageIterator.IsAtEnd())
+    while(!outputIterator.IsAtEnd())
     {
-      itk::Index<2> center = imageIterator.GetIndex();
+      itk::Index<2> center = outputIterator.GetIndex();
 
-      Match currentMatch = imageIterator.Get();
+      Match currentMatch = outputIterator.Get();
 
       if(currentMatch.Score > 0)
       {
         int radius = std::max(width, height);
 
-        // search an exponentially smaller window each iteration
+        // Search an exponentially smaller window each time through the loop
         while (radius > 8)
         {
           // Search around current offset vector (distance-weighted)
-          itk::Index<2> searchRegionCenter = ITKHelpers::GetRegionCenter(imageIterator.Get().Region);
+          itk::Index<2> searchRegionCenter = ITKHelpers::GetRegionCenter(outputIterator.Get().Region);
 
           itk::ImageRegion<2> searchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(searchRegionCenter, radius);
           searchRegion.Crop(this->Image->GetLargestPossibleRegion());
@@ -181,10 +183,12 @@ void PatchMatch::Compute(PMImageType* const initialization)
             currentMatch.Score = dist;
           }
 
+          outputIterator.Set(currentMatch);
+
           radius /= 2;
         } // end while radius
       } // end if
-      ++imageIterator;
+      ++outputIterator;
     } // end random search loop
 
     std::stringstream ss;
