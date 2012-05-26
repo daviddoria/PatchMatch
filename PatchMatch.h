@@ -41,11 +41,11 @@ public:
   
 private:
 
-  static float distance(const itk::ImageRegion<2>& source,
-                        const itk::ImageRegion<2>& target,
-                        const float prevDist);
+  float distance(const itk::ImageRegion<2>& source,
+                 const itk::ImageRegion<2>& target,
+                 const float prevDist);
 
-  void Random();
+  void RandomInit();
 
   unsigned int Iterations;
   unsigned int PatchDiameter;

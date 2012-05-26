@@ -37,10 +37,10 @@ int main(int argc, char*argv[])
 
   typedef itk::VectorImage<float, 2> VectorImageType;
   VectorImageType::Pointer output = VectorImageType::New();
-  
+
   patchMatch.GetPatchCentersImage(patchMatch.GetOutput(), output.GetPointer());
-  
-  typedef  itk::ImageFileWriter<VectorImageType> WriterType;
+
+  typedef itk::ImageFileWriter<VectorImageType> WriterType;
   WriterType::Pointer writer = WriterType::New();
   writer->SetFileName(outputFilename);
   writer->SetInput(output);
