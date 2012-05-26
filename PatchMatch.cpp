@@ -19,17 +19,22 @@ void PatchMatch::Compute(PMImageType* const initialization)
   }
   else
   {
+    this->Output->SetRegions(this->Image->GetLargestPossibleRegion());
+    this->Output->Allocate();
     RandomInit();
   }
 
+  {
+  VectorImageType::Pointer initialOutput = VectorImageType::New();
+  GetPatchCentersImage(this->Output, initialOutput);
+  ITKHelpers::WriteImage(initialOutput.GetPointer(), "initialization.mha");
+  }
+  
   unsigned int width = Image->GetLargestPossibleRegion().GetSize()[0];
   unsigned int height = Image->GetLargestPossibleRegion().GetSize()[1];
   
   // Convert patch diameter to patch radius
   int patchRadius = this->PatchDiameter / 2;
-
-  // Initialize by copying the input
-  ITKHelpers::DeepCopy(initialization, this->Output.GetPointer());
 
   bool forwardSearch = true;
 
@@ -183,7 +188,7 @@ void PatchMatch::Compute(PMImageType* const initialization)
     } // end random search loop
 
     std::stringstream ss;
-    ss << "PatchMatch_" << i << ".mha";
+    ss << "PatchMatch_" << Helpers::ZeroPad(i, 2) << ".mha";
     VectorImageType::Pointer temp = VectorImageType::New();
     GetPatchCentersImage(this->Output, temp);
     ITKHelpers::WriteImage(temp.GetPointer(), ss.str());
@@ -260,26 +265,35 @@ void PatchMatch::RandomInit()
   ITKHelpers::SetImageToConstant(this->Output.GetPointer(), zeroMatch);
 
   unsigned int patchRadius = PatchDiameter/2;
-  for(unsigned int y = patchRadius; y < height - patchRadius; y++)
+
+  itk::Index<2> regionCorner = {{patchRadius, patchRadius}};
+  itk::Size<2> regionSize = {{width - 2*patchRadius, height - 2*patchRadius}};
+  itk::ImageRegion<2> region(regionCorner, regionSize);
+
+  std::cout << "Initializing region: " << region << std::endl;
+  itk::ImageRegionIteratorWithIndex<PMImageType> outputIterator(this->Output, region);
+
+  while(!outputIterator.IsAtEnd())
   {
-    for(unsigned int x = patchRadius; x < width - patchRadius; x++)
-    {
-      // Construct the current region
-      itk::Index<2> currentIndex = {{x,y}};
-      itk::ImageRegion<2> currentRegion = ITKHelpers::GetRegionInRadiusAroundPixel(currentIndex, patchRadius);
+    // Construct the current region
+    itk::Index<2> currentIndex = outputIterator.GetIndex();
+    itk::ImageRegion<2> currentRegion = ITKHelpers::GetRegionInRadiusAroundPixel(currentIndex, patchRadius);
 
-      // Construct a random region
-      int randX = Helpers::RandomInt(patchRadius, width - patchRadius - 1);
-      int randY = Helpers::RandomInt(patchRadius, height - patchRadius - 1);
+    // Construct a random region
+    int randX = Helpers::RandomInt(patchRadius, width - patchRadius - 1);
+    int randY = Helpers::RandomInt(patchRadius, height - patchRadius - 1);
 
-      Match randomMatch;
-      itk::Index<2> randomIndex = {{randX, randY}};
-      itk::ImageRegion<2> randomRegion = ITKHelpers::GetRegionInRadiusAroundPixel(randomIndex, patchRadius);
-      randomMatch.Region = randomRegion;
-      randomMatch.Score = distance(currentRegion, randomRegion, std::numeric_limits<float>::max());
-      this->Output->SetPixel(currentIndex, randomMatch);
-    }
+    Match randomMatch;
+    itk::Index<2> randomIndex = {{randX, randY}};
+    itk::ImageRegion<2> randomRegion = ITKHelpers::GetRegionInRadiusAroundPixel(randomIndex, patchRadius);
+    randomMatch.Region = randomRegion;
+    randomMatch.Score = distance(currentRegion, randomRegion, std::numeric_limits<float>::max());
+    outputIterator.Set(randomMatch);
+
+    ++outputIterator;
   }
+
+  std::cout << "Finished initializing." << region << std::endl;
 }
 
 PatchMatch::PMImageType* PatchMatch::GetOutput()
@@ -306,7 +320,7 @@ void PatchMatch::SetImage(ImageType* const image)
 
 void PatchMatch::SetMask(Mask* const mask)
 {
-  ITKHelpers::DeepCopy(mask, this->MaskImage.GetPointer());
+  this->MaskImage->DeepCopyFrom(mask);
 }
 
 void PatchMatch::GetPatchCentersImage(PMImageType* const pmImage, itk::VectorImage<float, 2>* const output)

@@ -32,14 +32,14 @@ int main(int argc, char*argv[])
   imageReader->SetFileName(imageFilename);
   imageReader->Update();
 
-  typedef itk::ImageFileReader<Mask> MaskReaderType;
-  MaskReaderType::Pointer maskReader = MaskReaderType::New();
-  maskReader->SetFileName(maskFilename);
-  maskReader->Update();
+  Mask::Pointer mask = Mask::New();
+  mask->SetHoleValue(0);
+  mask->SetValidValue(255);
+  mask->Read(maskFilename);
 
   PatchMatch patchMatch;
   patchMatch.SetImage(imageReader->GetOutput());
-  patchMatch.SetMask(maskReader->GetOutput());
+  patchMatch.SetMask(mask);
   patchMatch.SetIterations(20);
   patchMatch.SetPatchDiameter(15);
 
