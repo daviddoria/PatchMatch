@@ -56,6 +56,8 @@ private:
 
   Mask::Pointer MaskImage;
 
+  itk::ImageRegion<2> GetInternalRegion();
+
 };
 
 #endif
