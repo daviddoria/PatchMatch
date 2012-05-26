@@ -1,8 +1,13 @@
 #include "PatchMatch.h"
 
+// Submodules
 #include "Mask/ITKHelpers/ITKHelpers.h"
 
+// ITK
 #include "itkImageRegionReverseIterator.h"
+
+// STL
+#include <ctime>
 
 PatchMatch::PatchMatch()
 {
@@ -13,6 +18,8 @@ PatchMatch::PatchMatch()
 
 void PatchMatch::Compute(PMImageType* const initialization)
 {
+  srand(time(NULL));
+  
   if(initialization)
   {
     ITKHelpers::DeepCopy(initialization, this->Output.GetPointer());
@@ -63,31 +70,27 @@ void PatchMatch::Compute(PMImageType* const initialization)
 
         Match currentMatch = outputIterator.Get();
 
-        if(outputIterator.Get().Score > 0) // Is this necessary?
-        {
-          float distLeft = distance(ITKHelpers::GetRegionInRadiusAroundPixel(center, patchRadius),
-                                    ITKHelpers::GetRegionInRadiusAroundPixel(left, patchRadius),
-                                    currentMatch.Score);
-
-          if (distLeft < currentMatch.Score)
-          {
-            currentMatch.Region = ITKHelpers::GetRegionInRadiusAroundPixel(left, patchRadius);
-            currentMatch.Score = distLeft;
-          }
-
-          float distUp = distance(ITKHelpers::GetRegionInRadiusAroundPixel(center, patchRadius),
-                                  ITKHelpers::GetRegionInRadiusAroundPixel(up, patchRadius),
+        float distLeft = distance(ITKHelpers::GetRegionInRadiusAroundPixel(center, patchRadius),
+                                  ITKHelpers::GetRegionInRadiusAroundPixel(left, patchRadius),
                                   currentMatch.Score);
 
-          if (distUp < currentMatch.Score)
-          {
-            currentMatch.Region = ITKHelpers::GetRegionInRadiusAroundPixel(up, patchRadius);
-            currentMatch.Score = distUp;
-          }
-
-          outputIterator.Set(currentMatch);
+        if (distLeft < currentMatch.Score)
+        {
+          currentMatch.Region = ITKHelpers::GetRegionInRadiusAroundPixel(left, patchRadius);
+          currentMatch.Score = distLeft;
         }
 
+        float distUp = distance(ITKHelpers::GetRegionInRadiusAroundPixel(center, patchRadius),
+                                ITKHelpers::GetRegionInRadiusAroundPixel(up, patchRadius),
+                                currentMatch.Score);
+
+        if (distUp < currentMatch.Score)
+        {
+          currentMatch.Region = ITKHelpers::GetRegionInRadiusAroundPixel(up, patchRadius);
+          currentMatch.Score = distUp;
+        }
+
+        outputIterator.Set(currentMatch);
         ++outputIterator;
       } // end forward loop
 
@@ -96,7 +99,7 @@ void PatchMatch::Compute(PMImageType* const initialization)
     {
       // Iterate over patch centers in reverse
       itk::ImageRegionReverseIterator<PMImageType> outputIterator(this->Output,
-                                                                 this->Output->GetLargestPossibleRegion());
+                                                                  this->Output->GetLargestPossibleRegion());
 
       // Backward propagation - compare right (1, 0) , center (0,0) and down (0, 1)
 
@@ -112,37 +115,35 @@ void PatchMatch::Compute(PMImageType* const initialization)
 
         Match currentMatch = outputIterator.Get();
 
-        if(outputIterator.Get().Score > 0) // Is this necessary?
+        float distRight = distance(ITKHelpers::GetRegionInRadiusAroundPixel(center, patchRadius),
+                                   ITKHelpers::GetRegionInRadiusAroundPixel(right, patchRadius),
+                                   currentMatch.Score);
+
+        if (distRight < currentMatch.Score)
         {
-          float distRight = distance(ITKHelpers::GetRegionInRadiusAroundPixel(center, patchRadius),
-                                     ITKHelpers::GetRegionInRadiusAroundPixel(right, patchRadius),
-                                     currentMatch.Score);
-
-          if (distRight < currentMatch.Score)
-          {
-            currentMatch.Region = ITKHelpers::GetRegionInRadiusAroundPixel(right, patchRadius);
-            currentMatch.Score = distRight;
-          }
-
-          float distDown = distance(ITKHelpers::GetRegionInRadiusAroundPixel(center, patchRadius),
-                                    ITKHelpers::GetRegionInRadiusAroundPixel(down, patchRadius),
-                                    currentMatch.Score);
-
-          if (distDown < currentMatch.Score)
-          {
-            currentMatch.Region = ITKHelpers::GetRegionInRadiusAroundPixel(down, patchRadius);
-            currentMatch.Score = distDown;
-          }
-
-          outputIterator.Set(currentMatch);
+          currentMatch.Region = ITKHelpers::GetRegionInRadiusAroundPixel(right, patchRadius);
+          currentMatch.Score = distRight;
         }
+
+        float distDown = distance(ITKHelpers::GetRegionInRadiusAroundPixel(center, patchRadius),
+                                  ITKHelpers::GetRegionInRadiusAroundPixel(down, patchRadius),
+                                  currentMatch.Score);
+
+        if (distDown < currentMatch.Score)
+        {
+          currentMatch.Region = ITKHelpers::GetRegionInRadiusAroundPixel(down, patchRadius);
+          currentMatch.Score = distDown;
+        }
+
+        outputIterator.Set(currentMatch);
+
         ++outputIterator;
       } // end backward loop
     } // end else ForwardSearch
 
     forwardSearch = !forwardSearch;
 
-    // RANDOM SEARCH
+    // RANDOM SEARCH - try a random region in smaller windows around the current best patch.
 
     // Iterate over patch centers
     itk::ImageRegionIteratorWithIndex<PMImageType> outputIterator(this->Output,
@@ -153,41 +154,38 @@ void PatchMatch::Compute(PMImageType* const initialization)
 
       Match currentMatch = outputIterator.Get();
 
-      if(currentMatch.Score > 0)
+      int radius = std::max(width, height);
+
+      // Search an exponentially smaller window each time through the loop
+      itk::Index<2> searchRegionCenter = ITKHelpers::GetRegionCenter(outputIterator.Get().Region);
+      
+      while (radius > 8)
       {
-        int radius = std::max(width, height);
+        itk::ImageRegion<2> searchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(searchRegionCenter, radius);
+        searchRegion.Crop(this->Image->GetLargestPossibleRegion());
 
-        // Search an exponentially smaller window each time through the loop
-        while (radius > 8)
+        int randX = Helpers::RandomInt(searchRegion.GetIndex()[0],
+                                       searchRegion.GetIndex()[0] + searchRegion.GetSize()[0]);
+
+        int randY = Helpers::RandomInt(searchRegion.GetIndex()[1],
+                                       searchRegion.GetIndex()[1] + searchRegion.GetSize()[1]);
+
+        itk::Index<2> randomIndex = {{randX, randY}};
+        float dist = distance(ITKHelpers::GetRegionInRadiusAroundPixel(center, patchRadius),
+                              ITKHelpers::GetRegionInRadiusAroundPixel(randomIndex, patchRadius),
+                              currentMatch.Score);
+
+        if (dist < currentMatch.Score)
         {
-          // Search around current offset vector (distance-weighted)
-          itk::Index<2> searchRegionCenter = ITKHelpers::GetRegionCenter(outputIterator.Get().Region);
+          currentMatch.Region = ITKHelpers::GetRegionInRadiusAroundPixel(randomIndex, patchRadius);
+          currentMatch.Score = dist;
+        }
 
-          itk::ImageRegion<2> searchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(searchRegionCenter, radius);
-          searchRegion.Crop(this->Image->GetLargestPossibleRegion());
+        outputIterator.Set(currentMatch);
 
-          int randX = Helpers::RandomInt(searchRegion.GetIndex()[0],
-                                         searchRegion.GetIndex()[0] + searchRegion.GetSize()[0]);
+        radius /= 2;
+      } // end while radius
 
-          int randY = Helpers::RandomInt(searchRegion.GetIndex()[1],
-                                         searchRegion.GetIndex()[1] + searchRegion.GetSize()[1]);
-
-          itk::Index<2> randomIndex = {{randX, randY}};
-          float dist = distance(ITKHelpers::GetRegionInRadiusAroundPixel(center, patchRadius),
-                                ITKHelpers::GetRegionInRadiusAroundPixel(randomIndex, patchRadius),
-                                currentMatch.Score);
-
-          if (dist < currentMatch.Score)
-          {
-            currentMatch.Region = ITKHelpers::GetRegionInRadiusAroundPixel(randomIndex, patchRadius);
-            currentMatch.Score = dist;
-          }
-
-          outputIterator.Set(currentMatch);
-
-          radius /= 2;
-        } // end while radius
-      } // end if
       ++outputIterator;
     } // end random search loop
 
@@ -216,39 +214,41 @@ float PatchMatch::distance(const itk::ImageRegion<2>& source,
     // Average L2 distance in RGB space
     float distance = 0.0f;
 
-    float threshold = prevDist * 3 * (PatchDiameter)*(PatchDiameter); // Why is this not just prevDist ?
-
     itk::ImageRegionIteratorWithIndex<ImageType> sourceIterator(this->Image, source);
     itk::ImageRegionIteratorWithIndex<ImageType> targetIterator(this->Image, target);
     itk::ImageRegionIteratorWithIndex<Mask> sourceMaskIterator(this->MaskImage, source);
     itk::ImageRegionIteratorWithIndex<Mask> targetMaskIterator(this->MaskImage, target);
 
     unsigned int numberOfPixelsCompared = 0;
-    
+
     while(!sourceIterator.IsAtEnd())
     {
       if(this->MaskImage->IsValid(sourceMaskIterator.GetIndex()) &&
          this->MaskImage->IsValid(targetMaskIterator.GetIndex()))
       {
+        numberOfPixelsCompared++;
+
         ImageType::PixelType sourcePixel = sourceIterator.Get();
         ImageType::PixelType targetPixel = targetIterator.Get();
-        
+
         distance += sqrt( (sourcePixel[0] - targetPixel[0]) * (sourcePixel[0] - targetPixel[0]) +
                           (sourcePixel[1] - targetPixel[1]) * (sourcePixel[1] - targetPixel[1]) +
                           (sourcePixel[2] - targetPixel[2]) * (sourcePixel[2] - targetPixel[2]));
 
         // Early termination
-        if(distance > threshold)
+        if(distance / static_cast<float>(numberOfPixelsCompared) > prevDist)
         {
           return std::numeric_limits<float>::max();
         }
-        numberOfPixelsCompared++;
+        
       }
     ++sourceIterator;
     ++targetIterator;
     ++sourceMaskIterator;
     ++targetMaskIterator;
     }
+
+  distance /= static_cast<float>(numberOfPixelsCompared);
 
   return distance;
 }
