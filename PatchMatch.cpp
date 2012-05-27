@@ -52,9 +52,11 @@ void PatchMatch::Compute(PMImageType* const initialization)
     // PROPAGATION
     if (forwardSearch)
     {
+      itk::ImageRegion<2> internalRegion =
+             ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), patchRadius);
       // Iterate over patch centers
       itk::ImageRegionIteratorWithIndex<PMImageType> outputIterator(this->Output,
-                                                                    GetInternalRegion());
+                                                                    internalRegion);
 
       // Forward propagation - compare left (-1, 0), center (0,0) and up (0, -1)
 
@@ -102,8 +104,10 @@ void PatchMatch::Compute(PMImageType* const initialization)
     else
     {
       // Iterate over patch centers in reverse
+      itk::ImageRegion<2> internalRegion =
+             ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), patchRadius);
       itk::ImageRegionReverseIterator<PMImageType> outputIterator(this->Output,
-                                                                  GetInternalRegion());
+                                                                  internalRegion);
 
       // Backward propagation - compare right (1, 0) , center (0,0) and down (0, 1)
 
@@ -155,8 +159,10 @@ void PatchMatch::Compute(PMImageType* const initialization)
     // RANDOM SEARCH - try a random region in smaller windows around the current best patch.
 
     // Iterate over patch centers
+    itk::ImageRegion<2> internalRegion =
+             ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), patchRadius);
     itk::ImageRegionIteratorWithIndex<PMImageType> outputIterator(this->Output,
-                                                                  GetInternalRegion());
+                                                                  internalRegion);
     while(!outputIterator.IsAtEnd())
     {
       itk::Index<2> center = outputIterator.GetIndex();
@@ -284,10 +290,11 @@ void PatchMatch::RandomInit()
 
   unsigned int patchRadius = PatchDiameter/2;
 
-  itk::ImageRegion<2> region = GetInternalRegion();
+  itk::ImageRegion<2> internalRegion =
+             ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), patchRadius);
 
-  std::cout << "Initializing region: " << region << std::endl;
-  itk::ImageRegionIteratorWithIndex<PMImageType> outputIterator(this->Output, region);
+  std::cout << "Initializing region: " << internalRegion << std::endl;
+  itk::ImageRegionIteratorWithIndex<PMImageType> outputIterator(this->Output, internalRegion);
 
   while(!outputIterator.IsAtEnd())
   {
@@ -309,7 +316,7 @@ void PatchMatch::RandomInit()
     ++outputIterator;
   }
 
-  std::cout << "Finished initializing." << region << std::endl;
+  std::cout << "Finished initializing." << internalRegion << std::endl;
 }
 
 PatchMatch::PMImageType* PatchMatch::GetOutput()
@@ -364,17 +371,4 @@ void PatchMatch::GetPatchCentersImage(PMImageType* const pmImage, itk::VectorIma
     
     ++imageIterator;
     }
-}
-
-itk::ImageRegion<2> PatchMatch::GetInternalRegion()
-{
-  unsigned int patchRadius = PatchDiameter/2;
-  unsigned int width = this->Image->GetLargestPossibleRegion().GetSize()[0];
-  unsigned int height = this->Image->GetLargestPossibleRegion().GetSize()[1];
-  
-  itk::Index<2> regionCorner = {{patchRadius, patchRadius}};
-  itk::Size<2> regionSize = {{width - 2*patchRadius, height - 2*patchRadius}};
-  itk::ImageRegion<2> region(regionCorner, regionSize);
-
-  return region;
 }

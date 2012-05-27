@@ -2,6 +2,7 @@
 
 // Submodules
 #include "Mask/ITKHelpers/ITKHelpers.h"
+#include "Mask/MaskOperations.h"
 
 // ITK
 #include "itkImageRegionReverseIterator.h"
@@ -25,8 +26,18 @@ void BDSInpainting::Compute()
 //   Image image(imageIn.width, imageIn.height, 1, imageIn.channels);
 //   image.CopyData(Inpaint::apply(imageIn, mask));
 
+
+  unsigned int width = Image->GetLargestPossibleRegion().GetSize()[0];
+  unsigned int height = Image->GetLargestPossibleRegion().GetSize()[1];
+
+  // Convert patch diameter to patch radius
+  int patchRadius = this->PatchDiameter / 2;
+
   // Initialize the output with the input
   ITKHelpers::DeepCopy(this->Image.GetPointer(), this->Output.GetPointer());
+
+  ImageType::PixelType zeroPixel;
+  zeroPixel.Fill(0.0f);
 
   for(unsigned int i = 0; i < this->Iterations; ++i)
   {
@@ -45,82 +56,57 @@ void BDSInpainting::Compute()
     // set to 0, and solve for T(q):
     // T(q) = \frac{1}{m} \sum_{i=1}^m S(p_i)
 
+    ImageType::Pointer UpdateImage = ImageType::New(); // We don't want to change pixels directly on the
+    // output image during the iteration, but rather compute them all and then update them all simultaneously.
+    ITKHelpers::DeepCopy(this->Image.GetPointer(), UpdateImage.GetPointer());
+
+    ImageType::Pointer CurrentImage = ImageType::New();
+    ITKHelpers::DeepCopy(this->Image.GetPointer(), CurrentImage.GetPointer());
+
     // Loop over the whole image (patch centers)
     unsigned int numberOfPixelsFilled = 0;
-    for(int y = 0; y < image.height; ++y)
+    itk::ImageRegion<2> internalRegion =
+             ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), patchRadius);
+
+    itk::ImageRegionIteratorWithIndex<ImageType> imageIterator(UpdateImage,
+                                                               internalRegion);
+
+    while(!imageIterator.IsAtEnd())
     {
-      for(int x = 0; x < image.width; ++x)
+      itk::Index<2> currentPixel = imageIterator.GetIndex();
+      if(this->MaskImage->IsHole(currentPixel)) // We have come across a pixel to be filled
       {
-        if(mask(x,y)[0] == 0) // We have come across a pixel to be filled
-        {
-          out.SetAllComponents(x, y, 0.0f);
+        // Zero the pixel - it will be additively updated
+        UpdateImage->SetPixel(currentPixel, zeroPixel);
 
-          numberOfPixelsFilled++;
+        numberOfPixelsFilled++;
 
-          unsigned int numberOfContributors = 0;
+        std::vector<itk::ImageRegion<2> > patchesContainingPixel =
+              ITKHelpers::GetAllPatchesContainingPixel(currentPixel,
+                                                       patchRadius,
+                                                       this->Image->GetLargestPossibleRegion());
 
-          // Iterate over the patch centered on this pixel
-          for (int dy = -patchDiameter/2; dy <= patchDiameter/2; ++dy)
-          {
-            if (y+dy < 0)// skip this row
-            {
-              continue;
-            }
-            if (y+dy >= out.height) // quit when we get past the last row
-            {
-              break;
-            }
+        unsigned int numberOfContributingPatches = patchesContainingPixel.size();
+        // (matchX, matchY) is the center of the best matching patch to the patch centered at (x+dx, y+dy)
+//         int matchX = static_cast<int>(patchMatch(x+dx,y+dy)[0]);
+//         int matchY = static_cast<int>(patchMatch(x+dx,y+dy)[1]);
 
-            for(int dx = -patchDiameter/2; dx <= patchDiameter/2; ++dx)
-            {
-              if (x+dx < 0) // skip this pixel
-              {
-                continue;
-              }
-              else if(x+dx >= out.width) // quit when we get to the end of the row
-              {
-                break;
-              }
-              else // Use a pixel from this patch in the update
-              {
-                // (matchX, matchY) is the center of the best matching patch to the patch centered at (x+dx, y+dy)
-                int matchX = (int)patchMatch(x+dx,y+dy)[0];
-                int matchY = (int)patchMatch(x+dx,y+dy)[1];
 
-                numberOfContributors++;
-                for(int c = 0; c < image.channels; ++c)
-                {
-                  out(x, y)[c] += image(matchX-dx, matchY-dy)[c];
-                }
-              }
-            } // end loop over row
-          } // end loop over patch
-          //std::cout << "numberOfContributors: " << numberOfContributors << std::endl;
-          //float weight = 1.0f/static_cast<float>(numberOfContributors);
-          //std::cout << "weight: " << weight << std::endl;
-          for(int c = 0; c < image.channels; ++c)
-          {
-            out(x,y)[c] /= static_cast<float>(numberOfContributors);
-          }
-        } // end if (!targetMask || targMaskPtr[0] > 0)
-      }
-    } // end loop over image
+      } // end if (!targetMask || targMaskPtr[0] > 0)
+
+      ++imageIterator;
+    } // end iterator loop
+
+    MaskOperations::CopyInHoleRegion(UpdateImage.GetPointer(), CurrentImage.GetPointer(), this->MaskImage);
 
     std::stringstream ssMeta;
     ssMeta << "Iteration_" << i << ".mha";
-    out.WriteMeta(ssMeta.str());
 
     std::stringstream ssPNG;
     ssPNG << "Iteration_" << Helpers::ZeroPad(i, 2) << ".png";
-    out.WritePNG(ssPNG.str());
-
-    // reset for the next iteration
-    //image = out;
-    //image = out.copy();
-    image.CopyData(out);
 
     std::cout << "numberOfPixelsFilled: " << numberOfPixelsFilled << std::endl;
-  } // end for(int i = 0; i < numIter; i++)
+  } // end iterations loop
   std::cout << std::endl;
 }
 
