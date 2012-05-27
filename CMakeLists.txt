@@ -10,3 +10,6 @@ add_subdirectory(Mask)
 
 ADD_EXECUTABLE(PatchMatchDemo PatchMatchDemo.cpp PatchMatch.cpp)
 TARGET_LINK_LIBRARIES(PatchMatchDemo ${ITK_LIBRARIES} Mask)
+
+ADD_EXECUTABLE(BDSInpaintingDemo BDSInpaintingDemo.cpp BDSInpainting.cpp PatchMatch.cpp)
+TARGET_LINK_LIBRARIES(BDSInpaintingDemo ${ITK_LIBRARIES} Mask)
