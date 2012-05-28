@@ -27,7 +27,7 @@ void BDSInpainting::Compute()
   //unsigned int patchDiameter = this->PatchRadius * 2 + 1;
 
   Mask::Pointer level0mask = Mask::New();
-  ITKHelpers::DeepCopy(this->MaskImage.GetPointer(), level0mask.GetPointer());
+  level0mask->DeepCopyFrom(this->MaskImage.GetPointer());
 
   ImageType::Pointer level0Image = ImageType::New();
   ITKHelpers::DeepCopy(this->Image.GetPointer(), level0Image.GetPointer());
@@ -51,7 +51,8 @@ void BDSInpainting::Compute()
     Mask::Pointer currentMaskLevel = Mask::New();
     maskLevels[level] = currentMaskLevel;
     ITKHelpers::Downsample(this->MaskImage.GetPointer(), pow(2, level), currentMaskLevel.GetPointer());
-    ITKHelpers::DeepCopy(currentMaskLevel.GetPointer(), maskLevels[level].GetPointer());
+    currentMaskLevel->CopyInformationFrom(this->MaskImage);
+    maskLevels[level]->DeepCopyFrom(currentMaskLevel.GetPointer());
   }
 
   for(unsigned int level = 0; level < this->ResolutionLevels; ++level)
@@ -104,6 +105,7 @@ void BDSInpainting::Compute()
 
 void BDSInpainting::Compute(ImageType* const image, Mask* const mask, ImageType* const output)
 {
+  ITKHelpers::WriteRGBImage(image, "ComputeInput.png");
   // Smoothly fill the hole
 //   Image image(imageIn.width, imageIn.height, 1, imageIn.channels);
 //   image.CopyData(Inpaint::apply(imageIn, mask));
@@ -205,19 +207,21 @@ void BDSInpainting::Compute(ImageType* const image, Mask* const mask, ImageType*
 
       ++imageIterator;
     } // end loop over image
-
+ITKHelpers::WriteRGBImage(currentImage.GetPointer(), "BeforeCopyInHole.png");
+ITKHelpers::WriteImage(mask, "mask.png");
     MaskOperations::CopyInHoleRegion(updateImage.GetPointer(), currentImage.GetPointer(), mask);
-
+ITKHelpers::WriteRGBImage(currentImage.GetPointer(), "AfterCopyInHole.png");
 //     std::stringstream ssMeta;
 //     ssMeta << "Iteration_" << iteration << ".mha";
 
-    std::stringstream ssPNG;
-    ssPNG << "Iteration_" << Helpers::ZeroPad(iteration, 2) << ".png";
-    ITKHelpers::WriteRGBImage(currentImage.GetPointer(), ssPNG.str());
+//     std::stringstream ssPNG;
+//     ssPNG << "Iteration_" << Helpers::ZeroPad(iteration, 2) << ".png";
+//     ITKHelpers::WriteRGBImage(currentImage.GetPointer(), ssPNG.str());
   } // end iterations loop
 
   ITKHelpers::DeepCopy(currentImage.GetPointer(), output);
-  std::cout << std::endl;
+
+  ITKHelpers::WriteRGBImage(output, "ComputeOutput.png");
 }
 
 
