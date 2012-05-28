@@ -35,7 +35,9 @@ public:
 
   void SetImage(ImageType* const image);
 
-  void SetMask(Mask* const mask);
+  void SetSourceMask(Mask* const mask);
+
+  void SetTargetMask(Mask* const mask);
 
   void GetPatchCentersImage(PMImageType* const pmImage, itk::VectorImage<float, 2>* const output);
   
@@ -54,7 +56,11 @@ private:
 
   ImageType::Pointer Image;
 
-  Mask::Pointer MaskImage;
+  // This mask indicates where to take source patches from
+  Mask::Pointer SourceMask;
+
+  // This mask indicates where to compute the NN field
+  Mask::Pointer TargetMask;
 
 };
 

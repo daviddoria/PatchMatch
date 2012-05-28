@@ -6,6 +6,7 @@
 #include "itkCovariantVector.h"
 
 #include "Mask/Mask.h"
+#include "Mask/ITKHelpers/ITKHelpers.h"
 
 #include "PatchMatch.h"
 
@@ -32,15 +33,21 @@ int main(int argc, char*argv[])
   imageReader->SetFileName(imageFilename);
   imageReader->Update();
 
-  Mask::Pointer mask = Mask::New();
-  mask->SetHoleValue(0);
-  mask->SetValidValue(255);
-  mask->Read(maskFilename);
+  Mask::Pointer sourceMask = Mask::New();
+  sourceMask->SetHoleValue(0);
+  sourceMask->SetValidValue(255);
+  sourceMask->Read(maskFilename);
+
+  Mask::Pointer targetMask = Mask::New();
+  targetMask->SetRegions(sourceMask->GetLargestPossibleRegion());
+  targetMask->Allocate();
+  ITKHelpers::SetImageToConstant(targetMask.GetPointer(), targetMask->GetValidValue());
 
   PatchMatch patchMatch;
   patchMatch.SetImage(imageReader->GetOutput());
-  patchMatch.SetMask(mask);
-  patchMatch.SetIterations(20);
+  patchMatch.SetTargetMask(targetMask);
+  patchMatch.SetSourceMask(sourceMask);
+  patchMatch.SetIterations(10);
   patchMatch.SetPatchDiameter(15);
 
   patchMatch.Compute(NULL);

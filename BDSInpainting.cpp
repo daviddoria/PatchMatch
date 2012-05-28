@@ -26,6 +26,11 @@ void BDSInpainting::Compute()
 //   Image image(imageIn.width, imageIn.height, 1, imageIn.channels);
 //   image.CopyData(Inpaint::apply(imageIn, mask));
 
+  Mask::Pointer targetMask = Mask::New();
+  targetMask->SetRegions(this->MaskImage->GetLargestPossibleRegion());
+  targetMask->Allocate();
+  ITKHelpers::SetImageToConstant(targetMask.GetPointer(), targetMask->GetValidValue());
+  
   // Convert patch diameter to patch radius
   int patchRadius = this->PatchDiameter / 2;
 
@@ -47,7 +52,8 @@ void BDSInpainting::Compute()
 
     PatchMatch patchMatch;
     patchMatch.SetImage(currentImage);
-    patchMatch.SetMask(this->MaskImage);
+    patchMatch.SetSourceMask(this->MaskImage);
+    patchMatch.SetTargetMask(targetMask);
     patchMatch.SetIterations(5);
     patchMatch.SetPatchDiameter(this->PatchDiameter);
     if(iteration == 0)

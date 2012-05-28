@@ -13,7 +13,8 @@ PatchMatch::PatchMatch()
 {
   this->Output = PMImageType::New();
   this->Image = ImageType::New();
-  this->MaskImage = Mask::New();
+  this->SourceMask = Mask::New();
+  this->TargetMask = Mask::New();
 }
 
 void PatchMatch::Compute(PMImageType* const initialization)
@@ -62,6 +63,11 @@ void PatchMatch::Compute(PMImageType* const initialization)
 
       while(!outputIterator.IsAtEnd())
       {
+        if(!this->TargetMask->IsValid(outputIterator.GetIndex()))
+        {
+          ++outputIterator;
+          continue;
+        }
         itk::Index<2> center = outputIterator.GetIndex();
 
         itk::Index<2> leftPixel = outputIterator.GetIndex();
@@ -113,6 +119,11 @@ void PatchMatch::Compute(PMImageType* const initialization)
 
       while(!outputIterator.IsAtEnd())
       {
+        if(!this->TargetMask->IsValid(outputIterator.GetIndex()))
+        {
+          ++outputIterator;
+          continue;
+        }
         itk::Index<2> center = outputIterator.GetIndex();
         itk::ImageRegion<2> currentRegion = ITKHelpers::GetRegionInRadiusAroundPixel(center, patchRadius);
 
@@ -165,6 +176,12 @@ void PatchMatch::Compute(PMImageType* const initialization)
                                                                   internalRegion);
     while(!outputIterator.IsAtEnd())
     {
+      if(!this->TargetMask->IsValid(outputIterator.GetIndex()))
+      {
+        ++outputIterator;
+        continue;
+      }
+
       itk::Index<2> center = outputIterator.GetIndex();
 
       Match currentMatch = outputIterator.Get();
@@ -231,15 +248,15 @@ float PatchMatch::distance(const itk::ImageRegion<2>& source,
 
     itk::ImageRegionIteratorWithIndex<ImageType> sourceIterator(this->Image, source);
     itk::ImageRegionIteratorWithIndex<ImageType> targetIterator(this->Image, target);
-    itk::ImageRegionIteratorWithIndex<Mask> sourceMaskIterator(this->MaskImage, source);
-    itk::ImageRegionIteratorWithIndex<Mask> targetMaskIterator(this->MaskImage, target);
+    itk::ImageRegionIteratorWithIndex<Mask> sourceMaskIterator(this->SourceMask, source);
+    itk::ImageRegionIteratorWithIndex<Mask> targetMaskIterator(this->TargetMask, target);
 
     unsigned int numberOfPixelsCompared = 0;
 
     while(!sourceIterator.IsAtEnd())
     {
-      if(this->MaskImage->IsValid(sourceMaskIterator.GetIndex()) &&
-         this->MaskImage->IsValid(targetMaskIterator.GetIndex()))
+      if(this->SourceMask->IsValid(sourceMaskIterator.GetIndex()) &&
+         this->TargetMask->IsValid(targetMaskIterator.GetIndex()))
       {
         numberOfPixelsCompared++;
 
@@ -341,9 +358,14 @@ void PatchMatch::SetImage(ImageType* const image)
   ITKHelpers::DeepCopy(image, this->Image.GetPointer());
 }
 
-void PatchMatch::SetMask(Mask* const mask)
+void PatchMatch::SetSourceMask(Mask* const mask)
 {
-  this->MaskImage->DeepCopyFrom(mask);
+  this->SourceMask->DeepCopyFrom(mask);
+}
+
+void PatchMatch::SetTargetMask(Mask* const mask)
+{
+  this->TargetMask->DeepCopyFrom(mask);
 }
 
 void PatchMatch::GetPatchCentersImage(PMImageType* const pmImage, itk::VectorImage<float, 2>* const output)
