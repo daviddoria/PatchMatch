@@ -78,36 +78,41 @@ void PatchMatch::Compute(PMImageType* const initialization)
           continue;
         }
         itk::Index<2> center = outputIterator.GetIndex();
+        itk::ImageRegion<2> centerRegion = ITKHelpers::GetRegionInRadiusAroundPixel(center, this->PatchRadius);
 
         itk::Index<2> leftPixel = outputIterator.GetIndex();
         leftPixel[0] += -1;
         itk::Index<2> leftMatch = ITKHelpers::GetRegionCenter(this->Output->GetPixel(leftPixel).Region);
         leftMatch[0] += 1;
 
+        itk::ImageRegion<2> leftMatchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(leftMatch, this->PatchRadius);
+        
         itk::Index<2> upPixel = outputIterator.GetIndex();
         upPixel[1] += -1;
         itk::Index<2> upMatch = ITKHelpers::GetRegionCenter(this->Output->GetPixel(upPixel).Region);
         upMatch[1] += 1;
 
+        itk::ImageRegion<2> upMatchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(upMatch, this->PatchRadius);
+        
         Match currentMatch = outputIterator.Get();
 
-        float distLeft = distance(ITKHelpers::GetRegionInRadiusAroundPixel(center, this->PatchRadius),
-                                  ITKHelpers::GetRegionInRadiusAroundPixel(leftMatch, this->PatchRadius),
+        float distLeft = distance(centerRegion,
+                                  leftMatchRegion,
                                   currentMatch.Score);
 
         if (distLeft < currentMatch.Score)
         {
-          currentMatch.Region = ITKHelpers::GetRegionInRadiusAroundPixel(leftMatch, this->PatchRadius);
+          currentMatch.Region = leftMatchRegion;
           currentMatch.Score = distLeft;
         }
 
-        float distUp = distance(ITKHelpers::GetRegionInRadiusAroundPixel(center, this->PatchRadius),
-                                ITKHelpers::GetRegionInRadiusAroundPixel(upMatch, this->PatchRadius),
+        float distUp = distance(centerRegion,
+                                upMatchRegion,
                                 currentMatch.Score);
 
         if (distUp < currentMatch.Score)
         {
-          currentMatch.Region = ITKHelpers::GetRegionInRadiusAroundPixel(upMatch, this->PatchRadius);
+          currentMatch.Region = upMatchRegion;
           currentMatch.Score = distUp;
         }
 
@@ -151,30 +156,34 @@ void PatchMatch::Compute(PMImageType* const initialization)
         itk::Index<2> rightMatch = ITKHelpers::GetRegionCenter(this->Output->GetPixel(rightPixel).Region);
         rightMatch[0] += -1;
 
+        itk::ImageRegion<2> rightMatchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(rightMatch, this->PatchRadius);
+        
         itk::Index<2> downPixel = outputIterator.GetIndex();
         downPixel[1] += 1;
         itk::Index<2> downMatch = ITKHelpers::GetRegionCenter(this->Output->GetPixel(downPixel).Region);
         downMatch[1] += -1;
 
+        itk::ImageRegion<2> downMatchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(downMatch, this->PatchRadius);
+        
         Match currentMatch = outputIterator.Get();
 
         float distRight = distance(currentRegion,
-                                   ITKHelpers::GetRegionInRadiusAroundPixel(rightMatch, this->PatchRadius),
+                                   rightMatchRegion,
                                    currentMatch.Score);
 
         if (distRight < currentMatch.Score)
         {
-          currentMatch.Region = ITKHelpers::GetRegionInRadiusAroundPixel(rightMatch, this->PatchRadius);
+          currentMatch.Region = rightMatchRegion;
           currentMatch.Score = distRight;
         }
 
         float distDown = distance(currentRegion,
-                                  ITKHelpers::GetRegionInRadiusAroundPixel(downMatch, this->PatchRadius),
+                                  downMatchRegion,
                                   currentMatch.Score);
 
         if (distDown < currentMatch.Score)
         {
-          currentMatch.Region = ITKHelpers::GetRegionInRadiusAroundPixel(downMatch, this->PatchRadius);
+          currentMatch.Region = downMatchRegion;
           currentMatch.Score = distDown;
         }
 
@@ -211,6 +220,8 @@ void PatchMatch::Compute(PMImageType* const initialization)
       }
       itk::Index<2> center = outputIterator.GetIndex();
 
+      itk::ImageRegion<2> centerRegion = ITKHelpers::GetRegionInRadiusAroundPixel(center, this->PatchRadius);
+      
       Match currentMatch = outputIterator.Get();
 
       unsigned int radius = std::max(width, height);
@@ -234,14 +245,13 @@ void PatchMatch::Compute(PMImageType* const initialization)
           continue;
         }
 
-        itk::Index<2> randomPatchCenter = ITKHelpers::GetRegionCenter(randomValidRegion);
-        float dist = distance(ITKHelpers::GetRegionInRadiusAroundPixel(center, this->PatchRadius),
-                              ITKHelpers::GetRegionInRadiusAroundPixel(randomPatchCenter, this->PatchRadius),
+        float dist = distance(centerRegion,
+                              randomValidRegion,
                               currentMatch.Score);
 
         if (dist < currentMatch.Score)
         {
-          currentMatch.Region = ITKHelpers::GetRegionInRadiusAroundPixel(randomPatchCenter, this->PatchRadius);
+          currentMatch.Region = randomValidRegion;
           currentMatch.Score = dist;
         }
 
