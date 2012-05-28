@@ -43,7 +43,7 @@ int main(int argc, char*argv[])
   bdsInpainting.SetMask(mask);
   bdsInpainting.SetResolutionLevels(4);
   bdsInpainting.SetIterations(4);
-  bdsInpainting.SetPatchRadius(7);
+  bdsInpainting.SetPatchRadius(15);
   bdsInpainting.SetPatchMatchIterations(4);
   bdsInpainting.Compute();
 

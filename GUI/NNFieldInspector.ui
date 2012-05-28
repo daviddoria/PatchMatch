@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>NNFieldInspector</class>
+ <widget class="QMainWindow" name="NNFieldInspector">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>800</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Interactive Correspondence Selection</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="0" column="0">
+     <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0,20">
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout">
+        <item>
+         <widget class="QLabel" name="label_2">
+          <property name="text">
+           <string>Left Pane</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label">
+          <property name="text">
+           <string>Right Pane</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QVBoxLayout" name="verticalLayout">
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_2">
+          <item>
+           <widget class="QVTKWidget" name="qvtkWidgetLeft"/>
+          </item>
+          <item>
+           <widget class="QVTKWidget" name="qvtkWidgetRight"/>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>800</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuLeft_Pane">
+    <property name="title">
+     <string>Left Pane</string>
+    </property>
+    <addaction name="separator"/>
+    <addaction name="actionOpenImageLeft"/>
+    <addaction name="actionFlipLeftVertically"/>
+    <addaction name="actionFlipLeftHorizontally"/>
+    <addaction name="separator"/>
+   </widget>
+   <widget class="QMenu" name="menuHelp">
+    <property name="title">
+     <string>Help</string>
+    </property>
+    <addaction name="actionHelp"/>
+   </widget>
+   <widget class="QMenu" name="menuRight_Pane">
+    <property name="title">
+     <string>Right Pane</string>
+    </property>
+    <addaction name="separator"/>
+    <addaction name="actionOpenImageRight"/>
+    <addaction name="actionFlipRightVertically"/>
+    <addaction name="actionFlipRightHorizontally"/>
+   </widget>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="actionQuit"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menuLeft_Pane"/>
+   <addaction name="menuRight_Pane"/>
+   <addaction name="menuHelp"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QToolBar" name="toolBar_left">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>LeftToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+  </widget>
+  <widget class="QToolBar" name="toolBar_right">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>RightToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+  </widget>
+  <action name="actionOpenImageLeft">
+   <property name="text">
+    <string>Open Image</string>
+   </property>
+  </action>
+  <action name="actionSavePointsLeft">
+   <property name="text">
+    <string>Save Points</string>
+   </property>
+  </action>
+  <action name="actionSavePointsRight">
+   <property name="text">
+    <string>Save Points</string>
+   </property>
+  </action>
+  <action name="actionOpenImageRight">
+   <property name="text">
+    <string>Open Image</string>
+   </property>
+  </action>
+  <action name="actionLoadPointsLeft">
+   <property name="text">
+    <string>Load Points</string>
+   </property>
+  </action>
+  <action name="actionLoadPointsRight">
+   <property name="text">
+    <string>Load Points</string>
+   </property>
+  </action>
+  <action name="actionHelp">
+   <property name="text">
+    <string>Help</string>
+   </property>
+  </action>
+  <action name="actionQuit">
+   <property name="text">
+    <string>Quit</string>
+   </property>
+  </action>
+  <action name="actionOpenPointCloudLeft">
+   <property name="text">
+    <string>Open PointCloud</string>
+   </property>
+  </action>
+  <action name="actionOpenPointCloudRight">
+   <property name="text">
+    <string>Open PointCloud</string>
+   </property>
+  </action>
+  <action name="actionFlipLeftHorizontally">
+   <property name="text">
+    <string>Flip Horizontally</string>
+   </property>
+  </action>
+  <action name="actionFlipRightVertically">
+   <property name="text">
+    <string>Flip Vertically</string>
+   </property>
+  </action>
+  <action name="actionFlipLeftVertically">
+   <property name="text">
+    <string>Flip Vertically</string>
+   </property>
+  </action>
+  <action name="actionFlipRightHorizontally">
+   <property name="text">
+    <string>Flip Horizontally</string>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QVTKWidget</class>
+   <extends>QWidget</extends>
+   <header>QVTKWidget.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

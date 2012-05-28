@@ -11,5 +11,16 @@ add_subdirectory(Mask)
 ADD_EXECUTABLE(PatchMatchDemo PatchMatchDemo.cpp PatchMatch.cpp)
 TARGET_LINK_LIBRARIES(PatchMatchDemo ${ITK_LIBRARIES} Mask)
 
-ADD_EXECUTABLE(BDSInpaintingDemo BDSInpaintingDemo.cpp BDSInpainting.cpp PatchMatch.cpp)
-TARGET_LINK_LIBRARIES(BDSInpaintingDemo ${ITK_LIBRARIES} Mask)
+add_library(BDSInpainting PatchMatch.cpp BDSInpainting.cpp)
+target_link_libraries(BDSInpainting ${ITK_LIBRARIES} Mask)
+
+ADD_EXECUTABLE(BDSInpaintingDemo BDSInpaintingDemo.cpp)
+TARGET_LINK_LIBRARIES(BDSInpaintingDemo BDSInpainting)
+
+SET(BuildGUI ON CACHE BOOL "Build GUI?" FORCE)
+
+# if(BuildGUI EQUALS ON)
+#  add_subdirectory(GUI)
+# endif(BuildGUI EQUALS ON)
+
+add_subdirectory(GUI)

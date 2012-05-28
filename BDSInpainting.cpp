@@ -193,8 +193,8 @@ void BDSInpainting::Compute(ImageType* const image, Mask* const mask, ImageType*
           itk::ImageRegion<2> bestMatchRegion = nnField->GetPixel(containingRegionCenter).Region;
           itk::Index<2> bestMatchRegionCenter = ITKHelpers::GetRegionCenter(bestMatchRegion);
 
-          std::cout << "containingRegionCenter: " << containingRegionCenter << std::endl;
-          std::cout << "bestMatchRegionCenter: " << bestMatchRegionCenter << std::endl;
+//           std::cout << "containingRegionCenter: " << containingRegionCenter << std::endl;
+//           std::cout << "bestMatchRegionCenter: " << bestMatchRegionCenter << std::endl;
           
           itk::Offset<2> offset = currentPixel - containingRegionCenter;
 
@@ -204,8 +204,8 @@ void BDSInpainting::Compute(ImageType* const image, Mask* const mask, ImageType*
               currentImage->GetPixel(correspondingPixel) / static_cast<float>(patchesContainingPixel.size());
           ImageType::PixelType newValue = updateImage->GetPixel(currentPixel) + normalizedContribution;
           updateImage->SetPixel(currentPixel, newValue);
-          std::cout << "Pixel was " << currentImage->GetPixel(currentPixel)
-                    << " and is now " << updateImage->GetPixel(currentPixel) << std::endl;
+//           std::cout << "Pixel was " << currentImage->GetPixel(currentPixel)
+//                     << " and is now " << updateImage->GetPixel(currentPixel) << std::endl;
         }
 
       } // end if is hole
