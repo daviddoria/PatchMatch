@@ -63,7 +63,16 @@ void PatchMatch::Compute(PMImageType* const initialization)
 
       while(!outputIterator.IsAtEnd())
       {
+        // Only compute the NN-field where the target mask is valid
         if(!this->TargetMask->IsValid(outputIterator.GetIndex()))
+        {
+          ++outputIterator;
+          continue;
+        }
+
+        // For inpainting, most of the NN-field will be an exact match. We don't have to search anymore
+        // once the exact match is found.
+        if(outputIterator.Get().Score == 0)
         {
           ++outputIterator;
           continue;
@@ -119,7 +128,16 @@ void PatchMatch::Compute(PMImageType* const initialization)
 
       while(!outputIterator.IsAtEnd())
       {
+        // Only compute the NN-field where the target mask is valid
         if(!this->TargetMask->IsValid(outputIterator.GetIndex()))
+        {
+          ++outputIterator;
+          continue;
+        }
+
+        // For inpainting, most of the NN-field will be an exact match. We don't have to search anymore
+        // once the exact match is found.
+        if(outputIterator.Get().Score == 0)
         {
           ++outputIterator;
           continue;
@@ -176,12 +194,20 @@ void PatchMatch::Compute(PMImageType* const initialization)
                                                                   internalRegion);
     while(!outputIterator.IsAtEnd())
     {
+      // Only compute the NN-field where the target mask is valid
       if(!this->TargetMask->IsValid(outputIterator.GetIndex()))
       {
         ++outputIterator;
         continue;
       }
 
+      // For inpainting, most of the NN-field will be an exact match. We don't have to search anymore
+      // once the exact match is found.
+      if(outputIterator.Get().Score == 0)
+      {
+        ++outputIterator;
+        continue;
+      }
       itk::Index<2> center = outputIterator.GetIndex();
 
       Match currentMatch = outputIterator.Get();
