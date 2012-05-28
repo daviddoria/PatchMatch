@@ -293,7 +293,7 @@ void PatchMatch::RandomInit()
   itk::ImageRegion<2> internalRegion =
              ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), patchRadius);
 
-  std::cout << "Initializing region: " << internalRegion << std::endl;
+  // std::cout << "Initializing region: " << internalRegion << std::endl;
   itk::ImageRegionIteratorWithIndex<PMImageType> outputIterator(this->Output, internalRegion);
 
   while(!outputIterator.IsAtEnd())

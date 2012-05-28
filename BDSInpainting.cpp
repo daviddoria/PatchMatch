@@ -123,7 +123,7 @@ void BDSInpainting::Compute()
 
     std::stringstream ssPNG;
     ssPNG << "Iteration_" << Helpers::ZeroPad(iteration, 2) << ".png";
-    ITKHelpers::WriteImage(currentImage.GetPointer(), ssPNG.str());
+    ITKHelpers::WriteRGBImage(currentImage.GetPointer(), ssPNG.str());
   } // end iterations loop
 
   std::cout << std::endl;
