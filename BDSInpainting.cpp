@@ -26,44 +26,48 @@ void BDSInpainting::Compute()
 
   //unsigned int patchDiameter = this->PatchRadius * 2 + 1;
 
-  Mask::Pointer currentMask = Mask::New();
-  ITKHelpers::DeepCopy(this->MaskImage.GetPointer(), currentMask.GetPointer());
+  Mask::Pointer level0mask = Mask::New();
+  ITKHelpers::DeepCopy(this->MaskImage.GetPointer(), level0mask.GetPointer());
 
-  ImageType::Pointer currentImage = ImageType::New();
-  ITKHelpers::DeepCopy(this->Image.GetPointer(), currentImage.GetPointer());
+  ImageType::Pointer level0Image = ImageType::New();
+  ITKHelpers::DeepCopy(this->Image.GetPointer(), level0Image.GetPointer());
 
-  std::vector<ImageType::Pointer> imageLevels(this->ResolutionLevels, ImageType::New());
-  std::vector<Mask::Pointer> maskLevels(this->ResolutionLevels, Mask::New());
+  // Cannot do this! The same image is added as each element of the vector.
+  // This is std::vector behavior, nothing to do with ITK.
+  // std::vector<ImageType::Pointer> imageLevels(this->ResolutionLevels, ImageType::New());
+  std::vector<ImageType::Pointer> imageLevels(this->ResolutionLevels);
+  std::vector<Mask::Pointer> maskLevels(this->ResolutionLevels);
 
-  ITKHelpers::DeepCopy(this->Image.GetPointer(), imageLevels[0].GetPointer());
-  ITKHelpers::DeepCopy(this->MaskImage.GetPointer(), maskLevels[0].GetPointer());
+  imageLevels[0] = level0Image;
+  maskLevels[0] = level0mask;
   
   for(unsigned int level = 1; level < this->ResolutionLevels; ++level)
   {
     ImageType::Pointer currentImageLevel = ImageType::New();
-    imageLevels.push_back(currentImageLevel);
-    ITKHelpers::Downsample(this->Image.GetPointer(), pow(level, 2), currentImageLevel.GetPointer());
+    imageLevels[level] = currentImageLevel;
+    ITKHelpers::Downsample(this->Image.GetPointer(), pow(2, level), currentImageLevel.GetPointer());
     ITKHelpers::DeepCopy(currentImageLevel.GetPointer(), imageLevels[level].GetPointer());
 
+    Mask::Pointer currentMaskLevel = Mask::New();
+    maskLevels[level] = currentMaskLevel;
+    ITKHelpers::Downsample(this->MaskImage.GetPointer(), pow(2, level), currentMaskLevel.GetPointer());
+    ITKHelpers::DeepCopy(currentMaskLevel.GetPointer(), maskLevels[level].GetPointer());
+  }
+
+  for(unsigned int level = 0; level < this->ResolutionLevels; ++level)
+  {
     std::cout << "Level " << level << " resolution "
               << imageLevels[level]->GetLargestPossibleRegion().GetSize() << std::endl;
-    
+
     std::stringstream ss;
     ss << "Input_Level_" << level << ".png";
     ITKHelpers::WriteRGBImage(imageLevels[level].GetPointer(), ss.str());
-    
-    Mask::Pointer currentMaskLevel = Mask::New();
-    maskLevels.push_back(currentMaskLevel);
-    ITKHelpers::Downsample(this->MaskImage.GetPointer(), pow(level, 2), currentMaskLevel.GetPointer());
-    ITKHelpers::DeepCopy(currentMaskLevel.GetPointer(), maskLevels[level].GetPointer());
   }
-  
-  //while(currentSize[0] > patchDiameter && currentSize[1] > patchDiameter)
 
   for(unsigned int level = this->ResolutionLevels - 1; level >= 0; --level)
   {
     std::cout << "BDS level " << level << " (resolution "
-              << imageLevels[level]->GetLargestPossibleRegion().GetSize() << std::endl;
+              << imageLevels[level]->GetLargestPossibleRegion().GetSize() << ")" << std::endl;
     ImageType::Pointer output = ImageType::New();
     Compute(imageLevels[level].GetPointer(), maskLevels[level].GetPointer(), output);
 
@@ -80,11 +84,16 @@ void BDSInpainting::Compute()
     // Upsample result and copy it to the next level. A factor of 2 goes up one level.
     ImageType::Pointer upsampled = ImageType::New();
     ITKHelpers::Upsample(output.GetPointer(), 2, upsampled.GetPointer());
+    std::cout << "Upsampled from " << output->GetLargestPossibleRegion().GetSize() << " to "
+              << upsampled->GetLargestPossibleRegion().GetSize() << std::endl;
+
+    std::cout << "Upsampled size: " << upsampled->GetLargestPossibleRegion().GetSize() << std::endl;
+    std::cout << "Next level size: " << imageLevels[level - 1]->GetLargestPossibleRegion().GetSize() << std::endl;
 
     // Only keep the computed pixels in the hole - the rest of the pixels are simply from one level up.
     MaskOperations::CopyInHoleRegion(upsampled.GetPointer(),
                                      imageLevels[level - 1].GetPointer(),
-                                     maskLevels[level-1].GetPointer());
+                                     maskLevels[level - 1].GetPointer());
 
     std::stringstream ssUpdated;
     ssUpdated << "UpdatedInput_Level_" << level << ".png";
@@ -116,6 +125,8 @@ void BDSInpainting::Compute(ImageType* const image, Mask* const mask, ImageType*
   zeroPixel.Fill(0.0f);
 
   itk::ImageRegion<2> fullRegion = image->GetLargestPossibleRegion();
+
+  std::cout << "Computing BDS on resolution " << fullRegion.GetSize() << std::endl;
 
   for(unsigned int iteration = 0; iteration < this->Iterations; ++iteration)
   {
