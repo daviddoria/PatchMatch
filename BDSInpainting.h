@@ -16,9 +16,11 @@ public:
 
   typedef itk::Image<itk::CovariantVector<float, 3>, 2> ImageType;
 
+  /** The main driver. */
   void Compute();
 
-  void Compute(ImageType* const image, Mask* const mask, const unsigned int patchRadius);
+  /** This function does the actual work, and is called from Compute() at multiple resolutions. */
+  void Compute(ImageType* const image, Mask* const mask, ImageType* const output);
 
   ImageType* GetOutput();
 
@@ -26,14 +28,20 @@ public:
 
   void SetPatchRadius(const unsigned int patchRadius);
 
+  void SetResolutionLevels(const unsigned int resolutionLevels);
+
+  void SetPatchMatchIterations(const unsigned int patchMatchIterations);
+  
   void SetImage(ImageType* const image);
 
   void SetMask(Mask* const mask);
 
 private:
 
+  unsigned int ResolutionLevels;
   unsigned int Iterations;
   unsigned int PatchRadius;
+  unsigned int PatchMatchIterations;
 
   ImageType::Pointer Output;
 

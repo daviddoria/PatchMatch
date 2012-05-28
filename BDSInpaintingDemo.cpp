@@ -6,6 +6,7 @@
 #include "itkCovariantVector.h"
 
 #include "Mask/Mask.h"
+#include "Mask/ITKHelpers/ITKHelpers.h"
 
 #include "BDSInpainting.h"
 
@@ -40,15 +41,13 @@ int main(int argc, char*argv[])
   BDSInpainting bdsInpainting;
   bdsInpainting.SetImage(imageReader->GetOutput());
   bdsInpainting.SetMask(mask);
+  bdsInpainting.SetResolutionLevels(4);
   bdsInpainting.SetIterations(10);
   bdsInpainting.SetPatchRadius(7);
+  bdsInpainting.SetPatchMatchIterations(4);
   bdsInpainting.Compute();
 
-  typedef itk::ImageFileWriter<ImageType> WriterType;
-  WriterType::Pointer writer = WriterType::New();
-  writer->SetFileName(outputFilename);
-  writer->SetInput(bdsInpainting.GetOutput());
-  writer->Update();
+  ITKHelpers::WriteRGBImage(bdsInpainting.GetOutput(), outputFilename);
 
   return EXIT_SUCCESS;
 }
