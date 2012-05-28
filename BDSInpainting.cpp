@@ -26,49 +26,56 @@ void BDSInpainting::Compute()
 //   Image image(imageIn.width, imageIn.height, 1, imageIn.channels);
 //   image.CopyData(Inpaint::apply(imageIn, mask));
 
-
-  unsigned int width = Image->GetLargestPossibleRegion().GetSize()[0];
-  unsigned int height = Image->GetLargestPossibleRegion().GetSize()[1];
-
   // Convert patch diameter to patch radius
   int patchRadius = this->PatchDiameter / 2;
 
   // Initialize the output with the input
   ITKHelpers::DeepCopy(this->Image.GetPointer(), this->Output.GetPointer());
 
+  // Initialize the image to operate on
+  ImageType::Pointer currentImage = ImageType::New();
+  ITKHelpers::DeepCopy(this->Image.GetPointer(), currentImage.GetPointer());
+
   ImageType::PixelType zeroPixel;
   zeroPixel.Fill(0.0f);
 
-  for(unsigned int i = 0; i < this->Iterations; ++i)
+  itk::ImageRegion<2> fullRegion = this->Image->GetLargestPossibleRegion();
+  
+  for(unsigned int iteration = 0; iteration < this->Iterations; ++iteration)
   {
-    std::cout << "BDSInpainting Iteration " << i << std::endl;
+    std::cout << "BDSInpainting Iteration " << iteration << std::endl;
 
     PatchMatch patchMatch;
-    patchMatch.SetImage(this->Image);
+    patchMatch.SetImage(currentImage);
     patchMatch.SetMask(this->MaskImage);
     patchMatch.SetIterations(5);
     patchMatch.SetPatchDiameter(this->PatchDiameter);
+    if(iteration == 0)
+    {
+      patchMatch.Compute(NULL);
+    }
+    else
+    {
+      patchMatch.Compute(NULL); // For now don't initialize with the previous NN field - though this might work and be a huge speed up.
+      //patchMatch.Compute(init);
+    }
 
-    patchMatch.Compute(NULL);
+    PatchMatch::PMImageType* nnField = patchMatch.GetOutput();
 
     // The contribution of each pixel q to the error term (d_cohere) = 1/N_T \sum_{i=1}^m (S(p_i) - T(q))^2
     // To find the best color T(q) (iterative update rule), differentiate with respect to T(q),
     // set to 0, and solve for T(q):
     // T(q) = \frac{1}{m} \sum_{i=1}^m S(p_i)
 
-    ImageType::Pointer UpdateImage = ImageType::New(); // We don't want to change pixels directly on the
+    ImageType::Pointer updateImage = ImageType::New(); // We don't want to change pixels directly on the
     // output image during the iteration, but rather compute them all and then update them all simultaneously.
-    ITKHelpers::DeepCopy(this->Image.GetPointer(), UpdateImage.GetPointer());
-
-    ImageType::Pointer CurrentImage = ImageType::New();
-    ITKHelpers::DeepCopy(this->Image.GetPointer(), CurrentImage.GetPointer());
+    ITKHelpers::DeepCopy(currentImage.GetPointer(), updateImage.GetPointer());
 
     // Loop over the whole image (patch centers)
-    unsigned int numberOfPixelsFilled = 0;
     itk::ImageRegion<2> internalRegion =
-             ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), patchRadius);
+             ITKHelpers::GetInternalRegion(fullRegion, patchRadius);
 
-    itk::ImageRegionIteratorWithIndex<ImageType> imageIterator(UpdateImage,
+    itk::ImageRegionIteratorWithIndex<ImageType> imageIterator(updateImage,
                                                                internalRegion);
 
     while(!imageIterator.IsAtEnd())
@@ -77,36 +84,48 @@ void BDSInpainting::Compute()
       if(this->MaskImage->IsHole(currentPixel)) // We have come across a pixel to be filled
       {
         // Zero the pixel - it will be additively updated
-        UpdateImage->SetPixel(currentPixel, zeroPixel);
+        updateImage->SetPixel(currentPixel, zeroPixel);
 
-        numberOfPixelsFilled++;
+        itk::ImageRegion<2> currentRegion = ITKHelpers::GetRegionInRadiusAroundPixel(currentPixel, patchRadius);
 
         std::vector<itk::ImageRegion<2> > patchesContainingPixel =
               ITKHelpers::GetAllPatchesContainingPixel(currentPixel,
                                                        patchRadius,
-                                                       this->Image->GetLargestPossibleRegion());
+                                                       fullRegion);
 
-        unsigned int numberOfContributingPatches = patchesContainingPixel.size();
-        // (matchX, matchY) is the center of the best matching patch to the patch centered at (x+dx, y+dy)
-//         int matchX = static_cast<int>(patchMatch(x+dx,y+dy)[0]);
-//         int matchY = static_cast<int>(patchMatch(x+dx,y+dy)[1]);
+        for(unsigned int containingPatchId = 0;
+            containingPatchId < patchesContainingPixel.size(); ++containingPatchId)
+        {
+          itk::Index<2> containingRegionCenter =
+                      ITKHelpers::GetRegionCenter(patchesContainingPixel[containingPatchId]);
+          itk::ImageRegion<2> bestMatchRegion = nnField->GetPixel(containingRegionCenter).Region;
+          itk::Index<2> bestMatchRegionCenter = ITKHelpers::GetRegionCenter(bestMatchRegion);
 
+          itk::Offset<2> offset = currentPixel - containingRegionCenter;
 
-      } // end if (!targetMask || targMaskPtr[0] > 0)
+          itk::Index<2> correspondingPixel = bestMatchRegionCenter + offset;
+
+          ImageType::PixelType normalizedContribution =
+              currentImage->GetPixel(correspondingPixel) / static_cast<float>(patchesContainingPixel.size());
+          ImageType::PixelType newValue = updateImage->GetPixel(currentPixel) + normalizedContribution;
+          updateImage->SetPixel(currentPixel, newValue);
+        }
+
+      } // end if is hole
 
       ++imageIterator;
-    } // end iterator loop
+    } // end loop over image
 
-    MaskOperations::CopyInHoleRegion(UpdateImage.GetPointer(), CurrentImage.GetPointer(), this->MaskImage);
+    MaskOperations::CopyInHoleRegion(updateImage.GetPointer(), currentImage.GetPointer(), this->MaskImage);
 
-    std::stringstream ssMeta;
-    ssMeta << "Iteration_" << i << ".mha";
+//     std::stringstream ssMeta;
+//     ssMeta << "Iteration_" << iteration << ".mha";
 
     std::stringstream ssPNG;
-    ssPNG << "Iteration_" << Helpers::ZeroPad(i, 2) << ".png";
-
-    std::cout << "numberOfPixelsFilled: " << numberOfPixelsFilled << std::endl;
+    ssPNG << "Iteration_" << Helpers::ZeroPad(iteration, 2) << ".png";
+    ITKHelpers::WriteImage(currentImage.GetPointer(), ssPNG.str());
   } // end iterations loop
+
   std::cout << std::endl;
 }
 
