@@ -2,6 +2,7 @@
 
 // Submodules
 #include "Mask/ITKHelpers/ITKHelpers.h"
+#include "Mask/MaskOperations.h"
 
 // ITK
 #include "itkImageRegionReverseIterator.h"
@@ -20,6 +21,7 @@ PatchMatch::PatchMatch()
 void PatchMatch::Compute(PMImageType* const initialization)
 {
   srand(time(NULL));
+
 
   if(initialization)
   {
@@ -50,6 +52,7 @@ void PatchMatch::Compute(PMImageType* const initialization)
     // PROPAGATION
     if (forwardSearch)
     {
+      std::cout << "Forward propagation..." << std::endl;
       itk::ImageRegion<2> internalRegion =
              ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
       // Iterate over patch centers
@@ -115,6 +118,7 @@ void PatchMatch::Compute(PMImageType* const initialization)
     } // end if (forwardSearch)
     else
     {
+      std::cout << "Backward propagation..." << std::endl;
       // Iterate over patch centers in reverse
       itk::ImageRegion<2> internalRegion =
              ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
@@ -183,7 +187,7 @@ void PatchMatch::Compute(PMImageType* const initialization)
     forwardSearch = !forwardSearch;
 
     // RANDOM SEARCH - try a random region in smaller windows around the current best patch.
-
+    std::cout << "Random search..." << std::endl;
     // Iterate over patch centers
     itk::ImageRegion<2> internalRegion =
              ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
@@ -209,30 +213,35 @@ void PatchMatch::Compute(PMImageType* const initialization)
 
       Match currentMatch = outputIterator.Get();
 
-      int radius = std::max(width, height);
+      unsigned int radius = std::max(width, height);
 
       // Search an exponentially smaller window each time through the loop
       itk::Index<2> searchRegionCenter = ITKHelpers::GetRegionCenter(outputIterator.Get().Region);
 
-      while (radius > 8)
+      while (radius > this->PatchRadius * 2) // the *2 is arbitrary, just want a small-ish region
       {
         itk::ImageRegion<2> searchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(searchRegionCenter, radius);
         searchRegion.Crop(this->Image->GetLargestPossibleRegion());
 
-        int randX = Helpers::RandomInt(searchRegion.GetIndex()[0],
-                                       searchRegion.GetIndex()[0] + searchRegion.GetSize()[0]);
+        itk::ImageRegion<2> randomValidRegion =
+                 MaskOperations::GetRandomValidPatchInRegion(this->SourceMask.GetPointer(),
+                                                             searchRegion, this->PatchRadius);
 
-        int randY = Helpers::RandomInt(searchRegion.GetIndex()[1],
-                                       searchRegion.GetIndex()[1] + searchRegion.GetSize()[1]);
+        // If no suitable region is found, move on
+        if(randomValidRegion.GetSize()[0] == 0)
+        {
+          radius /= 2;
+          continue;
+        }
 
-        itk::Index<2> randomIndex = {{randX, randY}};
+        itk::Index<2> randomPatchCenter = ITKHelpers::GetRegionCenter(randomValidRegion);
         float dist = distance(ITKHelpers::GetRegionInRadiusAroundPixel(center, this->PatchRadius),
-                              ITKHelpers::GetRegionInRadiusAroundPixel(randomIndex, this->PatchRadius),
+                              ITKHelpers::GetRegionInRadiusAroundPixel(randomPatchCenter, this->PatchRadius),
                               currentMatch.Score);
 
         if (dist < currentMatch.Score)
         {
-          currentMatch.Region = ITKHelpers::GetRegionInRadiusAroundPixel(randomIndex, this->PatchRadius);
+          currentMatch.Region = ITKHelpers::GetRegionInRadiusAroundPixel(randomPatchCenter, this->PatchRadius);
           currentMatch.Score = dist;
         }
 
@@ -315,8 +324,11 @@ float PatchMatch::distance(const itk::ImageRegion<2>& source,
 
 void PatchMatch::RandomInit()
 {
-  unsigned int width = this->Output->GetLargestPossibleRegion().GetSize()[0];
-  unsigned int height = this->Output->GetLargestPossibleRegion().GetSize()[1];
+  std::vector<itk::ImageRegion<2> > ValidSourceRegions =
+        MaskOperations::GetAllFullyValidRegions(this->SourceMask, this->PatchRadius);
+
+//   unsigned int width = this->Output->GetLargestPossibleRegion().GetSize()[0];
+//   unsigned int height = this->Output->GetLargestPossibleRegion().GetSize()[1];
 
   // Create a zero region
   itk::Index<2> zeroIndex = {{0,0}};
@@ -340,13 +352,9 @@ void PatchMatch::RandomInit()
     itk::Index<2> currentIndex = outputIterator.GetIndex();
     itk::ImageRegion<2> currentRegion = ITKHelpers::GetRegionInRadiusAroundPixel(currentIndex, this->PatchRadius);
 
-    // Construct a random region
-    int randX = Helpers::RandomInt(this->PatchRadius, width - this->PatchRadius - 1);
-    int randY = Helpers::RandomInt(this->PatchRadius, height - this->PatchRadius - 1);
+    itk::ImageRegion<2> randomRegion = ValidSourceRegions[Helpers::RandomInt(0, ValidSourceRegions.size() - 1)];
 
     Match randomMatch;
-    itk::Index<2> randomIndex = {{randX, randY}};
-    itk::ImageRegion<2> randomRegion = ITKHelpers::GetRegionInRadiusAroundPixel(randomIndex, this->PatchRadius);
     randomMatch.Region = randomRegion;
     randomMatch.Score = distance(currentRegion, randomRegion, std::numeric_limits<float>::max());
     outputIterator.Set(randomMatch);

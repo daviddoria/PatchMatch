@@ -19,7 +19,7 @@ class PatchMatch
 public:
 
   PatchMatch();
-  
+
   typedef itk::Image<Match, 2> PMImageType;
 
   typedef itk::Image<itk::CovariantVector<float, 3>, 2> ImageType;
@@ -48,7 +48,7 @@ private:
                  const float prevDist);
 
   void RandomInit();
-
+  
   unsigned int Iterations;
   unsigned int PatchRadius;
 

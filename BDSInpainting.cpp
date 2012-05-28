@@ -97,7 +97,7 @@ void BDSInpainting::Compute()
                                      maskLevels[level - 1].GetPointer());
 
     std::stringstream ssUpdated;
-    ssUpdated << "UpdatedInput_Level_" << level << ".png";
+    ssUpdated << "UpdatedInput_Level_" << level - 1 << ".png";
     ITKHelpers::WriteRGBImage(imageLevels[level - 1].GetPointer(), ssUpdated.str());
   }
 
@@ -193,6 +193,9 @@ void BDSInpainting::Compute(ImageType* const image, Mask* const mask, ImageType*
           itk::ImageRegion<2> bestMatchRegion = nnField->GetPixel(containingRegionCenter).Region;
           itk::Index<2> bestMatchRegionCenter = ITKHelpers::GetRegionCenter(bestMatchRegion);
 
+          std::cout << "containingRegionCenter: " << containingRegionCenter << std::endl;
+          std::cout << "bestMatchRegionCenter: " << bestMatchRegionCenter << std::endl;
+          
           itk::Offset<2> offset = currentPixel - containingRegionCenter;
 
           itk::Index<2> correspondingPixel = bestMatchRegionCenter + offset;
@@ -201,6 +204,8 @@ void BDSInpainting::Compute(ImageType* const image, Mask* const mask, ImageType*
               currentImage->GetPixel(correspondingPixel) / static_cast<float>(patchesContainingPixel.size());
           ImageType::PixelType newValue = updateImage->GetPixel(currentPixel) + normalizedContribution;
           updateImage->SetPixel(currentPixel, newValue);
+          std::cout << "Pixel was " << currentImage->GetPixel(currentPixel)
+                    << " and is now " << updateImage->GetPixel(currentPixel) << std::endl;
         }
 
       } // end if is hole
