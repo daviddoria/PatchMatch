@@ -20,6 +20,12 @@ BDSInpainting::BDSInpainting()
   this->MaskImage = Mask::New();
 }
 
+
+void BDSInpainting::Compute(ImageType* const image, Mask* const mask, const unsigned int patchRadius)
+{
+
+}
+
 void BDSInpainting::Compute()
 {
   // Smoothly fill the hole
@@ -30,9 +36,6 @@ void BDSInpainting::Compute()
   targetMask->SetRegions(this->MaskImage->GetLargestPossibleRegion());
   targetMask->Allocate();
   ITKHelpers::SetImageToConstant(targetMask.GetPointer(), targetMask->GetValidValue());
-  
-  // Convert patch diameter to patch radius
-  int patchRadius = this->PatchDiameter / 2;
 
   // Initialize the output with the input
   ITKHelpers::DeepCopy(this->Image.GetPointer(), this->Output.GetPointer());
@@ -55,7 +58,7 @@ void BDSInpainting::Compute()
     patchMatch.SetSourceMask(this->MaskImage);
     patchMatch.SetTargetMask(targetMask);
     patchMatch.SetIterations(5);
-    patchMatch.SetPatchDiameter(this->PatchDiameter);
+    patchMatch.SetPatchRadius(this->PatchRadius);
     if(iteration == 0)
     {
       patchMatch.Compute(NULL);
@@ -79,7 +82,7 @@ void BDSInpainting::Compute()
 
     // Loop over the whole image (patch centers)
     itk::ImageRegion<2> internalRegion =
-             ITKHelpers::GetInternalRegion(fullRegion, patchRadius);
+             ITKHelpers::GetInternalRegion(fullRegion, this->PatchRadius);
 
     itk::ImageRegionIteratorWithIndex<ImageType> imageIterator(updateImage,
                                                                internalRegion);
@@ -92,11 +95,12 @@ void BDSInpainting::Compute()
         // Zero the pixel - it will be additively updated
         updateImage->SetPixel(currentPixel, zeroPixel);
 
-        itk::ImageRegion<2> currentRegion = ITKHelpers::GetRegionInRadiusAroundPixel(currentPixel, patchRadius);
+        itk::ImageRegion<2> currentRegion =
+             ITKHelpers::GetRegionInRadiusAroundPixel(currentPixel, this->PatchRadius);
 
         std::vector<itk::ImageRegion<2> > patchesContainingPixel =
               ITKHelpers::GetAllPatchesContainingPixel(currentPixel,
-                                                       patchRadius,
+                                                       this->PatchRadius,
                                                        fullRegion);
 
         for(unsigned int containingPatchId = 0;
@@ -146,11 +150,9 @@ void BDSInpainting::SetIterations(const unsigned int iterations)
   this->Iterations = iterations;
 }
 
-void BDSInpainting::SetPatchDiameter(const unsigned int patchDiameter)
+void BDSInpainting::SetPatchRadius(const unsigned int patchRadius)
 {
-  assert(patchDiameter >= 3 && (patchDiameter & 1)); // patchDiameter must be at least 3 and odd
-
-  this->PatchDiameter = patchDiameter;
+  this->PatchRadius = patchRadius;
 }
 
 void BDSInpainting::SetImage(ImageType* const image)

@@ -48,7 +48,7 @@ int main(int argc, char*argv[])
   patchMatch.SetTargetMask(targetMask);
   patchMatch.SetSourceMask(sourceMask);
   patchMatch.SetIterations(10);
-  patchMatch.SetPatchDiameter(15);
+  patchMatch.SetPatchRadius(7);
 
   patchMatch.Compute(NULL);
 

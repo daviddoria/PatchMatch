@@ -41,7 +41,7 @@ int main(int argc, char*argv[])
   bdsInpainting.SetImage(imageReader->GetOutput());
   bdsInpainting.SetMask(mask);
   bdsInpainting.SetIterations(10);
-  bdsInpainting.SetPatchDiameter(15);
+  bdsInpainting.SetPatchRadius(7);
   bdsInpainting.Compute();
 
   typedef itk::ImageFileWriter<ImageType> WriterType;

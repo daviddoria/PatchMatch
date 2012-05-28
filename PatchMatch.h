@@ -31,7 +31,7 @@ public:
 
   void SetIterations(const unsigned int iterations);
 
-  void SetPatchDiameter(const unsigned int patchDiameter);
+  void SetPatchRadius(const unsigned int patchRadius);
 
   void SetImage(ImageType* const image);
 
@@ -50,7 +50,7 @@ private:
   void RandomInit();
 
   unsigned int Iterations;
-  unsigned int PatchDiameter;
+  unsigned int PatchRadius;
 
   PMImageType::Pointer Output;
 

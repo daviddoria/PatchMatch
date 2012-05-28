@@ -18,11 +18,13 @@ public:
 
   void Compute();
 
+  void Compute(ImageType* const image, Mask* const mask, const unsigned int patchRadius);
+
   ImageType* GetOutput();
 
   void SetIterations(const unsigned int iterations);
 
-  void SetPatchDiameter(const unsigned int patchDiameter);
+  void SetPatchRadius(const unsigned int patchRadius);
 
   void SetImage(ImageType* const image);
 
@@ -31,7 +33,7 @@ public:
 private:
 
   unsigned int Iterations;
-  unsigned int PatchDiameter;
+  unsigned int PatchRadius;
 
   ImageType::Pointer Output;
 
