@@ -267,50 +267,44 @@ float PatchMatch::distance(const itk::ImageRegion<2>& source,
                            const itk::ImageRegion<2>& target,
                            const float prevDist)
 {
-    // Do not use patches on boundaries
-    if(!this->Output->GetLargestPossibleRegion().IsInside(source) ||
-       !this->Output->GetLargestPossibleRegion().IsInside(target))
+  assert(this->SourceMask->IsValid(source));
+
+  // Do not use patches on boundaries
+  if(!this->Output->GetLargestPossibleRegion().IsInside(source) ||
+      !this->Output->GetLargestPossibleRegion().IsInside(target))
+  {
+    return std::numeric_limits<float>::max();
+  }
+
+  // Compute distance between patches
+  // Average L2 distance in RGB space
+  float distance = 0.0f;
+
+  itk::ImageRegionIteratorWithIndex<ImageType> sourceIterator(this->Image, source);
+  itk::ImageRegionIteratorWithIndex<ImageType> targetIterator(this->Image, target);
+
+  unsigned int numberOfPixelsCompared = 0;
+
+  while(!sourceIterator.IsAtEnd())
+  {
+    numberOfPixelsCompared++;
+
+    ImageType::PixelType sourcePixel = sourceIterator.Get();
+    ImageType::PixelType targetPixel = targetIterator.Get();
+
+    distance += sqrt( (sourcePixel[0] - targetPixel[0]) * (sourcePixel[0] - targetPixel[0]) +
+                      (sourcePixel[1] - targetPixel[1]) * (sourcePixel[1] - targetPixel[1]) +
+                      (sourcePixel[2] - targetPixel[2]) * (sourcePixel[2] - targetPixel[2]));
+
+    // Early termination
+    if(distance / static_cast<float>(numberOfPixelsCompared) > prevDist)
     {
       return std::numeric_limits<float>::max();
     }
 
-    // Compute distance between patches
-    // Average L2 distance in RGB space
-    float distance = 0.0f;
-
-    itk::ImageRegionIteratorWithIndex<ImageType> sourceIterator(this->Image, source);
-    itk::ImageRegionIteratorWithIndex<ImageType> targetIterator(this->Image, target);
-    itk::ImageRegionIteratorWithIndex<Mask> sourceMaskIterator(this->SourceMask, source);
-    itk::ImageRegionIteratorWithIndex<Mask> targetMaskIterator(this->TargetMask, target);
-
-    unsigned int numberOfPixelsCompared = 0;
-
-    while(!sourceIterator.IsAtEnd())
-    {
-      if(this->SourceMask->IsValid(sourceMaskIterator.GetIndex()) &&
-         this->TargetMask->IsValid(targetMaskIterator.GetIndex()))
-      {
-        numberOfPixelsCompared++;
-
-        ImageType::PixelType sourcePixel = sourceIterator.Get();
-        ImageType::PixelType targetPixel = targetIterator.Get();
-
-        distance += sqrt( (sourcePixel[0] - targetPixel[0]) * (sourcePixel[0] - targetPixel[0]) +
-                          (sourcePixel[1] - targetPixel[1]) * (sourcePixel[1] - targetPixel[1]) +
-                          (sourcePixel[2] - targetPixel[2]) * (sourcePixel[2] - targetPixel[2]));
-
-        // Early termination
-        if(distance / static_cast<float>(numberOfPixelsCompared) > prevDist)
-        {
-          return std::numeric_limits<float>::max();
-        }
-
-      }
     ++sourceIterator;
     ++targetIterator;
-    ++sourceMaskIterator;
-    ++targetMaskIterator;
-    }
+  }
 
   if(numberOfPixelsCompared == 0)
   {
