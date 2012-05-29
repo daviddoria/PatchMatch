@@ -214,21 +214,25 @@ void BDSInpainting::Compute(ImageType* const image, Mask* const mask, ImageType*
         // ImageType::PixelType newValue = ITKStatistics::Average(contributingPixels);
 
         // Average weighted by patch scores
-        ImageType::PixelType newValue;
-        newValue.Fill(0);
+//         ImageType::PixelType newValue;
+//         newValue.Fill(0);
+// 
+//         //float scoreSum = Helpers::Sum(contributingScores.begin(), contributingScores.end());
+//         float maxScore = *(std::min_element(contributingScores.begin(), contributingScores.end()));
+//         float weightSum = 0.0f;
+//         for(unsigned int i = 0; i < contributingScores.size(); ++i)
+//         {
+//           //float weight = (scoreSum - contributingScores[i]);
+//           float weight = (maxScore - contributingScores[i]);
+//           weightSum += weight;
+//           newValue += weight * contributingPixels[i];
+//         }
+// 
+//         newValue /= weightSum;
 
-        //float scoreSum = Helpers::Sum(contributingScores.begin(), contributingScores.end());
-        float maxScore = *(std::min_element(contributingScores.begin(), contributingScores.end()));
-        float weightSum = 0.0f;
-        for(unsigned int i = 0; i < contributingScores.size(); ++i)
-        {
-          //float weight = (scoreSum - contributingScores[i]);
-          float weight = (maxScore - contributingScores[i]);
-          weightSum += weight;
-          newValue += weight * contributingPixels[i];
-        }
-
-        newValue /= weightSum;
+        // Take the pixel from the best matching patch
+        unsigned int patchId = Helpers::argmin(contributingScores);
+        ImageType::PixelType newValue = contributingPixels[patchId];
 
         updateImage->SetPixel(currentPixel, newValue);
 
