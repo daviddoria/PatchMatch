@@ -22,10 +22,6 @@ BDSInpainting::BDSInpainting() : ResolutionLevels(3), Iterations(5), PatchRadius
 
 void BDSInpainting::Compute()
 {
-  //itk::Size<2> currentSize = this->Image->GetLargestPossibleRegion().GetSize();
-
-  //unsigned int patchDiameter = this->PatchRadius * 2 + 1;
-
   Mask::Pointer level0mask = Mask::New();
   level0mask->DeepCopyFrom(this->MaskImage.GetPointer());
 
@@ -75,7 +71,7 @@ void BDSInpainting::Compute()
     std::stringstream ss;
     ss << "Output_Level_" << level << ".png";
     ITKHelpers::WriteRGBImage(output.GetPointer(), ss.str());
-    
+
     if(level == 0)
     {
       ITKHelpers::DeepCopy(output.GetPointer(), this->Output.GetPointer());
@@ -209,39 +205,28 @@ void BDSInpainting::Compute(ImageType* const image, Mask* const mask, ImageType*
 
           contributingPixels[containingPatchId] = currentImage->GetPixel(correspondingPixel);
           contributingScores[containingPatchId] = bestMatch.Score;
-//           ImageType::PixelType normalizedContribution =
-//               currentImage->GetPixel(correspondingPixel) / static_cast<float>(patchesContainingPixel.size());
-//           ImageType::PixelType newValue = updateImage->GetPixel(currentPixel) + normalizedContribution;
-//           updateImage->SetPixel(currentPixel, newValue);
-          
-//           std::cout << "Pixel was " << currentImage->GetPixel(currentPixel)
-//                     << " and is now " << updateImage->GetPixel(currentPixel) << std::endl;
+
         } // end loop over containing patches
 
         // Compute new pixel value
-        ImageType::PixelType newValue;
-        newValue.Fill(0);
-        for(unsigned int i = 0; i < contributingPixels.size(); ++i)
-        {
-          newValue += contributingPixels[i];
-        }
-        newValue /= static_cast<float>(contributingPixels.size());
+
+        // Average
+        ImageType::PixelType newValue = ITKStatistics::Average(contributingPixels);
 
         updateImage->SetPixel(currentPixel, newValue);
+
+//         std::cout << "Pixel was " << currentImage->GetPixel(currentPixel)
+//                   << " and is now " << updateImage->GetPixel(currentPixel) << std::endl;
       } // end if is hole
 
       ++imageIterator;
     } // end loop over image
-ITKHelpers::WriteRGBImage(currentImage.GetPointer(), "BeforeCopyInHole.png");
-ITKHelpers::WriteImage(mask, "mask.png");
-    MaskOperations::CopyInHoleRegion(updateImage.GetPointer(), currentImage.GetPointer(), mask);
-ITKHelpers::WriteRGBImage(currentImage.GetPointer(), "AfterCopyInHole.png");
-//     std::stringstream ssMeta;
-//     ssMeta << "Iteration_" << iteration << ".mha";
 
-//     std::stringstream ssPNG;
-//     ssPNG << "Iteration_" << Helpers::ZeroPad(iteration, 2) << ".png";
-//     ITKHelpers::WriteRGBImage(currentImage.GetPointer(), ssPNG.str());
+    MaskOperations::CopyInHoleRegion(updateImage.GetPointer(), currentImage.GetPointer(), mask);
+
+    std::stringstream ssPNG;
+    ssPNG << "BDS_Iteration_" << Helpers::ZeroPad(iteration, 2) << ".png";
+    ITKHelpers::WriteRGBImage(currentImage.GetPointer(), ssPNG.str());
   } // end iterations loop
 
   ITKHelpers::DeepCopy(currentImage.GetPointer(), output);
