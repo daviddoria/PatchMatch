@@ -376,6 +376,11 @@ void PatchMatch::RandomInit()
   std::vector<itk::ImageRegion<2> > ValidSourceRegions =
         MaskOperations::GetAllFullyValidRegions(this->SourceMask, internalRegion, this->PatchRadius);
 
+  if(ValidSourceRegions.size() == 0)
+  {
+    throw std::runtime_error("There are no valid source regions!");
+  }
+
   // std::cout << "Initializing region: " << internalRegion << std::endl;
   itk::ImageRegionIteratorWithIndex<PMImageType> outputIterator(this->Output, internalRegion);
 
