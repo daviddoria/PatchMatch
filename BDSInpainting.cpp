@@ -211,7 +211,24 @@ void BDSInpainting::Compute(ImageType* const image, Mask* const mask, ImageType*
         // Compute new pixel value
 
         // Average
-        ImageType::PixelType newValue = ITKStatistics::Average(contributingPixels);
+        // ImageType::PixelType newValue = ITKStatistics::Average(contributingPixels);
+
+        // Average weighted by patch scores
+        ImageType::PixelType newValue;
+        newValue.Fill(0);
+
+        //float scoreSum = Helpers::Sum(contributingScores.begin(), contributingScores.end());
+        float maxScore = *(std::min_element(contributingScores.begin(), contributingScores.end()));
+        float weightSum = 0.0f;
+        for(unsigned int i = 0; i < contributingScores.size(); ++i)
+        {
+          //float weight = (scoreSum - contributingScores[i]);
+          float weight = (maxScore - contributingScores[i]);
+          weightSum += weight;
+          newValue += weight * contributingPixels[i];
+        }
+
+        newValue /= weightSum;
 
         updateImage->SetPixel(currentPixel, newValue);
 
