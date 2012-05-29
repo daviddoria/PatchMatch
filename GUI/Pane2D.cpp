@@ -2,6 +2,7 @@
 
 // VTK
 #include <vtkImageData.h>
+#include <vtkImageProperty.h>
 #include <vtkImageSliceMapper.h>
 #include <vtkImageSlice.h>
 #include <vtkRenderer.h>
@@ -17,13 +18,12 @@ Pane2D::Pane2D(QVTKWidget* inputQVTKWidget)
 
   this->qvtkWidget = inputQVTKWidget;
   this->qvtkWidget->GetRenderWindow()->AddRenderer(this->Renderer);
-  
-  this->ImageData = vtkSmartPointer<vtkImageData>::New();
 
+  this->ImageData = vtkSmartPointer<vtkImageData>::New();
   this->ImageSliceMapper = vtkSmartPointer<vtkImageSliceMapper>::New();
-  
   this->ImageSlice = vtkSmartPointer<vtkImageSlice>::New();
-  
+  this->ImageSlice->GetProperty()->SetInterpolationTypeToNearest(); // Don't blur pixels
+
   this->CameraLeftToRightVector.resize(3);
   this->CameraLeftToRightVector[0] = -1;
   this->CameraLeftToRightVector[1] = 0;

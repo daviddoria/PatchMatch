@@ -30,39 +30,19 @@
 
 // Qt
 #include <QFileDialog>
-#include <QIcon>
-#include <QProgressDialog>
-#include <QTextEdit>
-#include <QtConcurrentRun>
+#include <QTextEdit> // for help
 
 // VTK
-#include <vtkActor.h>
-#include <vtkActor2D.h>
-#include <vtkCamera.h>
 #include <vtkCommand.h>
-#include <vtkDataSetSurfaceFilter.h>
-#include <vtkFloatArray.h>
-#include <vtkImageActor.h>
 #include <vtkImageData.h>
 #include <vtkImageSlice.h>
 #include <vtkInteractorStyleImage.h>
-#include <vtkLookupTable.h>
-#include <vtkMath.h>
-#include <vtkPointData.h>
 #include <vtkPointPicker.h>
-#include <vtkProperty2D.h>
-#include <vtkPolyDataMapper.h>
-#include <vtkPoints.h>
-#include <vtkPolyData.h>
-#include <vtkPolyDataMapper.h>
-#include <vtkProperty.h>
 #include <vtkRenderer.h>
 #include <vtkRenderWindow.h>
 #include <vtkRenderWindowInteractor.h>
 #include <vtkSmartPointer.h>
 #include <vtkImageSliceMapper.h>
-#include <vtkVertexGlyphFilter.h>
-#include <vtkXMLPolyDataReader.h>
 
 // Submodules
 #include "ITKVTKHelpers/ITKVTKHelpers.h"
@@ -99,7 +79,7 @@ void NNFieldInspector::SharedConstructor()
   this->Image = ImageType::New();
 }
 
-NNFieldInspector::NNFieldInspector(const std::string& imageFileName, const std::string& nnFieldFileName)
+NNFieldInspector::NNFieldInspector(const std::string& imageFileName, const std::string& nnFieldFileName) : PatchRadius(7)
 {
   SharedConstructor();
 
@@ -107,14 +87,7 @@ NNFieldInspector::NNFieldInspector(const std::string& imageFileName, const std::
 
   this->Camera.SetRenderer(this->LeftPane->Renderer);
   //this->Camera.SetRenderWindow(this->LeftPane->RenderW);
-  
-  typedef itk::ImageFileReader<ImageType> ImageReaderType;
-  ImageReaderType::Pointer imageReader = ImageReaderType::New();
-  imageReader->SetFileName(imageFileName);
-  imageReader->Update();
 
-  ITKHelpers::DeepCopy(imageReader->GetOutput(), this->Image.GetPointer());
-  
   typedef itk::ImageFileReader<NNFieldImageType> NNFieldReaderType;
   NNFieldReaderType::Pointer nnFieldReader = NNFieldReaderType::New();
   nnFieldReader->SetFileName(nnFieldFileName);
@@ -124,10 +97,9 @@ NNFieldInspector::NNFieldInspector(const std::string& imageFileName, const std::
 }
 
 // Constructor
-NNFieldInspector::NNFieldInspector()
+NNFieldInspector::NNFieldInspector() : PatchRadius(7)
 {
   SharedConstructor();
-
 };
 
 void NNFieldInspector::LoadImage(Pane2D* const inputPane, const std::string& fileName)
@@ -149,13 +121,13 @@ void NNFieldInspector::LoadImage(Pane2D* const inputPane, const std::string& fil
   reader->SetFileName(fileName);
   reader->Update();
 
-  pane->Image = reader->GetOutput();
+  ITKHelpers::DeepCopy(reader->GetOutput(), this->Image.GetPointer());
 
-  ITKVTKHelpers::ITKImageToVTKRGBImage(pane->Image.GetPointer(), pane->ImageData);
+  ITKVTKHelpers::ITKImageToVTKRGBImage(this->Image.GetPointer(), pane->ImageData);
 
   pane->ImageSliceMapper->SetInputData(pane->ImageData);
   pane->ImageSlice->SetMapper(pane->ImageSliceMapper);
-  
+
   // Add Actor to renderer
 
   pane->Renderer->AddActor(pane->ImageSlice);
@@ -171,7 +143,6 @@ void NNFieldInspector::LoadImage(Pane2D* const inputPane, const std::string& fil
   pane->Renderer->ResetCamera();
 
   pane->qvtkWidget->GetRenderWindow()->Render();
-
 
   /** When the image is clicked, alert the GUI. */
   this->LeftPane->SelectionStyle->AddObserver(PointSelectionStyle2D::PixelClickedEvent, this,
@@ -270,11 +241,38 @@ void NNFieldInspector::PixelClickedEventHandler(vtkObject* caller, long unsigned
 
   itk::Index<2> pickedIndex = {{static_cast<unsigned int>(pixel[0]), static_cast<unsigned int>(pixel[1])}};
 
+
+  itk::ImageRegion<2> pickedRegion = ITKHelpers::GetRegionInRadiusAroundPixel(pickedIndex, this->PatchRadius);
+  
   std::cout << "Picked index: " << pickedIndex << std::endl;
   
   NNFieldImageType::PixelType bestMatch = this->NNField->GetPixel(pickedIndex);
   itk::Index<2> bestMatchIndex = {{static_cast<unsigned int>(bestMatch[0]),
                                    static_cast<unsigned int>(bestMatch[1])}};
 
+  itk::ImageRegion<2> matchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(bestMatchIndex, this->PatchRadius);
   std::cout << "Best match: " << bestMatchIndex << std::endl;
+
+  // Highlight patches
+  ImageType::PixelType red;
+  red[0] = 255; red[1] = 0; red[2] = 0;
+
+  ImageType::PixelType green;
+  green[0] = 0; green[1] = 255; green[2] = 0;
+
+  ImageType::Pointer tempImage = ImageType::New();
+  ITKHelpers::DeepCopy(this->Image.GetPointer(), tempImage.GetPointer());
+
+  ITKHelpers::OutlineRegion(tempImage.GetPointer(), pickedRegion, red);
+
+  ITKHelpers::OutlineRegion(tempImage.GetPointer(), matchRegion, green);
+
+  ITKVTKHelpers::ITKImageToVTKRGBImage(tempImage.GetPointer(), this->LeftPane->ImageData);
+
+  this->LeftPane->Refresh();
+}
+
+void NNFieldInspector::SetPatchRadius(const unsigned int patchRadius)
+{
+  this->PatchRadius = patchRadius;
 }

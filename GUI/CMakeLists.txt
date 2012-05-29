@@ -21,4 +21,4 @@ Pane2D.cpp PointSelectionStyle2D.cpp
 ${UISrcs} ${MOCSrcs})
 
 TARGET_LINK_LIBRARIES(NNFieldInspector ${VTK_LIBRARIES} ${ITK_LIBRARIES}
-VTKHelpers ITKVTKCamera ITKVTKHelpers)
+VTKHelpers ITKVTKCamera ITKVTKHelpers ITKHelpers)

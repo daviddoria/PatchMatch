@@ -18,12 +18,10 @@ class PointSelectionStyle2D;
 struct Pane2D
 {
   typedef itk::Image<itk::CovariantVector<unsigned char, 3>, 2> ImageType;
-  
+
   Pane2D(QVTKWidget* qvtkWidget);
-  
-  ImageType::Pointer Image;
+
   vtkSmartPointer<vtkImageData> ImageData;
-  
   vtkSmartPointer<vtkImageSliceMapper> ImageSliceMapper;
   vtkSmartPointer<vtkImageSlice> ImageSlice;
 
@@ -36,12 +34,12 @@ struct Pane2D
 
   QVTKWidget* qvtkWidget;
 
+  void Refresh();
+
 private:
   std::vector<float> CameraLeftToRightVector;
   std::vector<float> CameraBottomToTopVector;
   void SetCameraPosition();
-
-  void Refresh();
 };
 
 #endif

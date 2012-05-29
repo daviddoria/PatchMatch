@@ -41,11 +41,7 @@
 #include "PointSelectionStyle2D.h"
 
 // Forward declarations
-class vtkActor;
 class vtkImageData;
-class vtkImageActor;
-class vtkPolyData;
-class vtkPolyDataMapper;
 class vtkRenderer;
 
 class NNFieldInspector : public QMainWindow, public Ui::NNFieldInspector
@@ -60,6 +56,8 @@ public:
   NNFieldInspector();
   NNFieldInspector(const std::string& imageFileName, const std::string& nnFieldFileName);
 
+  void SetPatchRadius(const unsigned int patchRadius);
+  
 public slots:
   void on_actionOpenImageLeft_activated();
   void on_actionOpenImageRight_activated();
@@ -80,6 +78,7 @@ private:
   void SharedConstructor();
 
   NNFieldImageType::Pointer NNField;
+
   ImageType::Pointer Image;
 
   /** Load an image*/
@@ -89,6 +88,8 @@ private:
   Pane2D* RightPane;
 
   ITKVTKCamera Camera;
+
+  unsigned int PatchRadius;
 };
 
 #endif
