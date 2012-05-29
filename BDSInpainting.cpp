@@ -185,29 +185,49 @@ void BDSInpainting::Compute(ImageType* const image, Mask* const mask, ImageType*
                                                        this->PatchRadius,
                                                        fullRegion);
 
+        std::vector<ImageType::PixelType> contributingPixels(patchesContainingPixel.size());
+        std::vector<float> contributingScores(patchesContainingPixel.size());
+
         for(unsigned int containingPatchId = 0;
             containingPatchId < patchesContainingPixel.size(); ++containingPatchId)
         {
           itk::Index<2> containingRegionCenter =
                       ITKHelpers::GetRegionCenter(patchesContainingPixel[containingPatchId]);
-          itk::ImageRegion<2> bestMatchRegion = nnField->GetPixel(containingRegionCenter).Region;
+          Match bestMatch = nnField->GetPixel(containingRegionCenter);
+          itk::ImageRegion<2> bestMatchRegion = bestMatch.Region;
           itk::Index<2> bestMatchRegionCenter = ITKHelpers::GetRegionCenter(bestMatchRegion);
 
 //           std::cout << "containingRegionCenter: " << containingRegionCenter << std::endl;
 //           std::cout << "bestMatchRegionCenter: " << bestMatchRegionCenter << std::endl;
-          
+
+          // Compute the offset of the pixel in question relative to the center of the current patch that contains the pixel
           itk::Offset<2> offset = currentPixel - containingRegionCenter;
 
+          // Compute the location of the pixel in the best matching patch that is the
+          // same position of the pixel in question relative to the containing patch
           itk::Index<2> correspondingPixel = bestMatchRegionCenter + offset;
 
-          ImageType::PixelType normalizedContribution =
-              currentImage->GetPixel(correspondingPixel) / static_cast<float>(patchesContainingPixel.size());
-          ImageType::PixelType newValue = updateImage->GetPixel(currentPixel) + normalizedContribution;
-          updateImage->SetPixel(currentPixel, newValue);
+          contributingPixels[containingPatchId] = currentImage->GetPixel(correspondingPixel);
+          contributingScores[containingPatchId] = bestMatch.Score;
+//           ImageType::PixelType normalizedContribution =
+//               currentImage->GetPixel(correspondingPixel) / static_cast<float>(patchesContainingPixel.size());
+//           ImageType::PixelType newValue = updateImage->GetPixel(currentPixel) + normalizedContribution;
+//           updateImage->SetPixel(currentPixel, newValue);
+          
 //           std::cout << "Pixel was " << currentImage->GetPixel(currentPixel)
 //                     << " and is now " << updateImage->GetPixel(currentPixel) << std::endl;
-        }
+        } // end loop over containing patches
 
+        // Compute new pixel value
+        ImageType::PixelType newValue;
+        newValue.Fill(0);
+        for(unsigned int i = 0; i < contributingPixels.size(); ++i)
+        {
+          newValue += contributingPixels[i];
+        }
+        newValue /= static_cast<float>(contributingPixels.size());
+
+        updateImage->SetPixel(currentPixel, newValue);
       } // end if is hole
 
       ++imageIterator;

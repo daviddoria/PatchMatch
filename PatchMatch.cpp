@@ -22,7 +22,6 @@ void PatchMatch::Compute(PMImageType* const initialization)
 {
   srand(time(NULL));
 
-
   if(initialization)
   {
     ITKHelpers::DeepCopy(initialization, this->Output.GetPointer());
