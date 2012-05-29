@@ -96,9 +96,7 @@ void PatchMatch::Compute(PMImageType* const initialization)
         }
         else
         {
-          float distLeft = distance(centerRegion,
-                                  leftMatchRegion,
-                                  currentMatch.Score);
+          float distLeft = distance(leftMatchRegion, centerRegion, currentMatch.Score);
 
           if (distLeft < currentMatch.Score)
           {
@@ -106,7 +104,6 @@ void PatchMatch::Compute(PMImageType* const initialization)
             currentMatch.Score = distLeft;
           }
         }
-            
 
         itk::Index<2> upPixel = outputIterator.GetIndex();
         upPixel[1] += -1;
@@ -121,9 +118,7 @@ void PatchMatch::Compute(PMImageType* const initialization)
         }
         else
         {
-          float distUp = distance(centerRegion,
-                                  upMatchRegion,
-                                  currentMatch.Score);
+          float distUp = distance(upMatchRegion, centerRegion, currentMatch.Score);
 
           if (distUp < currentMatch.Score)
           {
@@ -184,9 +179,7 @@ void PatchMatch::Compute(PMImageType* const initialization)
         }
         else
         {
-          float distRight = distance(currentRegion,
-                                    rightMatchRegion,
-                                    currentMatch.Score);
+          float distRight = distance(rightMatchRegion, currentRegion, currentMatch.Score);
 
           if (distRight < currentMatch.Score)
           {
@@ -209,9 +202,7 @@ void PatchMatch::Compute(PMImageType* const initialization)
         }
         else
         {
-          float distDown = distance(currentRegion,
-                                    downMatchRegion,
-                                    currentMatch.Score);
+          float distDown = distance(downMatchRegion, currentRegion, currentMatch.Score);
 
           if (distDown < currentMatch.Score)
           {
@@ -280,9 +271,7 @@ void PatchMatch::Compute(PMImageType* const initialization)
           continue;
         }
 
-        float dist = distance(centerRegion,
-                              randomValidRegion,
-                              currentMatch.Score);
+        float dist = distance(randomValidRegion, centerRegion, currentMatch.Score);
 
         if (dist < currentMatch.Score)
         {
@@ -314,6 +303,12 @@ float PatchMatch::distance(const itk::ImageRegion<2>& source,
 {
   assert(this->SourceMask->IsValid(source));
 
+  if(!this->SourceMask->IsValid(source))
+  {
+    std::cout << "Source: " << source << std::endl;
+    throw std::runtime_error("PatchMatch::distance source is not valid!");
+  }
+  
   // Do not use patches on boundaries
   if(!this->Output->GetLargestPossibleRegion().IsInside(source) ||
       !this->Output->GetLargestPossibleRegion().IsInside(target))
@@ -391,12 +386,22 @@ void PatchMatch::RandomInit()
     itk::Index<2> currentIndex = outputIterator.GetIndex();
     itk::ImageRegion<2> currentRegion = ITKHelpers::GetRegionInRadiusAroundPixel(currentIndex, this->PatchRadius);
 
-    itk::ImageRegion<2> randomRegion = ValidSourceRegions[Helpers::RandomInt(0, ValidSourceRegions.size() - 1)];
+    if(this->SourceMask->IsValid(currentRegion))
+    {
+      Match randomMatch;
+      randomMatch.Region = currentRegion;
+      randomMatch.Score = 0;
+      outputIterator.Set(randomMatch);
+    }
+    else
+    {
+      itk::ImageRegion<2> randomValidRegion = ValidSourceRegions[Helpers::RandomInt(0, ValidSourceRegions.size() - 1)];
 
-    Match randomMatch;
-    randomMatch.Region = randomRegion;
-    randomMatch.Score = distance(currentRegion, randomRegion, std::numeric_limits<float>::max());
-    outputIterator.Set(randomMatch);
+      Match randomMatch;
+      randomMatch.Region = randomValidRegion;
+      randomMatch.Score = distance(randomValidRegion, currentRegion);
+      outputIterator.Set(randomMatch);
+    }
 
     ++outputIterator;
   }

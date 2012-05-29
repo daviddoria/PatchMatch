@@ -45,7 +45,7 @@ private:
 
   float distance(const itk::ImageRegion<2>& source,
                  const itk::ImageRegion<2>& target,
-                 const float prevDist);
+                 const float prevDist = std::numeric_limits<float>::max());
 
   void RandomInit();
   
