@@ -257,11 +257,10 @@ void PatchMatch::Compute(PMImageType* const initialization)
         itk::ImageRegion<2> searchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(searchRegionCenter, radius);
         searchRegion.Crop(this->Image->GetLargestPossibleRegion());
 
+        unsigned int maxNumberOfAttempts = 5; // How many random patches to test for validity before giving up
         itk::ImageRegion<2> randomValidRegion =
                  MaskOperations::GetRandomValidPatchInRegion(this->SourceMask.GetPointer(),
-                                                             searchRegion, this->PatchRadius);
-
-        assert(this->SourceMask->IsValid(randomValidRegion));
+                                                             searchRegion, this->PatchRadius, maxNumberOfAttempts);
 
         // If no suitable region is found, move on
         if(randomValidRegion.GetSize()[0] == 0)
