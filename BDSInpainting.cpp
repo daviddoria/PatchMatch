@@ -257,6 +257,11 @@ void BDSInpainting::SetMask(Mask* const mask)
 
 void BDSInpainting::SetResolutionLevels(const unsigned int resolutionLevels)
 {
+  if(resolutionLevels < 1)
+  {
+    std::cerr << "ResolutionLevels: " << resolutionLevels << std::endl;
+    throw std::runtime_error("ResolutionLevels must be >= 1!");
+  }
   this->ResolutionLevels = resolutionLevels;
 }
 

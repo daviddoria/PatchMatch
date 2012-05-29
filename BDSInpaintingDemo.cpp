@@ -41,7 +41,8 @@ int main(int argc, char*argv[])
   BDSInpainting bdsInpainting;
   bdsInpainting.SetImage(imageReader->GetOutput());
   bdsInpainting.SetMask(mask);
-  bdsInpainting.SetResolutionLevels(4);
+  bdsInpainting.SetResolutionLevels(1);
+  //bdsInpainting.SetResolutionLevels(4);
   bdsInpainting.SetIterations(4);
   bdsInpainting.SetPatchRadius(15);
   bdsInpainting.SetPatchMatchIterations(4);
