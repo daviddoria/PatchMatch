@@ -52,6 +52,8 @@ private:
 
   Mask::Pointer MaskImage;
 
+  ImageType::PixelType WeightedSum(const std::vector<ImageType::PixelType>& contributingPixels,
+                                   const std::vector<float>& contributingScores);
 };
 
 #endif

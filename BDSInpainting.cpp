@@ -232,33 +232,18 @@ void BDSInpainting::Compute(ImageType* const image, Mask* const mask, ImageType*
 
         // Compute new pixel value
 
-        // Average
-        ImageType::PixelType newValue = ITKStatistics::Average(contributingPixels);
+        // Select a method to construct new pixel
+        // ImageType::PixelType newValue = ITKStatistics::Average(contributingPixels);
 
-        // Average weighted by patch scores
-//         ImageType::PixelType newValue;
-//         newValue.Fill(0);
-//
-//         //float scoreSum = Helpers::Sum(contributingScores.begin(), contributingScores.end());
-//         float maxScore = *(std::min_element(contributingScores.begin(), contributingScores.end()));
-//         float weightSum = 0.0f;
-//         for(unsigned int i = 0; i < contributingScores.size(); ++i)
-//         {
-//           //float weight = (scoreSum - contributingScores[i]);
-//           float weight = (maxScore - contributingScores[i]);
-//           weightSum += weight;
-//           newValue += weight * contributingPixels[i];
-//         }
-//
-//         newValue /= weightSum;
+        // ImageType::PixelType newValue = WeightedSum(contributingPixels, contributingScores);
 
         // Take the pixel from the best matching patch
-//         unsigned int patchId = Helpers::argmin(contributingScores);
-//         ImageType::PixelType newValue = contributingPixels[patchId];
+        // unsigned int patchId = Helpers::argmin(contributingScores);
+        // ImageType::PixelType newValue = contributingPixels[patchId];
 
         // Use the pixel closest to the average pixel
-//         ImageType::PixelType averagePixel = ITKStatistics::Average(contributingPixels);
-//         ImageType::PixelType newValue = contributingPixels[ITKHelpers::ClosestPoint(contributingPixels, averagePixel)];
+        // ImageType::PixelType averagePixel = ITKStatistics::Average(contributingPixels);
+        // ImageType::PixelType newValue = contributingPixels[ITKHelpers::ClosestPoint(contributingPixels, averagePixel)];
 
         updateImage->SetPixel(currentPixel, newValue);
 
@@ -325,4 +310,27 @@ void BDSInpainting::SetPatchMatchIterations(const unsigned int patchMatchIterati
 void BDSInpainting::SetDownsampleFactor(const float downsampleFactor)
 {
   this->DownsampleFactor = downsampleFactor;
+}
+
+BDSInpainting::ImageType::PixelType BDSInpainting::WeightedSum(const std::vector<ImageType::PixelType>& contributingPixels,
+                                   const std::vector<float>& contributingScores)
+{
+  // Average weighted by patch scores
+  ImageType::PixelType newValue;
+  newValue.Fill(0);
+
+  //float scoreSum = Helpers::Sum(contributingScores.begin(), contributingScores.end());
+  float maxScore = *(std::min_element(contributingScores.begin(), contributingScores.end()));
+  float weightSum = 0.0f;
+  for(unsigned int i = 0; i < contributingScores.size(); ++i)
+  {
+    //float weight = (scoreSum - contributingScores[i]);
+    float weight = (maxScore - contributingScores[i]);
+    weightSum += weight;
+    newValue += weight * contributingPixels[i];
+  }
+
+  newValue /= weightSum;
+
+  return newValue;
 }
