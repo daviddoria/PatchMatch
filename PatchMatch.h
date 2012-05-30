@@ -46,7 +46,7 @@ public:
   /** Set the mask indicating where to compute the NNField. */
   void SetTargetMask(Mask* const mask);
 
-  /** Get the patch centers image from the nearest neighbor field struct.. */
+  /** Get an image where the channels are (x component, y component, score) from the nearest neighbor field struct. */
   static void GetPatchCentersImage(PMImageType* const pmImage, itk::VectorImage<float, 2>* const output);
 
   /** Set the nearest neighbor field to exactly iself in the valid region, and random values in the hole region. */

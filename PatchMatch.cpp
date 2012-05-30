@@ -28,8 +28,6 @@ void PatchMatch::Compute(PMImageType* const initialization)
   }
   else
   {
-    this->Output->SetRegions(this->Image->GetLargestPossibleRegion());
-    this->Output->Allocate();
     //RandomInit();
     BoundaryInit();
   }
@@ -249,6 +247,8 @@ void PatchMatch::Compute(PMImageType* const initialization)
       Match currentMatch = outputIterator.Get();
 
       unsigned int radius = std::max(width, height);
+      //radius /= 2; // Only search half of the image
+      radius /= 8; // Only search a small window
 
       // Search an exponentially smaller window each time through the loop
       itk::Index<2> searchRegionCenter = ITKHelpers::GetRegionCenter(outputIterator.Get().Region);
@@ -408,6 +408,7 @@ void PatchMatch::BoundaryInit()
   Mask::BoundaryImageType::Pointer boundaryImage = Mask::BoundaryImageType::New();
   unsigned char outputBoundaryPixelValue = 255;
   expandedMask->FindBoundary(boundaryImage.GetPointer(), Mask::VALID, outputBoundaryPixelValue);
+  ITKHelpers::WriteImage(boundaryImage.GetPointer(), "ExpandedBoundary.png");
 
   // Get the boundary pixels
   std::vector<itk::Index<2> > boundaryIndices = ITKHelpers::GetPixelsWithValue(boundaryImage.GetPointer(), outputBoundaryPixelValue);
@@ -428,12 +429,13 @@ void PatchMatch::BoundaryInit()
     // Construct the current region
     itk::Index<2> currentIndex = outputIterator.GetIndex();
 
-    if(this->SourceMask->IsHole(currentIndex))
+    if(expandedMask->IsHole(currentIndex))
     {
       itk::ImageRegion<2> currentRegion = ITKHelpers::GetRegionInRadiusAroundPixel(currentIndex, this->PatchRadius);
 
       // Find the nearest valid boundary patch
-      itk::Index<2> closestBoundaryPatchCenter = boundaryIndices[ITKHelpers::ClosestPixel(boundaryIndices, currentIndex)];
+      unsigned int closestIndexId = ITKHelpers::ClosestIndexId(boundaryIndices, currentIndex);
+      itk::Index<2> closestBoundaryPatchCenter = boundaryIndices[closestIndexId];
       itk::ImageRegion<2> closestBoundaryPatchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(closestBoundaryPatchCenter,
                                                                                                 this->PatchRadius);
 
@@ -506,6 +508,9 @@ void PatchMatch::SetPatchRadius(const unsigned int patchRadius)
 void PatchMatch::SetImage(ImageType* const image)
 {
   ITKHelpers::DeepCopy(image, this->Image.GetPointer());
+
+  this->Output->SetRegions(this->Image->GetLargestPossibleRegion());
+  this->Output->Allocate();
 }
 
 void PatchMatch::SetSourceMask(Mask* const mask)

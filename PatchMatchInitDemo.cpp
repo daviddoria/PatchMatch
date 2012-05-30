@@ -46,14 +46,22 @@ int main(int argc, char*argv[])
   patchMatch.SetIterations(10);
   patchMatch.SetPatchRadius(3);
 
-  patchMatch.RandomInit();
-  PatchMatch::VectorImageType::Pointer temp = PatchMatch::VectorImageType::New();
-  PatchMatch::GetPatchCentersImage(patchMatch.GetOutput(), temp);
-  ITKHelpers::WriteImage(temp.GetPointer(), "randomInit.mha");
+  PatchMatch::VectorImageType::Pointer output = PatchMatch::VectorImageType::New();
 
+  {
+  std::cout << "Starting randomInit..." << std::endl;
+  patchMatch.RandomInit();
+
+  PatchMatch::GetPatchCentersImage(patchMatch.GetOutput(), output);
+  ITKHelpers::WriteImage(output.GetPointer(), "randomInit.mha");
+  }
+
+  {
+  std::cout << "Starting boundaryInit..." << std::endl;
   patchMatch.BoundaryInit();
-  PatchMatch::GetPatchCentersImage(patchMatch.GetOutput(), temp);
-  ITKHelpers::WriteImage(temp.GetPointer(), "boundaryInit.mha");
+  PatchMatch::GetPatchCentersImage(patchMatch.GetOutput(), output);
+  ITKHelpers::WriteImage(output.GetPointer(), "boundaryInit.mha");
+  }
 
   return EXIT_SUCCESS;
 }
