@@ -31,7 +31,9 @@ public:
   void SetResolutionLevels(const unsigned int resolutionLevels);
 
   void SetPatchMatchIterations(const unsigned int patchMatchIterations);
-  
+
+  void SetDownsampleFactor(const float downsampleFactor);
+
   void SetImage(ImageType* const image);
 
   void SetMask(Mask* const mask);
@@ -42,6 +44,7 @@ private:
   unsigned int Iterations;
   unsigned int PatchRadius;
   unsigned int PatchMatchIterations;
+  float DownsampleFactor;
 
   ImageType::Pointer Output;
 

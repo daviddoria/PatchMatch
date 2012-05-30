@@ -13,7 +13,7 @@
 // Custom
 #include "PatchMatch.h"
 
-BDSInpainting::BDSInpainting() : ResolutionLevels(3), Iterations(5), PatchRadius(7), PatchMatchIterations(3)
+BDSInpainting::BDSInpainting() : ResolutionLevels(3), Iterations(5), PatchRadius(7), PatchMatchIterations(3), DownsampleFactor(.5)
 {
   this->Output = ImageType::New();
   this->Image = ImageType::New();
@@ -37,13 +37,11 @@ void BDSInpainting::Compute()
   imageLevels[0] = level0Image;
   maskLevels[0] = level0mask;
 
-  float downsampleFactor = .95;
-
   for(unsigned int level = 1; level < this->ResolutionLevels; ++level)
   {
     itk::Size<2> destinationSize;
-    destinationSize[0] = imageLevels[level-1]->GetLargestPossibleRegion().GetSize()[0] * downsampleFactor;
-    destinationSize[1] = imageLevels[level-1]->GetLargestPossibleRegion().GetSize()[1] * downsampleFactor;
+    destinationSize[0] = imageLevels[level-1]->GetLargestPossibleRegion().GetSize()[0] * this->DownsampleFactor;
+    destinationSize[1] = imageLevels[level-1]->GetLargestPossibleRegion().GetSize()[1] * this->DownsampleFactor;
 
     // Downsample
     ImageType::Pointer downsampledImage = ImageType::New();
@@ -65,9 +63,13 @@ void BDSInpainting::Compute()
     std::cout << "Level " << level << " mask resolution "
               << maskLevels[level]->GetLargestPossibleRegion().GetSize() << std::endl;
 
-    std::stringstream ss;
-    ss << "Input_Level_" << Helpers::ZeroPad(level, 2) << ".png";
-    ITKHelpers::WriteRGBImage(imageLevels[level].GetPointer(), ss.str());
+    std::stringstream ssImage;
+    ssImage << "Input_Level_" << Helpers::ZeroPad(level, 2) << ".png";
+    ITKHelpers::WriteRGBImage(imageLevels[level].GetPointer(), ssImage.str());
+
+    std::stringstream ssMask;
+    ssMask << "Mask_Level_" << Helpers::ZeroPad(level, 2) << ".png";
+    ITKHelpers::WriteImage(maskLevels[level].GetPointer(), ssMask.str());
   }
 
   for(unsigned int level = this->ResolutionLevels - 1; level >= 0; --level)
@@ -92,7 +94,7 @@ void BDSInpainting::Compute()
     ITKHelpers::ScaleImage(output.GetPointer(), imageLevels[level-1]->GetLargestPossibleRegion().GetSize(), upsampled.GetPointer());
 //     std::cout << "Upsampled from " << output->GetLargestPossibleRegion().GetSize() << " to "
 //               << upsampled->GetLargestPossibleRegion().GetSize() << std::endl;
-// 
+//
 //     std::cout << "Upsampled size: " << upsampled->GetLargestPossibleRegion().GetSize() << std::endl;
 //     std::cout << "Next level size: " << imageLevels[level - 1]->GetLargestPossibleRegion().GetSize() << std::endl;
 
@@ -145,15 +147,26 @@ void BDSInpainting::Compute(ImageType* const image, Mask* const mask, ImageType*
     patchMatch.SetTargetMask(targetMask);
     patchMatch.SetIterations(this->PatchMatchIterations);
     patchMatch.SetPatchRadius(this->PatchRadius);
-    if(iteration == 0)
+    try
     {
-      patchMatch.Compute(NULL);
+      if(iteration == 0)
+      {
+        patchMatch.Compute(NULL);
+      }
+      else
+      {
+        // For now don't initialize with the previous NN field - though this might work and be a huge speed up.
+        patchMatch.Compute(NULL);
+        //patchMatch.Compute(init);
+      }
     }
-    else
+    catch (std::runtime_error &e)
     {
-      // For now don't initialize with the previous NN field - though this might work and be a huge speed up.
-      patchMatch.Compute(NULL); 
-      //patchMatch.Compute(init);
+      if(e.what() == std::string("PatchMatch: No valid source regions!"))
+      {
+        //std::cout << "Caught exception." << std::endl;
+        return;
+      }
     }
 
     PatchMatch::PMImageType* nnField = patchMatch.GetOutput();
@@ -225,7 +238,7 @@ void BDSInpainting::Compute(ImageType* const image, Mask* const mask, ImageType*
         // Average weighted by patch scores
 //         ImageType::PixelType newValue;
 //         newValue.Fill(0);
-// 
+//
 //         //float scoreSum = Helpers::Sum(contributingScores.begin(), contributingScores.end());
 //         float maxScore = *(std::min_element(contributingScores.begin(), contributingScores.end()));
 //         float weightSum = 0.0f;
@@ -236,7 +249,7 @@ void BDSInpainting::Compute(ImageType* const image, Mask* const mask, ImageType*
 //           weightSum += weight;
 //           newValue += weight * contributingPixels[i];
 //         }
-// 
+//
 //         newValue /= weightSum;
 
         // Take the pixel from the best matching patch
@@ -307,4 +320,9 @@ void BDSInpainting::SetResolutionLevels(const unsigned int resolutionLevels)
 void BDSInpainting::SetPatchMatchIterations(const unsigned int patchMatchIterations)
 {
   this->PatchMatchIterations = patchMatchIterations;
+}
+
+void BDSInpainting::SetDownsampleFactor(const float downsampleFactor)
+{
+  this->DownsampleFactor = downsampleFactor;
 }

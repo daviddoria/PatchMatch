@@ -160,7 +160,7 @@ void PatchMatch::Compute(PMImageType* const initialization)
         }
 
         Match currentMatch = outputIterator.Get();
-        
+
         itk::Index<2> center = outputIterator.GetIndex();
         itk::ImageRegion<2> currentRegion = ITKHelpers::GetRegionInRadiusAroundPixel(center, this->PatchRadius);
 
@@ -186,14 +186,14 @@ void PatchMatch::Compute(PMImageType* const initialization)
             currentMatch.Score = distRight;
           }
         }
-        
+
         itk::Index<2> downPixel = outputIterator.GetIndex();
         downPixel[1] += 1;
         itk::Index<2> downMatch = ITKHelpers::GetRegionCenter(this->Output->GetPixel(downPixel).Region);
         downMatch[1] += -1;
 
         itk::ImageRegion<2> downMatchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(downMatch, this->PatchRadius);
-        
+
         if(!this->SourceMask->GetLargestPossibleRegion().IsInside(downMatchRegion) ||
           !this->SourceMask->IsValid(downMatchRegion))
         {
@@ -306,7 +306,7 @@ float PatchMatch::distance(const itk::ImageRegion<2>& source,
     std::cout << "Source: " << source << std::endl;
     throw std::runtime_error("PatchMatch::distance source is not valid!");
   }
-  
+
   // Do not use patches on boundaries
   if(!this->Output->GetLargestPossibleRegion().IsInside(source) ||
       !this->Output->GetLargestPossibleRegion().IsInside(target))
@@ -377,7 +377,7 @@ void PatchMatch::RandomInit()
 
   if(ValidSourceRegions.size() == 0)
   {
-    throw std::runtime_error("There are no valid source regions!");
+    throw std::runtime_error("PatchMatch: No valid source regions!");
   }
 
   // std::cout << "Initializing region: " << internalRegion << std::endl;
@@ -451,7 +451,7 @@ void PatchMatch::GetPatchCentersImage(PMImageType* const pmImage, itk::VectorIma
   itk::ImageRegionIterator<PMImageType> imageIterator(pmImage, pmImage->GetLargestPossibleRegion());
 
   typedef itk::VectorImage<float, 2> VectorImageType;
-  
+
   while(!imageIterator.IsAtEnd())
     {
     VectorImageType::PixelType pixel;
@@ -464,7 +464,7 @@ void PatchMatch::GetPatchCentersImage(PMImageType* const pmImage, itk::VectorIma
     pixel[2] = imageIterator.Get().Score;
 
     output->SetPixel(imageIterator.GetIndex(), pixel);
-    
+
     ++imageIterator;
     }
 }
