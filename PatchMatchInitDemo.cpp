@@ -14,19 +14,17 @@ typedef itk::Image<itk::CovariantVector<float, 3>, 2> ImageType;
 
 int main(int argc, char*argv[])
 {
-  if(argc < 4)
+  if(argc < 3)
   {
-    std::cerr << "Required arguments: image mask output" << std::endl;
+    std::cerr << "Required arguments: image mask" << std::endl;
     return EXIT_FAILURE;
   }
 
   std::string imageFilename = argv[1];
   std::string maskFilename = argv[2];
-  std::string outputFilename = argv[3];
 
   std::cout << "imageFilename: " << imageFilename << std::endl;
   std::cout << "maskFilename: " << maskFilename << std::endl;
-  std::cout << "outputFilename: " << outputFilename << std::endl;
 
   typedef itk::ImageFileReader<ImageType> ImageReaderType;
   ImageReaderType::Pointer imageReader = ImageReaderType::New();
@@ -48,18 +46,14 @@ int main(int argc, char*argv[])
   patchMatch.SetIterations(10);
   patchMatch.SetPatchRadius(3);
 
-  patchMatch.Compute(NULL);
+  patchMatch.RandomInit();
+  PatchMatch::VectorImageType::Pointer temp = PatchMatch::VectorImageType::New();
+  PatchMatch::GetPatchCentersImage(patchMatch.GetOutput(), temp);
+  ITKHelpers::WriteImage(temp.GetPointer(), "randomInit.mha");
 
-  typedef itk::VectorImage<float, 2> VectorImageType;
-  VectorImageType::Pointer output = VectorImageType::New();
-
-  patchMatch.GetPatchCentersImage(patchMatch.GetOutput(), output.GetPointer());
-
-  typedef itk::ImageFileWriter<VectorImageType> WriterType;
-  WriterType::Pointer writer = WriterType::New();
-  writer->SetFileName(outputFilename);
-  writer->SetInput(output);
-  writer->Update();
+  patchMatch.BoundaryInit();
+  PatchMatch::GetPatchCentersImage(patchMatch.GetOutput(), temp);
+  ITKHelpers::WriteImage(temp.GetPointer(), "boundaryInit.mha");
 
   return EXIT_SUCCESS;
 }

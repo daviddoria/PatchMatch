@@ -30,7 +30,8 @@ void PatchMatch::Compute(PMImageType* const initialization)
   {
     this->Output->SetRegions(this->Image->GetLargestPossibleRegion());
     this->Output->Allocate();
-    RandomInit();
+    //RandomInit();
+    BoundaryInit();
   }
 
   {
@@ -354,11 +355,8 @@ float PatchMatch::distance(const itk::ImageRegion<2>& source,
   return distance;
 }
 
-void PatchMatch::RandomInit()
+void PatchMatch::InitKnownRegion()
 {
-//   unsigned int width = this->Output->GetLargestPossibleRegion().GetSize()[0];
-//   unsigned int height = this->Output->GetLargestPossibleRegion().GetSize()[1];
-
   // Create a zero region
   itk::Index<2> zeroIndex = {{0,0}};
   itk::Size<2> zeroSize = {{0,0}};
@@ -368,6 +366,91 @@ void PatchMatch::RandomInit()
   zeroMatch.Score = 0.0f;
 
   ITKHelpers::SetImageToConstant(this->Output.GetPointer(), zeroMatch);
+
+  itk::ImageRegion<2> internalRegion =
+             ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
+
+  itk::ImageRegionIteratorWithIndex<PMImageType> outputIterator(this->Output, internalRegion);
+
+  while(!outputIterator.IsAtEnd())
+  {
+    // Construct the current region
+    itk::Index<2> currentIndex = outputIterator.GetIndex();
+    itk::ImageRegion<2> currentRegion = ITKHelpers::GetRegionInRadiusAroundPixel(currentIndex, this->PatchRadius);
+
+    if(this->SourceMask->IsValid(currentRegion))
+    {
+      Match randomMatch;
+      randomMatch.Region = currentRegion;
+      randomMatch.Score = 0;
+      outputIterator.Set(randomMatch);
+    }
+
+    ++outputIterator;
+  }
+
+}
+
+void PatchMatch::BoundaryInit()
+{
+  //InitKnownRegion();
+  RandomInit();
+
+  itk::ImageRegion<2> internalRegion =
+             ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
+
+  // Expand the hole
+  Mask::Pointer expandedMask = Mask::New();
+  expandedMask->DeepCopyFrom(this->SourceMask);
+  expandedMask->ExpandHole(this->PatchRadius);
+
+  // Get the expanded boundary
+  Mask::BoundaryImageType::Pointer boundaryImage = Mask::BoundaryImageType::New();
+  unsigned char outputBoundaryPixelValue = 255;
+  expandedMask->FindBoundary(boundaryImage.GetPointer(), Mask::VALID, outputBoundaryPixelValue);
+
+  // Get the boundary pixels
+  std::vector<itk::Index<2> > boundaryIndices = ITKHelpers::GetPixelsWithValue(boundaryImage.GetPointer(), outputBoundaryPixelValue);
+
+  std::vector<itk::ImageRegion<2> > validSourceRegions =
+        MaskOperations::GetAllFullyValidRegions(this->SourceMask, internalRegion, this->PatchRadius);
+
+  if(validSourceRegions.size() == 0)
+  {
+    throw std::runtime_error("PatchMatch: No valid source regions!");
+  }
+
+  // std::cout << "Initializing region: " << internalRegion << std::endl;
+  itk::ImageRegionIteratorWithIndex<PMImageType> outputIterator(this->Output, internalRegion);
+
+  while(!outputIterator.IsAtEnd())
+  {
+    // Construct the current region
+    itk::Index<2> currentIndex = outputIterator.GetIndex();
+
+    if(this->SourceMask->IsHole(currentIndex))
+    {
+      itk::ImageRegion<2> currentRegion = ITKHelpers::GetRegionInRadiusAroundPixel(currentIndex, this->PatchRadius);
+
+      // Find the nearest valid boundary patch
+      itk::Index<2> closestBoundaryPatchCenter = boundaryIndices[ITKHelpers::ClosestPixel(boundaryIndices, currentIndex)];
+      itk::ImageRegion<2> closestBoundaryPatchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(closestBoundaryPatchCenter,
+                                                                                                this->PatchRadius);
+
+      Match match;
+      match.Region = closestBoundaryPatchRegion;
+      match.Score = distance(closestBoundaryPatchRegion, currentRegion);
+      outputIterator.Set(match);
+    }
+    ++outputIterator;
+  }
+
+  //std::cout << "Finished initializing." << internalRegion << std::endl;
+}
+
+void PatchMatch::RandomInit()
+{
+  InitKnownRegion();
 
   itk::ImageRegion<2> internalRegion =
              ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
@@ -389,14 +472,7 @@ void PatchMatch::RandomInit()
     itk::Index<2> currentIndex = outputIterator.GetIndex();
     itk::ImageRegion<2> currentRegion = ITKHelpers::GetRegionInRadiusAroundPixel(currentIndex, this->PatchRadius);
 
-    if(this->SourceMask->IsValid(currentRegion))
-    {
-      Match randomMatch;
-      randomMatch.Region = currentRegion;
-      randomMatch.Score = 0;
-      outputIterator.Set(randomMatch);
-    }
-    else
+    if(!this->SourceMask->IsValid(currentRegion))
     {
       itk::ImageRegion<2> randomValidRegion = ValidSourceRegions[Helpers::RandomInt(0, ValidSourceRegions.size() - 1)];
 

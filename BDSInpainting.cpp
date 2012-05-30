@@ -238,12 +238,13 @@ void BDSInpainting::Compute(ImageType* const image, Mask* const mask, ImageType*
         // ImageType::PixelType newValue = WeightedSum(contributingPixels, contributingScores);
 
         // Take the pixel from the best matching patch
-        // unsigned int patchId = Helpers::argmin(contributingScores);
-        // ImageType::PixelType newValue = contributingPixels[patchId];
+        unsigned int patchId = Helpers::argmin(contributingScores);
+        ImageType::PixelType newValue = contributingPixels[patchId];
 
         // Use the pixel closest to the average pixel
-        // ImageType::PixelType averagePixel = ITKStatistics::Average(contributingPixels);
-        // ImageType::PixelType newValue = contributingPixels[ITKHelpers::ClosestPoint(contributingPixels, averagePixel)];
+//         ImageType::PixelType averagePixel = ITKStatistics::Average(contributingPixels);
+        //unsigned int patchId = ITKHelpers::ClosestPoint(contributingPixels, averagePixel);
+//         ImageType::PixelType newValue = contributingPixels[patchId];
 
         updateImage->SetPixel(currentPixel, newValue);
 

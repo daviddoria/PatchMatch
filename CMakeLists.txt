@@ -8,11 +8,17 @@ INCLUDE(${USE_ITK_FILE})
 
 add_subdirectory(Mask)
 
+add_library(PatchMatch PatchMatch.cpp)
+target_link_libraries(PatchMatch Mask)
+
 ADD_EXECUTABLE(PatchMatchDemo PatchMatchDemo.cpp PatchMatch.cpp)
-TARGET_LINK_LIBRARIES(PatchMatchDemo ${ITK_LIBRARIES} Mask)
+TARGET_LINK_LIBRARIES(PatchMatchDemo PatchMatch)
+
+ADD_EXECUTABLE(PatchMatchInitDemo PatchMatchInitDemo.cpp)
+TARGET_LINK_LIBRARIES(PatchMatchInitDemo PatchMatch)
 
 add_library(BDSInpainting PatchMatch.cpp BDSInpainting.cpp)
-target_link_libraries(BDSInpainting ${ITK_LIBRARIES} Mask)
+target_link_libraries(BDSInpainting PatchMatch)
 
 ADD_EXECUTABLE(BDSInpaintingDemo BDSInpaintingDemo.cpp)
 TARGET_LINK_LIBRARIES(BDSInpaintingDemo BDSInpainting)
