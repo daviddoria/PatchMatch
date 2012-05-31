@@ -181,11 +181,13 @@ void BDSInpainting::Compute(ImageType* const image, Mask* const mask, ImageType*
     ITKHelpers::DeepCopy(currentImage.GetPointer(), updateImage.GetPointer());
 
     // Loop over the whole image (patch centers)
-    itk::ImageRegion<2> internalRegion =
-             ITKHelpers::GetInternalRegion(fullRegion, this->PatchRadius);
+//     itk::ImageRegion<2> internalRegion =
+//              ITKHelpers::GetInternalRegion(fullRegion, this->PatchRadius);
+
+    itk::ImageRegion<2> holeBoundingBox = MaskOperations::ComputeHoleBoundingBox(this->MaskImage);
 
     itk::ImageRegionIteratorWithIndex<ImageType> imageIterator(updateImage,
-                                                               internalRegion);
+                                                               holeBoundingBox);
 
     while(!imageIterator.IsAtEnd())
     {

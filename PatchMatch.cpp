@@ -38,8 +38,7 @@ void PatchMatch::Compute(PMImageType* const initialization)
   ITKHelpers::WriteImage(initialOutput.GetPointer(), "initialization.mha");
   }
 
-  unsigned int width = Image->GetLargestPossibleRegion().GetSize()[0];
-  unsigned int height = Image->GetLargestPossibleRegion().GetSize()[1];
+  itk::ImageRegion<2> holeBoundingBox = MaskOperations::ComputeHoleBoundingBox(this->SourceMask);
 
   bool forwardSearch = true;
 
@@ -51,11 +50,11 @@ void PatchMatch::Compute(PMImageType* const initialization)
     if (forwardSearch)
     {
       std::cout << "Forward propagation..." << std::endl;
-      itk::ImageRegion<2> internalRegion =
-             ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
+//       itk::ImageRegion<2> internalRegion =
+//              ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
       // Iterate over patch centers
       itk::ImageRegionIteratorWithIndex<PMImageType> outputIterator(this->Output,
-                                                                    internalRegion);
+                                                                    holeBoundingBox);
 
       // Forward propagation - compare left (-1, 0), center (0,0) and up (0, -1)
 
@@ -134,10 +133,10 @@ void PatchMatch::Compute(PMImageType* const initialization)
     {
       std::cout << "Backward propagation..." << std::endl;
       // Iterate over patch centers in reverse
-      itk::ImageRegion<2> internalRegion =
-             ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
+//       itk::ImageRegion<2> internalRegion =
+//              ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
       itk::ImageRegionReverseIterator<PMImageType> outputIterator(this->Output,
-                                                                  internalRegion);
+                                                                  holeBoundingBox);
 
       // Backward propagation - compare right (1, 0) , center (0,0) and down (0, 1)
 
@@ -220,10 +219,10 @@ void PatchMatch::Compute(PMImageType* const initialization)
     // RANDOM SEARCH - try a random region in smaller windows around the current best patch.
     std::cout << "Random search..." << std::endl;
     // Iterate over patch centers
-    itk::ImageRegion<2> internalRegion =
-             ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
+//     itk::ImageRegion<2> internalRegion =
+//              ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
     itk::ImageRegionIteratorWithIndex<PMImageType> outputIterator(this->Output,
-                                                                  internalRegion);
+                                                                  holeBoundingBox);
     while(!outputIterator.IsAtEnd())
     {
       // Only compute the NN-field where the target mask is valid
@@ -245,6 +244,9 @@ void PatchMatch::Compute(PMImageType* const initialization)
       itk::ImageRegion<2> centerRegion = ITKHelpers::GetRegionInRadiusAroundPixel(center, this->PatchRadius);
 
       Match currentMatch = outputIterator.Get();
+
+      unsigned int width = Image->GetLargestPossibleRegion().GetSize()[0];
+      unsigned int height = Image->GetLargestPossibleRegion().GetSize()[1];
 
       unsigned int radius = std::max(width, height);
       //radius /= 2; // Only search half of the image
