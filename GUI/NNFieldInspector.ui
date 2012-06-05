@@ -7,47 +7,32 @@
     <x>0</x>
     <y>0</y>
     <width>800</width>
-    <height>600</height>
+    <height>827</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Interactive Correspondence Selection</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QGridLayout" name="gridLayout">
-    <item row="0" column="0">
-     <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0,20">
+   <layout class="QVBoxLayout" name="verticalLayout" stretch="20,1">
+    <item>
+     <widget class="QVTKWidget" name="qvtkWidget"/>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout">
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayout">
-        <item>
-         <widget class="QLabel" name="label_2">
-          <property name="text">
-           <string>Left Pane</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLabel" name="label">
-          <property name="text">
-           <string>Right Pane</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
+       <widget class="QRadioButton" name="radRGB">
+        <property name="text">
+         <string>RGB</string>
+        </property>
+       </widget>
       </item>
       <item>
-       <layout class="QVBoxLayout" name="verticalLayout">
-        <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_2">
-          <item>
-           <widget class="QVTKWidget" name="qvtkWidgetLeft"/>
-          </item>
-          <item>
-           <widget class="QVTKWidget" name="qvtkWidgetRight"/>
-          </item>
-         </layout>
-        </item>
-       </layout>
+       <widget class="QRadioButton" name="radNNField">
+        <property name="text">
+         <string>NNField</string>
+        </property>
+       </widget>
       </item>
      </layout>
     </item>

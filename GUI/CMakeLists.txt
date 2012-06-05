@@ -11,14 +11,14 @@ QT4_WRAP_UI(UISrcs NNFieldInspector.ui)
 QT4_WRAP_CPP(MOCSrcs NNFieldInspector.h)
 
 add_subdirectory(ITKVTKHelpers)
-
 add_subdirectory(ITKVTKCamera)
+add_subdirectory(Layer)
 add_subdirectory(VTKHelpers)
 
 add_executable(NNFieldInspector NNFieldInspectorDriver.cpp
 NNFieldInspector.cpp
-Pane2D.cpp PointSelectionStyle2D.cpp
+PointSelectionStyle2D.cpp
 ${UISrcs} ${MOCSrcs})
 
 TARGET_LINK_LIBRARIES(NNFieldInspector ${VTK_LIBRARIES} ${ITK_LIBRARIES}
-VTKHelpers ITKVTKCamera ITKVTKHelpers ITKHelpers)
+VTKHelpers ITKVTKCamera ITKVTKHelpers ITKHelpers Layer)

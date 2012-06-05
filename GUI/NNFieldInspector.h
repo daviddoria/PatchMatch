@@ -25,6 +25,7 @@
 #include <vtkSmartPointer.h>
 #include <vtkSeedWidget.h>
 #include <vtkPointHandleRepresentation2D.h>
+#include <vtkRenderer.h>
 
 // ITK
 #include "itkImage.h"
@@ -35,14 +36,10 @@
 
 // Submodules
 #include "ITKVTKCamera/ITKVTKCamera.h"
+#include "Layer/Layer.h"
 
 // Custom
-#include "Pane2D.h"
 #include "PointSelectionStyle2D.h"
-
-// Forward declarations
-class vtkImageData;
-class vtkRenderer;
 
 class NNFieldInspector : public QMainWindow, public Ui::NNFieldInspector
 {
@@ -52,44 +49,63 @@ public:
   typedef itk::Image<itk::CovariantVector<unsigned char, 3>, 2> ImageType;
   typedef itk::VectorImage<float, 2> NNFieldImageType;
 
-  // Constructor
+  /** Constructor */
   NNFieldInspector();
   NNFieldInspector(const std::string& imageFileName, const std::string& nnFieldFileName);
 
+  /** Set the radius of the patches.*/
   void SetPatchRadius(const unsigned int patchRadius);
-  
+
 public slots:
-  void on_actionOpenImageLeft_activated();
-  void on_actionOpenImageRight_activated();
+
+  void on_actionOpenImage_activated();
+  void on_actionOpenNNField_activated();
 
   void on_actionHelp_activated();
   void on_actionQuit_activated();
-  
-  void on_actionFlipLeftHorizontally_activated();
-  void on_actionFlipLeftVertically_activated();
-  void on_actionFlipRightHorizontally_activated();
-  void on_actionFlipRightVertically_activated();
+
+  void on_actionFlipHorizontally_activated();
+  void on_actionFlipVertically_activated();
 
 private:
 
+  /** React to a pick event.*/
   void PixelClickedEventHandler(vtkObject* caller, long unsigned int eventId,
                                 void* callData);
 
+  /** Functionality shared by all constructors.*/
   void SharedConstructor();
 
+  /** The nearest neighbor field.*/
   NNFieldImageType::Pointer NNField;
 
+  /** The image over which the nearest neighbor field is defined.*/
   ImageType::Pointer Image;
 
-  /** Load an image*/
-  void LoadImage(Pane2D* const pane, const std::string& fileName);
+  /** Load an image.*/
+  void LoadImage(const std::string& fileName);
 
-  Pane2D* LeftPane;
-  Pane2D* RightPane;
+  /** Load a nearest neighbor field.*/
+  void LoadNNField(const std::string& fileName);
 
+  /** The layer used to display the RGB image.*/
+  Layer ImageLayer;
+
+  /** The layer used to display the nearest neighbor field.*/
+  Layer NNFieldLayer;
+
+  /** An object to handle flipping the camera.*/
   ITKVTKCamera Camera;
 
+  /** The radius of the patches.*/
   unsigned int PatchRadius;
+
+  /** The object to handle the picking.*/
+  PointSelectionStyle2D* SelectionStyle;
+
+  /** The renderer.*/
+  vtkSmartPointer<vtkRenderer> Renderer;
+
 };
 
 #endif

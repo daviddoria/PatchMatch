@@ -72,28 +72,26 @@ void NNFieldInspector::SharedConstructor()
 {
   this->setupUi(this);
 
-  this->LeftPane = new Pane2D(this->qvtkWidgetLeft);
-  this->RightPane = NULL;
+  this->Renderer = vtkSmartPointer<vtkRenderer>::New();
+  this->qvtkWidget->GetRenderWindow()->AddRenderer(this->Renderer);
 
   this->NNField = NNFieldImageType::New();
   this->Image = ImageType::New();
+
+  vtkSmartPointer<vtkPointPicker> pointPicker = vtkSmartPointer<vtkPointPicker>::New();
+  this->qvtkWidget->GetRenderWindow()->GetInteractor()->SetPicker(pointPicker);
+  this->SelectionStyle = PointSelectionStyle2D::New();
+
+  this->Camera.SetRenderer(this->Renderer);
 }
 
-NNFieldInspector::NNFieldInspector(const std::string& imageFileName, const std::string& nnFieldFileName) : PatchRadius(7)
+NNFieldInspector::NNFieldInspector(const std::string& imageFileName,
+                                   const std::string& nnFieldFileName) : PatchRadius(7)
 {
   SharedConstructor();
 
-  LoadImage(LeftPane, imageFileName);
-
-  this->Camera.SetRenderer(this->LeftPane->Renderer);
-  //this->Camera.SetRenderWindow(this->LeftPane->RenderW);
-
-  typedef itk::ImageFileReader<NNFieldImageType> NNFieldReaderType;
-  NNFieldReaderType::Pointer nnFieldReader = NNFieldReaderType::New();
-  nnFieldReader->SetFileName(nnFieldFileName);
-  nnFieldReader->Update();
-
-  ITKHelpers::DeepCopy(nnFieldReader->GetOutput(), this->NNField.GetPointer());
+  LoadImage(imageFileName);
+  LoadNNField(nnFieldFileName);
 }
 
 // Constructor
@@ -102,20 +100,18 @@ NNFieldInspector::NNFieldInspector() : PatchRadius(7)
   SharedConstructor();
 };
 
-void NNFieldInspector::LoadImage(Pane2D* const inputPane, const std::string& fileName)
+void NNFieldInspector::LoadNNField(const std::string& fileName)
 {
+  typedef itk::ImageFileReader<NNFieldImageType> NNFieldReaderType;
+  NNFieldReaderType::Pointer nnFieldReader = NNFieldReaderType::New();
+  nnFieldReader->SetFileName(fileName);
+  nnFieldReader->Update();
 
-/*
-  QFileInfo fileInfo(fileName.toStdString().c_str());
-  std::string extension = fileInfo.suffix().toStdString();
-  std::cout << "extension: " << extension << std::endl;*/
-  
-  Pane2D* pane = static_cast<Pane2D*>(inputPane);
+  ITKHelpers::DeepCopy(nnFieldReader->GetOutput(), this->NNField.GetPointer());
+}
 
-  if(!pane)
-  {
-    throw std::runtime_error("LoadImage: inputPane is NULL!");
-  }
+void NNFieldInspector::LoadImage(const std::string& fileName)
+{
   typedef itk::ImageFileReader<ImageType> ReaderType;
   ReaderType::Pointer reader = ReaderType::New();
   reader->SetFileName(fileName);
@@ -123,74 +119,35 @@ void NNFieldInspector::LoadImage(Pane2D* const inputPane, const std::string& fil
 
   ITKHelpers::DeepCopy(reader->GetOutput(), this->Image.GetPointer());
 
-  ITKVTKHelpers::ITKImageToVTKRGBImage(this->Image.GetPointer(), pane->ImageData);
-
-  pane->ImageSliceMapper->SetInputData(pane->ImageData);
-  pane->ImageSlice->SetMapper(pane->ImageSliceMapper);
+  ITKVTKHelpers::ITKImageToVTKRGBImage(this->Image.GetPointer(), this->NNFieldLayer.ImageData);
 
   // Add Actor to renderer
+  this->Renderer->AddViewProp(this->NNFieldLayer.ImageSlice);
+  this->Renderer->ResetCamera();
 
-  pane->Renderer->AddActor(pane->ImageSlice);
-  pane->Renderer->ResetCamera();
-
-  vtkSmartPointer<vtkPointPicker> pointPicker = vtkSmartPointer<vtkPointPicker>::New();
-  pane->qvtkWidget->GetRenderWindow()->GetInteractor()->SetPicker(pointPicker);
-  pane->SelectionStyle = PointSelectionStyle2D::New();
-  pane->SelectionStyle->SetCurrentRenderer(pane->Renderer);
   //pane->SelectionStyle->Initialize();
-  pane->qvtkWidget->GetRenderWindow()->GetInteractor()->SetInteractorStyle(pane->SelectionStyle);
+  this->qvtkWidget->GetRenderWindow()->GetInteractor()->SetInteractorStyle(this->SelectionStyle);
 
-  pane->Renderer->ResetCamera();
+  this->Renderer->ResetCamera();
 
-  pane->qvtkWidget->GetRenderWindow()->Render();
+  this->qvtkWidget->GetRenderWindow()->Render();
 
   /** When the image is clicked, alert the GUI. */
-  this->LeftPane->SelectionStyle->AddObserver(PointSelectionStyle2D::PixelClickedEvent, this,
+  this->SelectionStyle->AddObserver(PointSelectionStyle2D::PixelClickedEvent, this,
                                               &NNFieldInspector::PixelClickedEventHandler);
 }
 
-void NNFieldInspector::on_actionFlipLeftHorizontally_activated()
+void NNFieldInspector::on_actionFlipHorizontally_activated()
 {
-  if(dynamic_cast<Pane2D*>(this->LeftPane))
-    {
-    static_cast<Pane2D*>(this->LeftPane)->FlipHorizontally();
-    }
-  else
-    {
-    std::cerr << "Cannot flip a point cloud!" << std::endl;
-    }
+  //static_cast<Pane2D*>(this->LeftPane)->FlipHorizontally();
 }
 
-void NNFieldInspector::on_actionFlipLeftVertically_activated()
+void NNFieldInspector::on_actionFlipVertically_activated()
 {
-  if(dynamic_cast<Pane2D*>(this->LeftPane))
-    {
-    static_cast<Pane2D*>(this->LeftPane)->FlipVertically();
-    }
-  else
-    {
-    std::cerr << "Cannot flip a point cloud!" << std::endl;
-    }
+  //static_cast<Pane2D*>(this->LeftPane)->FlipVertically();
 }
 
-void NNFieldInspector::on_actionFlipRightHorizontally_activated()
-{
-  if(dynamic_cast<Pane2D*>(this->RightPane))
-    {
-    static_cast<Pane2D*>(this->RightPane)->FlipHorizontally();
-    }
-  else
-    {
-    std::cerr << "Cannot flip a point cloud!" << std::endl;
-    }
-}
-
-void NNFieldInspector::on_actionFlipRightVertically_activated()
-{
-  this->RightPane->FlipVertically();
-}
-
-void NNFieldInspector::on_actionOpenImageLeft_activated()
+void NNFieldInspector::on_actionOpenImage_activated()
 {
   // Get a filename to open
   QString fileName = QFileDialog::getOpenFileName(this, "Open File", ".",
@@ -203,19 +160,15 @@ void NNFieldInspector::on_actionOpenImageLeft_activated()
     return;
     }
 
-  if(this->LeftPane)
-    {
-    delete this->LeftPane;
-    }
-  this->LeftPane = new Pane2D(this->qvtkWidgetLeft);
-  LoadImage(this->LeftPane, fileName.toStdString());
+  LoadImage(fileName.toStdString());
 }
 
-void NNFieldInspector::on_actionOpenImageRight_activated()
+
+void NNFieldInspector::on_actionOpenNNField_activated()
 {
   // Get a filename to open
   QString fileName = QFileDialog::getOpenFileName(this, "Open File", ".",
-                                                  "Image Files (*.jpg *.jpeg *.bmp *.png *.mha)");
+                                                  "Image Files (*.mha)");
 
   std::cout << "Got filename: " << fileName.toStdString() << std::endl;
   if(fileName.toStdString().empty())
@@ -223,17 +176,12 @@ void NNFieldInspector::on_actionOpenImageRight_activated()
     std::cout << "Filename was empty." << std::endl;
     return;
     }
-    
-  if(this->RightPane)
-    {
-    delete this->RightPane;
-    }
-  this->RightPane = new Pane2D(this->qvtkWidgetRight);
-  LoadImage(this->RightPane, fileName.toStdString());
+
+  LoadNNField(fileName.toStdString());
 }
 
 void NNFieldInspector::PixelClickedEventHandler(vtkObject* caller, long unsigned int eventId,
-                                void* callData)
+                                                void* callData)
 {
   double* pixel = reinterpret_cast<double*>(callData);
 
@@ -247,11 +195,11 @@ void NNFieldInspector::PixelClickedEventHandler(vtkObject* caller, long unsigned
   std::cout << "Picked index: " << pickedIndex << std::endl;
   
   NNFieldImageType::PixelType bestMatch = this->NNField->GetPixel(pickedIndex);
-  itk::Index<2> bestMatchIndex = {{static_cast<unsigned int>(bestMatch[0]),
+  itk::Index<2> bestMatchCenter = {{static_cast<unsigned int>(bestMatch[0]),
                                    static_cast<unsigned int>(bestMatch[1])}};
 
-  itk::ImageRegion<2> matchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(bestMatchIndex, this->PatchRadius);
-  std::cout << "Best match: " << bestMatchIndex << std::endl;
+  itk::ImageRegion<2> matchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(bestMatchCenter, this->PatchRadius);
+  std::cout << "Best match center: " << bestMatchCenter << std::endl;
 
   // Highlight patches
   ImageType::PixelType red;
@@ -267,9 +215,7 @@ void NNFieldInspector::PixelClickedEventHandler(vtkObject* caller, long unsigned
 
   ITKHelpers::OutlineRegion(tempImage.GetPointer(), matchRegion, green);
 
-  ITKVTKHelpers::ITKImageToVTKRGBImage(tempImage.GetPointer(), this->LeftPane->ImageData);
-
-  this->LeftPane->Refresh();
+  ITKVTKHelpers::ITKImageToVTKRGBImage(tempImage.GetPointer(), this->ImageLayer.ImageData);
 }
 
 void NNFieldInspector::SetPatchRadius(const unsigned int patchRadius)
