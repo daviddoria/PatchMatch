@@ -56,7 +56,7 @@
 void NNFieldInspector::on_actionHelp_activated()
 {
   QTextEdit* help=new QTextEdit();
-  
+
   help->setReadOnly(true);
   help->append("<h1>Nearest Neighbor Field Inspector</h1>\
   Click on a pixel. The surrounding region will be outlined, and the best matching region will be outlined.<br/>"
@@ -93,12 +93,13 @@ void NNFieldInspector::SharedConstructor()
   this->qvtkWidget->GetRenderWindow()->GetInteractor()->SetPicker(pointPicker);
 
   this->SelectionStyle = PointSelectionStyle2D::New();
+  this->SelectionStyle->SetCurrentRenderer(this->Renderer);
   this->qvtkWidget->GetRenderWindow()->GetInteractor()->SetInteractorStyle(this->SelectionStyle);
 
   /** When the image is clicked, alert the GUI. */
   this->SelectionStyle->AddObserver(PointSelectionStyle2D::PixelClickedEvent, this,
                                     &NNFieldInspector::PixelClickedEventHandler);
-  
+
   this->Camera.SetRenderer(this->Renderer);
 }
 
@@ -131,14 +132,17 @@ void NNFieldInspector::LoadNNField(const std::string& fileName)
   channels.push_back(0);
   channels.push_back(1);
 
-//   typedef itk::VectorImage<int, 2> VectorImageType;
-//   VectorImageType::Pointer vectorImage = VectorImageType::New();
-//   ITKHelpers::ExtractChannels(this->NNField.GetPointer(), channels, vectorImage.GetPointer());
-//   
-  ITKVTKHelpers::ITKImageToVTKRGBImage(this->NNField.GetPointer(), this->NNFieldLayer.ImageData);
+  typedef itk::VectorImage<int, 2> VectorImageType;
+  VectorImageType::Pointer vectorImage = VectorImageType::New();
+  vectorImage->SetNumberOfComponentsPerPixel(2);
+  vectorImage->SetRegions(this->NNField->GetLargestPossibleRegion());
+  vectorImage->Allocate();
+
+  ITKHelpers::ExtractChannels(this->NNField.GetPointer(), channels, vectorImage.GetPointer());
+  ITKVTKHelpers::ITKImageToVTKMagnitudeImage(vectorImage.GetPointer(), this->NNFieldLayer.ImageData);
 
   UpdateDisplayedImages();
-  
+
   this->Renderer->ResetCamera();
 
   this->qvtkWidget->GetRenderWindow()->Render();
@@ -216,9 +220,9 @@ void NNFieldInspector::PixelClickedEventHandler(vtkObject* caller, long unsigned
 
 
   itk::ImageRegion<2> pickedRegion = ITKHelpers::GetRegionInRadiusAroundPixel(pickedIndex, this->PatchRadius);
-  
+
   std::cout << "Picked index: " << pickedIndex << std::endl;
-  
+
   NNFieldImageType::PixelType bestMatch = this->NNField->GetPixel(pickedIndex);
   itk::Index<2> bestMatchCenter = {{static_cast<unsigned int>(bestMatch[0]),
                                    static_cast<unsigned int>(bestMatch[1])}};
@@ -240,10 +244,16 @@ void NNFieldInspector::PixelClickedEventHandler(vtkObject* caller, long unsigned
   ITKHelpers::OutlineRegion(tempImage.GetPointer(), pickedRegion, red);
 
   ITKHelpers::OutlineRegion(tempImage.GetPointer(), matchRegion, green);
+  typedef itk::Image<float, 2> FloatImageType;
+  FloatImageType::Pointer magnitudeImage = FloatImageType::New();
+  ITKHelpers::MagnitudeImage(tempImage.GetPointer(), magnitudeImage.GetPointer());
 
-  ITKVTKHelpers::ITKImageToVTKRGBImage(tempImage.GetPointer(), this->PickLayer.ImageData);
-
+  ITKVTKHelpers::InitializeVTKImage(this->Image->GetLargestPossibleRegion(), 4, this->PickLayer.ImageData); // 4 for RGBA
   VTKHelpers::MakeImageTransparent(this->PickLayer.ImageData);
+  std::vector<itk::Index<2> > nonZeroPixels = ITKHelpers::GetNonZeroPixels(magnitudeImage.GetPointer());
+  ITKVTKHelpers::SetPixelTransparency(this->PickLayer.ImageData, nonZeroPixels, VTKHelpers::OPAQUE_PIXEL);
+  ITKVTKHelpers::ITKImageToVTKRGBImage(tempImage.GetPointer(), this->PickLayer.ImageData, true); // 'true' means 'already initialized'
+  this->PickLayer.ImageSlice->VisibilityOn();
 }
 
 void NNFieldInspector::SetPatchRadius(const unsigned int patchRadius)
@@ -255,7 +265,7 @@ void NNFieldInspector::on_radRGB_clicked()
 {
   UpdateDisplayedImages();
 }
-  
+
 void NNFieldInspector::on_radNNField_clicked()
 {
   UpdateDisplayedImages();

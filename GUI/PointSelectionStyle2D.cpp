@@ -47,12 +47,12 @@
 #include "ITKVTKHelpers/ITKHelpers/Helpers/Helpers.h"
 
 vtkStandardNewMacro(PointSelectionStyle2D);
- 
-void PointSelectionStyle2D::OnLeftButtonDown() 
+
+void PointSelectionStyle2D::OnLeftButtonDown()
 {
   //std::cout << "Picking pixel: " << this->Interactor->GetEventPosition()[0] << " " << this->Interactor->GetEventPosition()[1] << std::endl;
-  this->Interactor->GetPicker()->Pick(this->Interactor->GetEventPosition()[0], 
-		      this->Interactor->GetEventPosition()[1], 
+  this->Interactor->GetPicker()->Pick(this->Interactor->GetEventPosition()[0],
+		      this->Interactor->GetEventPosition()[1],
 		      0,  // always zero.
                       this->CurrentRenderer);
 
