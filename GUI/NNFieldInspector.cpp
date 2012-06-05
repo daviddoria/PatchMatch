@@ -51,7 +51,6 @@
 
 // Custom
 #include "PointSelectionStyle2D.h"
-#include "Pane2D.h"
 
 void NNFieldInspector::on_actionHelp_activated()
 {
@@ -101,6 +100,10 @@ void NNFieldInspector::SharedConstructor()
                                     &NNFieldInspector::PixelClickedEventHandler);
 
   this->Camera.SetRenderer(this->Renderer);
+  this->Camera.SetRenderWindow(this->qvtkWidget->GetRenderWindow());
+  this->Camera.SetInteractorStyle(this->SelectionStyle);
+  //this->Camera.Flip();
+  this->Camera.SetCameraPosition1();
 }
 
 NNFieldInspector::NNFieldInspector(const std::string& imageFileName,
@@ -168,12 +171,12 @@ void NNFieldInspector::LoadImage(const std::string& fileName)
 
 void NNFieldInspector::on_actionFlipHorizontally_activated()
 {
-  //static_cast<Pane2D*>(this->LeftPane)->FlipHorizontally();
+  this->Camera.FlipHorizontally();
 }
 
 void NNFieldInspector::on_actionFlipVertically_activated()
 {
-  //static_cast<Pane2D*>(this->LeftPane)->FlipVertically();
+  this->Camera.FlipVertically();
 }
 
 void NNFieldInspector::on_actionOpenImage_activated()
@@ -218,10 +221,15 @@ void NNFieldInspector::PixelClickedEventHandler(vtkObject* caller, long unsigned
 
   itk::Index<2> pickedIndex = {{static_cast<unsigned int>(pixel[0]), static_cast<unsigned int>(pixel[1])}};
 
+  std::cout << "Picked index: " << pickedIndex << std::endl;
 
   itk::ImageRegion<2> pickedRegion = ITKHelpers::GetRegionInRadiusAroundPixel(pickedIndex, this->PatchRadius);
 
-  std::cout << "Picked index: " << pickedIndex << std::endl;
+  if(!this->Image->GetLargestPossibleRegion().IsInside(pickedRegion))
+  {
+    std::cout << "Picked patch that is not entirely inside image!" << std::endl;
+    return;
+  }
 
   NNFieldImageType::PixelType bestMatch = this->NNField->GetPixel(pickedIndex);
   itk::Index<2> bestMatchCenter = {{static_cast<unsigned int>(bestMatch[0]),
