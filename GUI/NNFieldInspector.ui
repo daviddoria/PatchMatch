@@ -25,6 +25,9 @@
         <property name="text">
          <string>RGB</string>
         </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
        </widget>
       </item>
       <item>
@@ -49,12 +52,11 @@
    </property>
    <widget class="QMenu" name="menuLeft_Pane">
     <property name="title">
-     <string>Left Pane</string>
+     <string>View</string>
     </property>
     <addaction name="separator"/>
-    <addaction name="actionOpenImageLeft"/>
-    <addaction name="actionFlipLeftVertically"/>
-    <addaction name="actionFlipLeftHorizontally"/>
+    <addaction name="actionFlipVertically"/>
+    <addaction name="actionFlipHorizontally"/>
     <addaction name="separator"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
@@ -63,24 +65,16 @@
     </property>
     <addaction name="actionHelp"/>
    </widget>
-   <widget class="QMenu" name="menuRight_Pane">
-    <property name="title">
-     <string>Right Pane</string>
-    </property>
-    <addaction name="separator"/>
-    <addaction name="actionOpenImageRight"/>
-    <addaction name="actionFlipRightVertically"/>
-    <addaction name="actionFlipRightHorizontally"/>
-   </widget>
    <widget class="QMenu" name="menuFile">
     <property name="title">
      <string>File</string>
     </property>
+    <addaction name="actionOpenImage"/>
+    <addaction name="actionOpenNNField"/>
     <addaction name="actionQuit"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuLeft_Pane"/>
-   <addaction name="menuRight_Pane"/>
    <addaction name="menuHelp"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
@@ -106,7 +100,7 @@
     <bool>false</bool>
    </attribute>
   </widget>
-  <action name="actionOpenImageLeft">
+  <action name="actionOpenImage">
    <property name="text">
     <string>Open Image</string>
    </property>
@@ -156,7 +150,7 @@
     <string>Open PointCloud</string>
    </property>
   </action>
-  <action name="actionFlipLeftHorizontally">
+  <action name="actionFlipHorizontally">
    <property name="text">
     <string>Flip Horizontally</string>
    </property>
@@ -166,7 +160,7 @@
     <string>Flip Vertically</string>
    </property>
   </action>
-  <action name="actionFlipLeftVertically">
+  <action name="actionFlipVertically">
    <property name="text">
     <string>Flip Vertically</string>
    </property>
@@ -174,6 +168,11 @@
   <action name="actionFlipRightHorizontally">
    <property name="text">
     <string>Flip Horizontally</string>
+   </property>
+  </action>
+  <action name="actionOpenNNField">
+   <property name="text">
+    <string>Open NNField</string>
    </property>
   </action>
  </widget>

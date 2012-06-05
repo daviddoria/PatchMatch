@@ -34,15 +34,18 @@ class PointSelectionStyle2D : public vtkInteractorStyleImage
 {
 public:
   const static unsigned int PixelClickedEvent = vtkCommand::UserEvent + 1;
-  
+
   static PointSelectionStyle2D* New();
   vtkTypeMacro(PointSelectionStyle2D, vtkInteractorStyleImage);
-  
-  void OnLeftButtonDown();
 
   void Initialize() {}
 
   void SetCurrentRenderer(vtkRenderer*);
+
+private:
+
+  void OnLeftButtonDown();
+
 };
 
 #endif

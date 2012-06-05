@@ -47,6 +47,7 @@
 // Submodules
 #include "ITKVTKHelpers/ITKVTKHelpers.h"
 #include "ITKVTKCamera/ITKVTKCamera.h"
+#include "VTKHelpers/VTKHelpers.h"
 
 // Custom
 #include "PointSelectionStyle2D.h"
@@ -72,16 +73,32 @@ void NNFieldInspector::SharedConstructor()
 {
   this->setupUi(this);
 
+  // Turn slices visibility off to prevent errors that there is not yet data.
+  this->ImageLayer.ImageSlice->VisibilityOff();
+  this->NNFieldLayer.ImageSlice->VisibilityOff();
+  this->PickLayer.ImageSlice->VisibilityOff();
+
   this->Renderer = vtkSmartPointer<vtkRenderer>::New();
   this->qvtkWidget->GetRenderWindow()->AddRenderer(this->Renderer);
+
+  // Add slices to renderer
+  this->Renderer->AddViewProp(this->ImageLayer.ImageSlice);
+  this->Renderer->AddViewProp(this->NNFieldLayer.ImageSlice);
+  this->Renderer->AddViewProp(this->PickLayer.ImageSlice);
 
   this->NNField = NNFieldImageType::New();
   this->Image = ImageType::New();
 
   vtkSmartPointer<vtkPointPicker> pointPicker = vtkSmartPointer<vtkPointPicker>::New();
   this->qvtkWidget->GetRenderWindow()->GetInteractor()->SetPicker(pointPicker);
-  this->SelectionStyle = PointSelectionStyle2D::New();
 
+  this->SelectionStyle = PointSelectionStyle2D::New();
+  this->qvtkWidget->GetRenderWindow()->GetInteractor()->SetInteractorStyle(this->SelectionStyle);
+
+  /** When the image is clicked, alert the GUI. */
+  this->SelectionStyle->AddObserver(PointSelectionStyle2D::PixelClickedEvent, this,
+                                    &NNFieldInspector::PixelClickedEventHandler);
+  
   this->Camera.SetRenderer(this->Renderer);
 }
 
@@ -108,6 +125,23 @@ void NNFieldInspector::LoadNNField(const std::string& fileName)
   nnFieldReader->Update();
 
   ITKHelpers::DeepCopy(nnFieldReader->GetOutput(), this->NNField.GetPointer());
+
+  // Extract the first two channels
+  std::vector<unsigned int> channels;
+  channels.push_back(0);
+  channels.push_back(1);
+
+//   typedef itk::VectorImage<int, 2> VectorImageType;
+//   VectorImageType::Pointer vectorImage = VectorImageType::New();
+//   ITKHelpers::ExtractChannels(this->NNField.GetPointer(), channels, vectorImage.GetPointer());
+//   
+  ITKVTKHelpers::ITKImageToVTKRGBImage(this->NNField.GetPointer(), this->NNFieldLayer.ImageData);
+
+  UpdateDisplayedImages();
+  
+  this->Renderer->ResetCamera();
+
+  this->qvtkWidget->GetRenderWindow()->Render();
 }
 
 void NNFieldInspector::LoadImage(const std::string& fileName)
@@ -119,22 +153,13 @@ void NNFieldInspector::LoadImage(const std::string& fileName)
 
   ITKHelpers::DeepCopy(reader->GetOutput(), this->Image.GetPointer());
 
-  ITKVTKHelpers::ITKImageToVTKRGBImage(this->Image.GetPointer(), this->NNFieldLayer.ImageData);
+  ITKVTKHelpers::ITKImageToVTKRGBImage(this->Image.GetPointer(), this->ImageLayer.ImageData);
 
-  // Add Actor to renderer
-  this->Renderer->AddViewProp(this->NNFieldLayer.ImageSlice);
-  this->Renderer->ResetCamera();
-
-  //pane->SelectionStyle->Initialize();
-  this->qvtkWidget->GetRenderWindow()->GetInteractor()->SetInteractorStyle(this->SelectionStyle);
+  UpdateDisplayedImages();
 
   this->Renderer->ResetCamera();
 
   this->qvtkWidget->GetRenderWindow()->Render();
-
-  /** When the image is clicked, alert the GUI. */
-  this->SelectionStyle->AddObserver(PointSelectionStyle2D::PixelClickedEvent, this,
-                                              &NNFieldInspector::PixelClickedEventHandler);
 }
 
 void NNFieldInspector::on_actionFlipHorizontally_activated()
@@ -209,16 +234,36 @@ void NNFieldInspector::PixelClickedEventHandler(vtkObject* caller, long unsigned
   green[0] = 0; green[1] = 255; green[2] = 0;
 
   ImageType::Pointer tempImage = ImageType::New();
-  ITKHelpers::DeepCopy(this->Image.GetPointer(), tempImage.GetPointer());
+  tempImage->SetRegions(this->Image->GetLargestPossibleRegion());
+  tempImage->Allocate();
 
   ITKHelpers::OutlineRegion(tempImage.GetPointer(), pickedRegion, red);
 
   ITKHelpers::OutlineRegion(tempImage.GetPointer(), matchRegion, green);
 
-  ITKVTKHelpers::ITKImageToVTKRGBImage(tempImage.GetPointer(), this->ImageLayer.ImageData);
+  ITKVTKHelpers::ITKImageToVTKRGBImage(tempImage.GetPointer(), this->PickLayer.ImageData);
+
+  VTKHelpers::MakeImageTransparent(this->PickLayer.ImageData);
 }
 
 void NNFieldInspector::SetPatchRadius(const unsigned int patchRadius)
 {
   this->PatchRadius = patchRadius;
+}
+
+void NNFieldInspector::on_radRGB_clicked()
+{
+  UpdateDisplayedImages();
+}
+  
+void NNFieldInspector::on_radNNField_clicked()
+{
+  UpdateDisplayedImages();
+}
+
+void NNFieldInspector::UpdateDisplayedImages()
+{
+  this->NNFieldLayer.ImageSlice->SetVisibility(this->radNNField->isChecked());
+  this->ImageLayer.ImageSlice->SetVisibility(this->radRGB->isChecked());
+  this->qvtkWidget->GetRenderWindow()->Render();
 }

@@ -67,6 +67,9 @@ public slots:
   void on_actionFlipHorizontally_activated();
   void on_actionFlipVertically_activated();
 
+  void on_radRGB_clicked();
+  void on_radNNField_clicked();
+
 private:
 
   /** React to a pick event.*/
@@ -94,6 +97,11 @@ private:
   /** The layer used to display the nearest neighbor field.*/
   Layer NNFieldLayer;
 
+  /** The layer used to do the picking. This layer is always on top and is transparent everywhere
+    * except the outline of the current patch and its best match.
+    */
+  Layer PickLayer;
+
   /** An object to handle flipping the camera.*/
   ITKVTKCamera Camera;
 
@@ -105,6 +113,8 @@ private:
 
   /** The renderer.*/
   vtkSmartPointer<vtkRenderer> Renderer;
+
+  void UpdateDisplayedImages();
 
 };
 
