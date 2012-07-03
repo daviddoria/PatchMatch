@@ -1,3 +1,5 @@
+/** Demonstrate different initialization techniques. */
+
 #include <iostream>
 
 #include "itkImage.h"

@@ -39,17 +39,16 @@ int main(int argc, char*argv[])
   mask->Read(maskFilename);
 
   BDSInpainting bdsInpainting;
+  bdsInpainting.SetPatchRadius(7);
   bdsInpainting.SetImage(imageReader->GetOutput());
   bdsInpainting.SetMask(mask);
-  //bdsInpainting.SetResolutionLevels(1);
-  bdsInpainting.SetResolutionLevels(2);
-  //bdsInpainting.SetResolutionLevels(3);
-  //bdsInpainting.SetResolutionLevels(4);
-  //bdsInpainting.SetResolutionLevels(25);
+  bdsInpainting.SetResolutionLevels(1);
+  //bdsInpainting.SetResolutionLevels(2);
+
   bdsInpainting.SetIterations(4);
-  bdsInpainting.SetPatchRadius(10);
+  
   bdsInpainting.SetDownsampleFactor(.5);
-  //bdsInpainting.SetPatchRadius(7);
+  
   bdsInpainting.SetPatchMatchIterations(3);
   bdsInpainting.Compute();
 

@@ -142,11 +142,12 @@ void BDSInpainting::Compute(ImageType* const image, Mask* const mask, ImageType*
     std::cout << "BDSInpainting Iteration " << iteration << std::endl;
 
     PatchMatch patchMatch;
+    patchMatch.SetPatchRadius(this->PatchRadius);
     patchMatch.SetImage(currentImage);
     patchMatch.SetSourceMask(mask);
     patchMatch.SetTargetMask(targetMask);
     patchMatch.SetIterations(this->PatchMatchIterations);
-    patchMatch.SetPatchRadius(this->PatchRadius);
+
     try
     {
       if(iteration == 0)

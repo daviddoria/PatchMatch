@@ -13,3 +13,6 @@
 [submodule "GUI/Layer"]
 	path = GUI/Layer
 	url = https://github.com/daviddoria/Layer
+[submodule "PatchProjection"]
+	path = PatchProjection
+	url = https://github.com/daviddoria/PatchProjection.git

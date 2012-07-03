@@ -3,6 +3,7 @@
 // Submodules
 #include "Mask/ITKHelpers/ITKHelpers.h"
 #include "Mask/MaskOperations.h"
+#include "PatchProjection/PatchProjection.h"
 
 // ITK
 #include "itkImageRegionReverseIterator.h"
@@ -10,8 +11,11 @@
 // STL
 #include <ctime>
 
-PatchMatch::PatchMatch()
+PatchMatch::PatchMatch() : PatchRadius(0)
 {
+  this->Distance = std::bind(&PatchMatch::PCADistance,this,std::placeholders::_1, std::placeholders::_2,
+                             std::placeholders::_3);
+  
   this->Output = PMImageType::New();
   this->Image = ImageType::New();
   this->SourceMask = Mask::New();
@@ -93,7 +97,7 @@ void PatchMatch::Compute(PMImageType* const initialization)
         }
         else
         {
-          float distLeft = distance(leftMatchRegion, centerRegion, currentMatch.Score);
+          float distLeft = Distance(leftMatchRegion, centerRegion, currentMatch.Score);
 
           if (distLeft < currentMatch.Score)
           {
@@ -115,7 +119,7 @@ void PatchMatch::Compute(PMImageType* const initialization)
         }
         else
         {
-          float distUp = distance(upMatchRegion, centerRegion, currentMatch.Score);
+          float distUp = Distance(upMatchRegion, centerRegion, currentMatch.Score);
 
           if (distUp < currentMatch.Score)
           {
@@ -176,7 +180,7 @@ void PatchMatch::Compute(PMImageType* const initialization)
         }
         else
         {
-          float distRight = distance(rightMatchRegion, currentRegion, currentMatch.Score);
+          float distRight = Distance(rightMatchRegion, currentRegion, currentMatch.Score);
 
           if (distRight < currentMatch.Score)
           {
@@ -199,7 +203,7 @@ void PatchMatch::Compute(PMImageType* const initialization)
         }
         else
         {
-          float distDown = distance(downMatchRegion, currentRegion, currentMatch.Score);
+          float distDown = Distance(downMatchRegion, currentRegion, currentMatch.Score);
 
           if (distDown < currentMatch.Score)
           {
@@ -272,7 +276,7 @@ void PatchMatch::Compute(PMImageType* const initialization)
           continue;
         }
 
-        float dist = distance(randomValidRegion, centerRegion, currentMatch.Score);
+        float dist = Distance(randomValidRegion, centerRegion, currentMatch.Score);
 
         if (dist < currentMatch.Score)
         {
@@ -298,7 +302,7 @@ void PatchMatch::Compute(PMImageType* const initialization)
 
 }
 
-float PatchMatch::distance(const itk::ImageRegion<2>& source,
+float PatchMatch::PixelWiseDistance(const itk::ImageRegion<2>& source,
                            const itk::ImageRegion<2>& target,
                            const float prevDist)
 {
@@ -354,6 +358,37 @@ float PatchMatch::distance(const itk::ImageRegion<2>& source,
 
   distance /= static_cast<float>(numberOfPixelsCompared);
 
+  return distance;
+}
+
+
+float PatchMatch::PCADistance(const itk::ImageRegion<2>& source,
+                           const itk::ImageRegion<2>& target,
+                           const float prevDist)
+{
+  assert(this->SourceMask->IsValid(source));
+
+  if(!this->SourceMask->IsValid(source))
+  {
+    std::cout << "Source: " << source << std::endl;
+    throw std::runtime_error("PatchMatch::distance source is not valid!");
+  }
+
+  // Do not use patches on image boundaries
+  if(!this->Output->GetLargestPossibleRegion().IsInside(source) ||
+     !this->Output->GetLargestPossibleRegion().IsInside(target))
+  {
+    return std::numeric_limits<float>::max();
+  }
+
+  VectorType vectorizedSource = PatchProjection<MatrixType, VectorType>::VectorizePatch(this->Image.GetPointer(),
+                                                               source);
+
+  VectorType vectorizedTarget = PatchProjection<MatrixType, VectorType>::VectorizePatch(this->Image.GetPointer(),
+                                                               target);
+  // Compute distance between patches in PCA space
+  float distance = (vectorizedSource - vectorizedTarget).squaredNorm();
+  
   return distance;
 }
 
@@ -443,7 +478,7 @@ void PatchMatch::BoundaryInit()
 
       Match match;
       match.Region = closestBoundaryPatchRegion;
-      match.Score = distance(closestBoundaryPatchRegion, currentRegion);
+      match.Score = Distance(closestBoundaryPatchRegion, currentRegion, std::numeric_limits<float>::max());
       outputIterator.Set(match);
     }
     ++outputIterator;
@@ -482,7 +517,7 @@ void PatchMatch::RandomInit()
 
       Match randomMatch;
       randomMatch.Region = randomValidRegion;
-      randomMatch.Score = distance(randomValidRegion, currentRegion);
+      randomMatch.Score = Distance(randomValidRegion, currentRegion, std::numeric_limits<float>::max());
       outputIterator.Set(randomMatch);
     }
 
@@ -513,6 +548,19 @@ void PatchMatch::SetImage(ImageType* const image)
 
   this->Output->SetRegions(this->Image->GetLargestPossibleRegion());
   this->Output->Allocate();
+
+  if(this->PatchRadius == 0)
+  {
+    throw std::runtime_error("Must set PatchRadius before setting image!");
+  }
+
+  std::vector<typename VectorType::Scalar> sortedEigenvalues; // unused
+  VectorType meanVector; // unused
+  this->ProjectionMatrix = PatchProjection<MatrixType, VectorType>::
+                              ComputeProjectionMatrix_CovarianceEigen(this->Image.GetPointer(),
+                                                                      this->PatchRadius,
+                                                                      meanVector,
+                                                                      sortedEigenvalues);
 }
 
 void PatchMatch::SetSourceMask(Mask* const mask)
@@ -550,4 +598,9 @@ void PatchMatch::GetPatchCentersImage(PMImageType* const pmImage, itk::VectorIma
 
     ++imageIterator;
     }
+}
+
+void PatchMatch::SetDistanceType(const ENUM_DISTANCE_TYPE)
+{
+
 }

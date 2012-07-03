@@ -1,3 +1,5 @@
+/** This program computes the NN field of an image. */
+
 #include <iostream>
 
 #include "itkImage.h"
@@ -42,11 +44,12 @@ int main(int argc, char*argv[])
   ITKHelpers::SetImageToConstant(targetMask.GetPointer(), targetMask->GetValidValue());
 
   PatchMatch patchMatch;
+  patchMatch.SetDistanceType(PatchMatch::PIXELWISE);
+  patchMatch.SetPatchRadius(3);
   patchMatch.SetImage(imageReader->GetOutput());
   patchMatch.SetTargetMask(targetMask);
   patchMatch.SetSourceMask(sourceMask);
   patchMatch.SetIterations(10);
-  patchMatch.SetPatchRadius(3);
 
   patchMatch.Compute(NULL);
 

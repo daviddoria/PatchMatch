@@ -231,9 +231,14 @@ void NNFieldInspector::PixelClickedEventHandler(vtkObject* caller, long unsigned
     return;
   }
 
-  NNFieldImageType::PixelType bestMatch = this->NNField->GetPixel(pickedIndex);
-  itk::Index<2> bestMatchCenter = {{static_cast<unsigned int>(bestMatch[0]),
-                                   static_cast<unsigned int>(bestMatch[1])}};
+  NNFieldImageType::PixelType nnFieldPixel = this->NNField->GetPixel(pickedIndex);
+
+  // This assumes the NNField is an Offset field
+  itk::Index<2> bestMatchCenter = {{static_cast<unsigned int>(nnFieldPixel[0]) + pickedIndex[0],
+                                    static_cast<unsigned int>(nnFieldPixel[1]) + pickedIndex[1]}};
+  // If we are using the Location field, do this:
+//   itk::Index<2> bestMatchCenter = {{static_cast<unsigned int>(nnFieldPixel[0]),
+//                                     static_cast<unsigned int>(nnFieldPixel[1])}};
 
   itk::ImageRegion<2> matchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(bestMatchCenter, this->PatchRadius);
   std::cout << "Best match center: " << bestMatchCenter << std::endl;
