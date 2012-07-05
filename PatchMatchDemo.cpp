@@ -44,9 +44,14 @@ int main(int argc, char*argv[])
   ITKHelpers::SetImageToConstant(targetMask.GetPointer(), targetMask->GetValidValue());
 
   PatchMatch patchMatch;
-  patchMatch.SetDistanceType(PatchMatch::PIXELWISE);
-  patchMatch.SetPatchRadius(3);
   patchMatch.SetImage(imageReader->GetOutput());
+  patchMatch.SetPatchRadius(3);
+  
+  patchMatch.SetDistanceType(PatchMatch::PIXELWISE);
+
+//   patchMatch.SetDistanceType(PatchMatch::PCA);
+//   patchMatch.ComputeProjectionMatrix();
+
   patchMatch.SetTargetMask(targetMask);
   patchMatch.SetSourceMask(sourceMask);
   patchMatch.SetIterations(10);

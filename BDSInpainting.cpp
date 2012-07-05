@@ -137,12 +137,21 @@ void BDSInpainting::Compute(ImageType* const image, Mask* const mask, ImageType*
 
   std::cout << "Computing BDS on resolution " << fullRegion.GetSize() << std::endl;
 
+  // Only compute the projection matrix once per scale
+  PatchMatch patchMatch;
+  patchMatch.SetPatchRadius(this->PatchRadius);
+  patchMatch.SetImage(currentImage);
+
+  //patchMatch.SetDistanceType(PatchMatch::PIXELWISE);
+
+  patchMatch.SetDistanceType(PatchMatch::PCA);
+  patchMatch.ComputeProjectionMatrix();
+
   for(unsigned int iteration = 0; iteration < this->Iterations; ++iteration)
   {
     std::cout << "BDSInpainting Iteration " << iteration << std::endl;
 
-    PatchMatch patchMatch;
-    patchMatch.SetPatchRadius(this->PatchRadius);
+    // Set the image here even though it was also set outside the loop, because we want to do this at every iteration.
     patchMatch.SetImage(currentImage);
     patchMatch.SetSourceMask(mask);
     patchMatch.SetTargetMask(targetMask);

@@ -386,8 +386,13 @@ float PatchMatch::PCADistance(const itk::ImageRegion<2>& source,
 
   VectorType vectorizedTarget = PatchProjection<MatrixType, VectorType>::VectorizePatch(this->Image.GetPointer(),
                                                                target);
+
+  VectorType projectedSource = this->ProjectionMatrix.transpose() * vectorizedSource;
+
+  VectorType projectedTarget = this->ProjectionMatrix.transpose() * vectorizedTarget;
+
   // Compute distance between patches in PCA space
-  float distance = (vectorizedSource - vectorizedTarget).squaredNorm();
+  float distance = (projectedSource - projectedTarget).squaredNorm();
   
   return distance;
 }
@@ -542,18 +547,17 @@ void PatchMatch::SetPatchRadius(const unsigned int patchRadius)
   this->PatchRadius = patchRadius;
 }
 
-void PatchMatch::SetImage(ImageType* const image)
+void PatchMatch::ComputeProjectionMatrix()
 {
-  ITKHelpers::DeepCopy(image, this->Image.GetPointer());
-
-  this->Output->SetRegions(this->Image->GetLargestPossibleRegion());
-  this->Output->Allocate();
-
   if(this->PatchRadius == 0)
   {
-    throw std::runtime_error("Must set PatchRadius before setting image!");
+    throw std::runtime_error("Must set PatchRadius before calling ComputeProjectionMatrix()!");
   }
-
+  
+  if(this->Image->GetLargestPossibleRegion().GetSize()[0] == 0)
+  {
+    throw std::runtime_error("Cannot ComputeProjectionMatrix() before calling SetImage()!");
+  }
   std::vector<typename VectorType::Scalar> sortedEigenvalues; // unused
   VectorType meanVector; // unused
   this->ProjectionMatrix = PatchProjection<MatrixType, VectorType>::
@@ -561,6 +565,19 @@ void PatchMatch::SetImage(ImageType* const image)
                                                                       this->PatchRadius,
                                                                       meanVector,
                                                                       sortedEigenvalues);
+
+  unsigned int numberOfDimensionsToProjectTo = 150;
+  this->ProjectionMatrix =
+         EigenHelpers::TruncateColumns(this->ProjectionMatrix, numberOfDimensionsToProjectTo);
+  
+}
+
+void PatchMatch::SetImage(ImageType* const image)
+{
+  ITKHelpers::DeepCopy(image, this->Image.GetPointer());
+
+  this->Output->SetRegions(this->Image->GetLargestPossibleRegion());
+  this->Output->Allocate();
 }
 
 void PatchMatch::SetSourceMask(Mask* const mask)
@@ -600,7 +617,20 @@ void PatchMatch::GetPatchCentersImage(PMImageType* const pmImage, itk::VectorIma
     }
 }
 
-void PatchMatch::SetDistanceType(const ENUM_DISTANCE_TYPE)
+void PatchMatch::SetDistanceType(const ENUM_DISTANCE_TYPE distanceType)
 {
-
+  if(distanceType == PCA)
+  {
+      this->Distance = std::bind(&PatchMatch::PCADistance,this,std::placeholders::_1, std::placeholders::_2,
+                             std::placeholders::_3);
+  }
+  else if(distanceType == PIXELWISE)
+  {
+       this->Distance = std::bind(&PatchMatch::PixelWiseDistance,this,std::placeholders::_1, std::placeholders::_2,
+                             std::placeholders::_3);
+  }
+  else
+  {
+    throw std::runtime_error("Invalid distance type selected!");
+  }
 }

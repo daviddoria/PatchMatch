@@ -43,6 +43,9 @@ public:
   /** Get the Output. */
   PMImageType* GetOutput();
 
+  /** Compute the covariance matrix of the current Image */
+  void ComputeProjectionMatrix();
+  
   /** Set the number of iterations to perform. */
   void SetIterations(const unsigned int iterations);
 
