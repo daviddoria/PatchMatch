@@ -34,26 +34,26 @@
 // Submodules
 #include "Mask/Mask.h"
 
+#include "PatchComparison/PatchDistance.h"
+
 struct Match
 {
   itk::ImageRegion<2> Region;
   float Score;
 };
 
+template<typename TImage>
 class PatchMatch
 {
 public:
 
   PatchMatch();
 
-  enum ENUM_DISTANCE_TYPE { PIXELWISE, PCA };
+  void SetPatchDistanceFunctor(PatchDistance* const patchDistanceFunctor);
 
-  void SetDistanceType(const ENUM_DISTANCE_TYPE);
-  
   typedef itk::Image<Match, 2> PMImageType;
 
-  typedef itk::Image<itk::CovariantVector<float, 3>, 2> ImageType;
-  typedef itk::VectorImage<float, 2> VectorImageType;
+  typedef itk::VectorImage<float, 2> CoordinateImageType;
 
   /** Do the real work. */
   void Compute(PMImageType* const initialization);
@@ -61,9 +61,6 @@ public:
   /** Get the Output. */
   PMImageType* GetOutput();
 
-  /** Compute the covariance matrix of the current Image */
-  void ComputeProjectionMatrix();
-  
   /** Set the number of iterations to perform. */
   void SetIterations(const unsigned int iterations);
 
@@ -71,7 +68,7 @@ public:
   void SetPatchRadius(const unsigned int patchRadius);
 
   /** Set the image to operate on. */
-  void SetImage(ImageType* const image);
+  void SetImage(TImage* const image);
 
   /** Set the mask indicating where to ignore patches for comparison. */
   void SetSourceMask(Mask* const mask);
@@ -80,7 +77,7 @@ public:
   void SetTargetMask(Mask* const mask);
 
   /** Get an image where the channels are (x component, y component, score) from the nearest neighbor field struct. */
-  static void GetPatchCentersImage(PMImageType* const pmImage, itk::VectorImage<float, 2>* const output);
+  static void GetPatchCentersImage(PMImageType* const pmImage, CoordinateImageType* const output);
 
   /** Set the nearest neighbor field to exactly iself in the valid region, and random values in the hole region. */
   void RandomInit();
@@ -90,16 +87,6 @@ public:
   void BoundaryInit();
 
 private:
-
-  std::function<float(const itk::ImageRegion<2>&,const itk::ImageRegion<2>&,const float)> Distance;
-  
-  float PixelWiseDistance(const itk::ImageRegion<2>& source,
-                 const itk::ImageRegion<2>& target,
-                 const float prevDist = std::numeric_limits<float>::max());
-
-  float PCADistance(const itk::ImageRegion<2>& source,
-                 const itk::ImageRegion<2>& target,
-                 const float prevDist = std::numeric_limits<float>::max());
 
   /** Set the nearest neighbor field to exactly iself in the valid region. */
   void InitKnownRegion();
@@ -114,7 +101,7 @@ private:
   PMImageType::Pointer Output;
 
   /** The image to operate on. */
-  ImageType::Pointer Image;
+  typename TImage::Pointer Image;
 
   /** This mask indicates where to take source patches from. */
   Mask::Pointer SourceMask;
@@ -122,10 +109,9 @@ private:
   /** This mask indicates where to compute the NN field. */
   Mask::Pointer TargetMask;
 
-  /** The projection matrix to project patches to a lower dimensional space. */
-  typedef Eigen::MatrixXf MatrixType;
-  typedef Eigen::VectorXf VectorType;
-  MatrixType ProjectionMatrix;
+  PatchDistance* PatchDistanceFunctor;
 };
+
+#include "PatchMatch.hpp"
 
 #endif

@@ -18,16 +18,21 @@
 
 /** This program computes the NN field of an image. */
 
+// STL
 #include <iostream>
 
+// ITK
 #include "itkImage.h"
 #include "itkImageFileReader.h"
 #include "itkImageFileWriter.h"
 #include "itkCovariantVector.h"
 
+// Submodules
 #include "Mask/Mask.h"
 #include "Mask/ITKHelpers/ITKHelpers.h"
+#include "PatchComparison/SSD.h"
 
+// Custom
 #include "PatchMatch.h"
 
 typedef itk::Image<itk::CovariantVector<float, 3>, 2> ImageType;
@@ -61,11 +66,14 @@ int main(int argc, char*argv[])
   targetMask->Allocate();
   ITKHelpers::SetImageToConstant(targetMask.GetPointer(), targetMask->GetValidValue());
 
-  PatchMatch patchMatch;
+  SSD<ImageType>* patchDistanceFunctor = new SSD<ImageType>;
+  patchDistanceFunctor->SetImage(imageReader->GetOutput());
+  
+  PatchMatch<ImageType> patchMatch;
   patchMatch.SetImage(imageReader->GetOutput());
   patchMatch.SetPatchRadius(3);
   
-  patchMatch.SetDistanceType(PatchMatch::PIXELWISE);
+  patchMatch.SetPatchDistanceFunctor(patchDistanceFunctor);
 
 //   patchMatch.SetDistanceType(PatchMatch::PCA);
 //   patchMatch.ComputeProjectionMatrix();

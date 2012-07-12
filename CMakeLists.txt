@@ -17,19 +17,16 @@ if(NOT TARGET Mask)
   add_subdirectory(Mask)
 endif()
 
-if(NOT TARGET PatchProjection)
-  add_subdirectory(PatchProjection)
+if(NOT TARGET PatchComparison)
+  add_subdirectory(PatchComparison)
 endif()
 
 # Patch match
-add_library(PatchMatch PatchMatch.cpp)
-target_link_libraries(PatchMatch Mask)
-
 ADD_EXECUTABLE(PatchMatchDemo PatchMatchDemo.cpp)
-TARGET_LINK_LIBRARIES(PatchMatchDemo PatchMatch)
+TARGET_LINK_LIBRARIES(PatchMatchDemo Mask)
 
 ADD_EXECUTABLE(PatchMatchInitDemo PatchMatchInitDemo.cpp)
-TARGET_LINK_LIBRARIES(PatchMatchInitDemo PatchMatch)
+TARGET_LINK_LIBRARIES(PatchMatchInitDemo Mask)
 
 SET(BuildGUI ON CACHE BOOL "Build GUI?")
 if(BuildGUI)
