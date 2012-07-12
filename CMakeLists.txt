@@ -21,14 +21,17 @@ if(NOT TARGET PatchComparison)
   add_subdirectory(PatchComparison)
 endif()
 
-# Patch match
-ADD_EXECUTABLE(PatchMatchDemo PatchMatchDemo.cpp)
-TARGET_LINK_LIBRARIES(PatchMatchDemo Mask)
-
-ADD_EXECUTABLE(PatchMatchInitDemo PatchMatchInitDemo.cpp)
-TARGET_LINK_LIBRARIES(PatchMatchInitDemo Mask)
-
-SET(BuildGUI ON CACHE BOOL "Build GUI?")
-if(BuildGUI)
+SET(PatchMatch_BuildGUI ON CACHE BOOL "Build GUI?")
+if(PatchMatch_BuildGUI)
  add_subdirectory(GUI)
-endif(BuildGUI)
+endif()
+
+SET(PatchMatch_BuildExamples ON CACHE BOOL "Build examples?")
+if(PatchMatch_BuildExamples)
+ add_subdirectory(Examples)
+endif()
+
+SET(PatchMatch_BuildTests ON CACHE BOOL "Build tests?")
+if(PatchMatch_BuildTests)
+ add_subdirectory(Tests)
+endif()
