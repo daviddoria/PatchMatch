@@ -16,3 +16,6 @@
 [submodule "PatchProjection"]
 	path = PatchProjection
 	url = https://github.com/daviddoria/PatchProjection.git
+[submodule "PatchComparison"]
+	path = PatchComparison
+	url = https://github.com/daviddoria/PatchComparison.git
