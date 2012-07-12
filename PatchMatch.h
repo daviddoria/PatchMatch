@@ -62,6 +62,9 @@ public:
   /** Do the real work. */
   void Compute(PMImageType* const initialization);
 
+  /** Propagate good matches from specified offsets. */
+  void Propagation(const std::vector<itk::Offset<2> >& offsets);
+
   /** Propagate good matches from above and from the left of the current pixel. */
   void ForwardPropagation();
 
