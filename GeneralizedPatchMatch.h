@@ -26,7 +26,21 @@ class GeneralizedPatchMatch : public PatchMatch<TImage>
 {
 public:
 
+  /** Constructor. */
   GeneralizedPatchMatch();
+
+  /** The type that is used to store the nearest neighbor field. */
+  typedef itk::Image<std::vector<Match>, 2> GeneralizedPMImageType;
+
+  /** Get an image where the channels are (x component, y component, score) from the nearest neighbor field. */
+  static void GetPatchCentersImage(GeneralizedPMImageType* const pmImage,
+                                   typename PatchMatch<TImage>::CoordinateImageType* const output);
+
+  /** Get the Output. */
+  GeneralizedPMImageType* GetOutput();
+
+  /** The intermediate and final output. */
+  GeneralizedPMImageType::Pointer Output;
 };
 
 #include "GeneralizedPatchMatch.hpp"

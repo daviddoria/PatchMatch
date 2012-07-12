@@ -81,12 +81,11 @@ int main(int argc, char*argv[])
 
   patchMatch.Compute(NULL);
 
-  typedef itk::VectorImage<float, 2> VectorImageType;
-  VectorImageType::Pointer output = VectorImageType::New();
+  PatchMatch<ImageType>::CoordinateImageType::Pointer output = PatchMatch<ImageType>::CoordinateImageType::New();
 
   patchMatch.GetPatchCentersImage(patchMatch.GetOutput(), output.GetPointer());
 
-  typedef itk::ImageFileWriter<VectorImageType> WriterType;
+  typedef itk::ImageFileWriter<PatchMatch<ImageType>::CoordinateImageType> WriterType;
   WriterType::Pointer writer = WriterType::New();
   writer->SetFileName(outputFilename);
   writer->SetInput(output);

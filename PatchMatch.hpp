@@ -502,7 +502,7 @@ void PatchMatch<TImage>::SetTargetMask(Mask* const mask)
 }
 
 template <typename TImage>
-void PatchMatch<TImage>::GetPatchCentersImage(PMImageType* const pmImage, itk::VectorImage<float, 2>* const output)
+void PatchMatch<TImage>::GetPatchCentersImage(PMImageType* const pmImage, CoordinateImageType* const output)
 {
   output->SetRegions(pmImage->GetLargestPossibleRegion());
   output->SetNumberOfComponentsPerPixel(3);
@@ -510,18 +510,17 @@ void PatchMatch<TImage>::GetPatchCentersImage(PMImageType* const pmImage, itk::V
 
   itk::ImageRegionIterator<PMImageType> imageIterator(pmImage, pmImage->GetLargestPossibleRegion());
 
-  typedef itk::VectorImage<float, 2> VectorImageType;
-
   while(!imageIterator.IsAtEnd())
     {
-    VectorImageType::PixelType pixel;
+    CoordinateImageType::PixelType pixel;
     pixel.SetSize(3);
 
-    itk::Index<2> center = ITKHelpers::GetRegionCenter(imageIterator.Get().Region);
+    Match match = imageIterator.Get();
+    itk::Index<2> center = ITKHelpers::GetRegionCenter(match.Region);
 
     pixel[0] = center[0];
     pixel[1] = center[1];
-    pixel[2] = imageIterator.Get().Score;
+    pixel[2] = match.Score;
 
     output->SetPixel(imageIterator.GetIndex(), pixel);
 

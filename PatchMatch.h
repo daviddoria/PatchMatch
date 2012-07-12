@@ -47,12 +47,16 @@ class PatchMatch
 {
 public:
 
+  /** Constructor. */
   PatchMatch();
 
+  /** Set the functor to use to compare patches. */
   void SetPatchDistanceFunctor(PatchDistance* const patchDistanceFunctor);
 
+  /** The type that is used to store the nearest neighbor field. */
   typedef itk::Image<Match, 2> PMImageType;
 
+  /** The type that is used to output the (X,Y,Score) image for inspection. */
   typedef itk::VectorImage<float, 2> CoordinateImageType;
 
   /** Do the real work. */
@@ -109,6 +113,7 @@ private:
   /** This mask indicates where to compute the NN field. */
   Mask::Pointer TargetMask;
 
+  /** The functor used to compare two patches. */
   PatchDistance* PatchDistanceFunctor;
 };
 

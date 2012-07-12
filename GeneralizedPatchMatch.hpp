@@ -26,4 +26,39 @@ GeneralizedPatchMatch<TImage>::GeneralizedPatchMatch()
 {
 }
 
+
+template <typename TImage>
+void GeneralizedPatchMatch<TImage>::GetPatchCentersImage(GeneralizedPMImageType* const pmImage,
+                                                         typename PatchMatch<TImage>::CoordinateImageType* const output)
+{
+  output->SetRegions(pmImage->GetLargestPossibleRegion());
+  output->SetNumberOfComponentsPerPixel(3);
+  output->Allocate();
+
+  itk::ImageRegionIterator<GeneralizedPMImageType> imageIterator(pmImage, pmImage->GetLargestPossibleRegion());
+
+  while(!imageIterator.IsAtEnd())
+    {
+    typename PatchMatch<TImage>::CoordinateImageType::PixelType pixel;
+    pixel.SetSize(3);
+
+    Match match = imageIterator.Get()[0]; // This is the only difference from this function in PatchMatch - that we get the first element instead of the only element
+    itk::Index<2> center = ITKHelpers::GetRegionCenter(match.Region);
+
+    pixel[0] = center[0];
+    pixel[1] = center[1];
+    pixel[2] = match.Score;
+
+    output->SetPixel(imageIterator.GetIndex(), pixel);
+
+    ++imageIterator;
+    }
+}
+
+template <typename TImage>
+typename GeneralizedPatchMatch<TImage>::GeneralizedPMImageType* GeneralizedPatchMatch<TImage>::GetOutput()
+{
+  return Output;
+}
+
 #endif
