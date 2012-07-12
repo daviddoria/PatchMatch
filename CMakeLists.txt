@@ -21,11 +21,6 @@ if(NOT TARGET PatchComparison)
   add_subdirectory(PatchComparison)
 endif()
 
-SET(PatchMatch_BuildGUI ON CACHE BOOL "Build GUI?")
-if(PatchMatch_BuildGUI)
- add_subdirectory(GUI)
-endif()
-
 SET(PatchMatch_BuildExamples ON CACHE BOOL "Build examples?")
 if(PatchMatch_BuildExamples)
  add_subdirectory(Examples)
