@@ -62,6 +62,15 @@ public:
   /** Do the real work. */
   void Compute(PMImageType* const initialization);
 
+  /** Propagate good matches from above and from the left of the current pixel. */
+  void ForwardPropagation();
+
+  /** Propagate good matches from below and from the right of the current pixel. */
+  void BackwardPropagation();
+
+  /** Search for a better match in several radii of the current pixel. */
+  void RandomSearch();
+
   /** Get the Output. */
   PMImageType* GetOutput();
 
@@ -115,6 +124,12 @@ private:
 
   /** The functor used to compare two patches. */
   PatchDistance* PatchDistanceFunctor;
+
+  /** The bounding box of the source mask. */
+  itk::ImageRegion<2> SourceMaskBoundingBox;
+
+  /** The bounding box of the target mask. */
+  itk::ImageRegion<2> TargetMaskBoundingBox;
 };
 
 #include "PatchMatch.hpp"

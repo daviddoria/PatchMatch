@@ -62,7 +62,6 @@ void PatchMatch<TImage>::Compute(PMImageType* const initialization)
   ITKHelpers::WriteImage(initialOutput.GetPointer(), "initialization.mha");
   }
 
-  itk::ImageRegion<2> holeBoundingBox = MaskOperations::ComputeHoleBoundingBox(this->SourceMask);
 
   bool forwardSearch = true;
 
@@ -70,258 +69,29 @@ void PatchMatch<TImage>::Compute(PMImageType* const initialization)
   {
     std::cout << "PatchMatch iteration " << iteration << std::endl;
 
-    // PROPAGATION
-    if (forwardSearch)
+    if(forwardSearch)
     {
-      std::cout << "Forward propagation..." << std::endl;
-//       itk::ImageRegion<2> internalRegion =
-//              ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
-      // Iterate over patch centers
-      itk::ImageRegionIteratorWithIndex<PMImageType> outputIterator(this->Output,
-                                                                    holeBoundingBox);
-
-      // Forward propagation - compare left (-1, 0), center (0,0) and up (0, -1)
-
-      while(!outputIterator.IsAtEnd())
-      {
-        // Only compute the NN-field where the target mask is valid
-        if(!this->TargetMask->IsValid(outputIterator.GetIndex()))
-        {
-          ++outputIterator;
-          continue;
-        }
-
-        // For inpainting, most of the NN-field will be an exact match. We don't have to search anymore
-        // once the exact match is found.
-        if(outputIterator.Get().Score == 0)
-        {
-          ++outputIterator;
-          continue;
-        }
-
-        Match currentMatch = outputIterator.Get();
-
-        itk::Index<2> center = outputIterator.GetIndex();
-        itk::ImageRegion<2> centerRegion = ITKHelpers::GetRegionInRadiusAroundPixel(center, this->PatchRadius);
-
-        itk::Index<2> leftPixel = outputIterator.GetIndex();
-        leftPixel[0] += -1;
-        itk::Index<2> leftMatch = ITKHelpers::GetRegionCenter(this->Output->GetPixel(leftPixel).Region);
-        leftMatch[0] += 1;
-
-        itk::ImageRegion<2> leftMatchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(leftMatch, this->PatchRadius);
-
-        if(!this->SourceMask->GetLargestPossibleRegion().IsInside(leftMatchRegion) || !this->SourceMask->IsValid(leftMatchRegion))
-        {
-          // do nothing
-        }
-        else
-        {
-          float distLeft = this->PatchDistanceFunctor->Distance(leftMatchRegion, centerRegion);
-
-          if (distLeft < currentMatch.Score)
-          {
-            currentMatch.Region = leftMatchRegion;
-            currentMatch.Score = distLeft;
-          }
-        }
-
-        itk::Index<2> upPixel = outputIterator.GetIndex();
-        upPixel[1] += -1;
-        itk::Index<2> upMatch = ITKHelpers::GetRegionCenter(this->Output->GetPixel(upPixel).Region);
-        upMatch[1] += 1;
-
-        itk::ImageRegion<2> upMatchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(upMatch, this->PatchRadius);
-
-        if(!this->SourceMask->GetLargestPossibleRegion().IsInside(upMatchRegion) || !this->SourceMask->IsValid(upMatchRegion))
-        {
-          // do nothing
-        }
-        else
-        {
-          float distUp = this->PatchDistanceFunctor->Distance(upMatchRegion, centerRegion);
-
-          if (distUp < currentMatch.Score)
-          {
-            currentMatch.Region = upMatchRegion;
-            currentMatch.Score = distUp;
-          }
-        }
-
-        outputIterator.Set(currentMatch);
-        ++outputIterator;
-      } // end forward loop
-
-    } // end if (forwardSearch)
+      ForwardPropagation();
+    }
     else
     {
-      std::cout << "Backward propagation..." << std::endl;
-      // Iterate over patch centers in reverse
-//       itk::ImageRegion<2> internalRegion =
-//              ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
-      itk::ImageRegionReverseIterator<PMImageType> outputIterator(this->Output,
-                                                                  holeBoundingBox);
+      BackwardPropagation();
+    }
 
-      // Backward propagation - compare right (1, 0) , center (0,0) and down (0, 1)
-
-      while(!outputIterator.IsAtEnd())
-      {
-        // Only compute the NN-field where the target mask is valid
-        if(!this->TargetMask->IsValid(outputIterator.GetIndex()))
-        {
-          ++outputIterator;
-          continue;
-        }
-
-        // For inpainting, most of the NN-field will be an exact match. We don't have to search anymore
-        // once the exact match is found.
-        if(outputIterator.Get().Score == 0)
-        {
-          ++outputIterator;
-          continue;
-        }
-
-        Match currentMatch = outputIterator.Get();
-
-        itk::Index<2> center = outputIterator.GetIndex();
-        itk::ImageRegion<2> currentRegion = ITKHelpers::GetRegionInRadiusAroundPixel(center, this->PatchRadius);
-
-        itk::Index<2> rightPixel = outputIterator.GetIndex();
-        rightPixel[0] += 1;
-        itk::Index<2> rightMatch = ITKHelpers::GetRegionCenter(this->Output->GetPixel(rightPixel).Region);
-        rightMatch[0] += -1;
-
-        itk::ImageRegion<2> rightMatchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(rightMatch, this->PatchRadius);
-
-        if(!this->SourceMask->GetLargestPossibleRegion().IsInside(rightMatchRegion) ||
-          !this->SourceMask->IsValid(rightMatchRegion))
-        {
-          // do nothing
-        }
-        else
-        {
-          float distRight = this->PatchDistanceFunctor->Distance(rightMatchRegion, currentRegion);
-
-          if (distRight < currentMatch.Score)
-          {
-            currentMatch.Region = rightMatchRegion;
-            currentMatch.Score = distRight;
-          }
-        }
-
-        itk::Index<2> downPixel = outputIterator.GetIndex();
-        downPixel[1] += 1;
-        itk::Index<2> downMatch = ITKHelpers::GetRegionCenter(this->Output->GetPixel(downPixel).Region);
-        downMatch[1] += -1;
-
-        itk::ImageRegion<2> downMatchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(downMatch, this->PatchRadius);
-
-        if(!this->SourceMask->GetLargestPossibleRegion().IsInside(downMatchRegion) ||
-          !this->SourceMask->IsValid(downMatchRegion))
-        {
-          // do nothing
-        }
-        else
-        {
-          float distDown = this->PatchDistanceFunctor->Distance(downMatchRegion, currentRegion);
-
-          if (distDown < currentMatch.Score)
-          {
-            currentMatch.Region = downMatchRegion;
-            currentMatch.Score = distDown;
-          }
-        }
-
-        outputIterator.Set(currentMatch);
-
-        ++outputIterator;
-      } // end backward loop
-    } // end else ForwardSearch
-
+    // Switch the search direction for the next iteration
     forwardSearch = !forwardSearch;
 
-    // RANDOM SEARCH - try a random region in smaller windows around the current best patch.
-    std::cout << "Random search..." << std::endl;
-    // Iterate over patch centers
-//     itk::ImageRegion<2> internalRegion =
-//              ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
-    itk::ImageRegionIteratorWithIndex<PMImageType> outputIterator(this->Output,
-                                                                  holeBoundingBox);
-    while(!outputIterator.IsAtEnd())
-    {
-      // Only compute the NN-field where the target mask is valid
-      if(!this->TargetMask->IsValid(outputIterator.GetIndex()))
-      {
-        ++outputIterator;
-        continue;
-      }
+    RandomSearch();
 
-      // For inpainting, most of the NN-field will be an exact match. We don't have to search anymore
-      // once the exact match is found.
-      if(outputIterator.Get().Score == 0)
-      {
-        ++outputIterator;
-        continue;
-      }
-      itk::Index<2> center = outputIterator.GetIndex();
-
-      itk::ImageRegion<2> centerRegion = ITKHelpers::GetRegionInRadiusAroundPixel(center, this->PatchRadius);
-
-      Match currentMatch = outputIterator.Get();
-
-      unsigned int width = Image->GetLargestPossibleRegion().GetSize()[0];
-      unsigned int height = Image->GetLargestPossibleRegion().GetSize()[1];
-
-      unsigned int radius = std::max(width, height);
-      //radius /= 2; // Only search half of the image
-      radius /= 8; // Only search a small window
-
-      // Search an exponentially smaller window each time through the loop
-      itk::Index<2> searchRegionCenter = ITKHelpers::GetRegionCenter(outputIterator.Get().Region);
-
-      while (radius > this->PatchRadius * 2) // the *2 is arbitrary, just want a small-ish region
-      {
-        itk::ImageRegion<2> searchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(searchRegionCenter, radius);
-        searchRegion.Crop(this->Image->GetLargestPossibleRegion());
-
-        unsigned int maxNumberOfAttempts = 5; // How many random patches to test for validity before giving up
-        itk::ImageRegion<2> randomValidRegion =
-                 MaskOperations::GetRandomValidPatchInRegion(this->SourceMask.GetPointer(),
-                                                             searchRegion, this->PatchRadius, maxNumberOfAttempts);
-
-        // If no suitable region is found, move on
-        if(randomValidRegion.GetSize()[0] == 0)
-        {
-          radius /= 2;
-          continue;
-        }
-
-        float dist = this->PatchDistanceFunctor->Distance(randomValidRegion, centerRegion);
-
-        if (dist < currentMatch.Score)
-        {
-          currentMatch.Region = randomValidRegion;
-          currentMatch.Score = dist;
-        }
-
-        outputIterator.Set(currentMatch);
-
-        radius /= 2;
-      } // end while radius
-
-      ++outputIterator;
-    } // end random search loop
-
+    // Write the intermediate output
     std::stringstream ss;
     ss << "PatchMatch_" << Helpers::ZeroPad(iteration, 2) << ".mha";
     CoordinateImageType::Pointer temp = CoordinateImageType::New();
     GetPatchCentersImage(this->Output, temp);
     ITKHelpers::WriteImage(temp.GetPointer(), ss.str());
-
-  } // end for (int i = 0; i < iterations; i++)
+  }
 
 }
-
 
 template <typename TImage>
 void PatchMatch<TImage>::InitKnownRegion()
@@ -493,12 +263,14 @@ template <typename TImage>
 void PatchMatch<TImage>::SetSourceMask(Mask* const mask)
 {
   this->SourceMask->DeepCopyFrom(mask);
+  this->SourceMaskBoundingBox = MaskOperations::ComputeHoleBoundingBox(this->SourceMask);
 }
 
 template <typename TImage>
 void PatchMatch<TImage>::SetTargetMask(Mask* const mask)
 {
   this->TargetMask->DeepCopyFrom(mask);
+  this->TargetMaskBoundingBox = MaskOperations::ComputeHoleBoundingBox(this->TargetMask);
 }
 
 template <typename TImage>
@@ -532,6 +304,256 @@ template <typename TImage>
 void PatchMatch<TImage>::SetPatchDistanceFunctor(PatchDistance* const patchDistanceFunctor)
 {
   this->PatchDistanceFunctor = patchDistanceFunctor;
+}
+
+template <typename TImage>
+void PatchMatch<TImage>::ForwardPropagation()
+{
+  std::cout << "Forward propagation..." << std::endl;
+
+  // Iterate over patch centers
+  itk::ImageRegionIteratorWithIndex<PMImageType> outputIterator(this->Output,
+                                                                this->SourceMaskBoundingBox);
+
+  // Compare left (-1, 0), center (0,0) and up (0, -1)
+
+  while(!outputIterator.IsAtEnd())
+  {
+    // Only compute the NN-field where the target mask is valid
+    if(!this->TargetMask->IsValid(outputIterator.GetIndex()))
+    {
+      ++outputIterator;
+      continue;
+    }
+
+    // When using PatchMatch for inpainting, most of the NN-field will be an exact match. We don't have to search anymore
+    // once the exact match is found.
+    if(outputIterator.Get().Score == 0)
+    {
+      ++outputIterator;
+      continue;
+    }
+
+    Match currentMatch = outputIterator.Get();
+
+    itk::Index<2> center = outputIterator.GetIndex();
+    itk::ImageRegion<2> centerRegion = ITKHelpers::GetRegionInRadiusAroundPixel(center, this->PatchRadius);
+
+    // Setup the indices of the "left" pixel
+    itk::Index<2> leftPixel = outputIterator.GetIndex();
+    leftPixel[0] += -1;
+    itk::Index<2> leftMatch = ITKHelpers::GetRegionCenter(this->Output->GetPixel(leftPixel).Region);
+    leftMatch[0] += 1;
+
+    itk::ImageRegion<2> leftMatchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(leftMatch, this->PatchRadius);
+
+    if(!this->SourceMask->GetLargestPossibleRegion().IsInside(leftMatchRegion) || !this->SourceMask->IsValid(leftMatchRegion))
+    {
+      // do nothing
+    }
+    else
+    {
+      float distLeft = this->PatchDistanceFunctor->Distance(leftMatchRegion, centerRegion);
+
+      if (distLeft < currentMatch.Score)
+      {
+        currentMatch.Region = leftMatchRegion;
+        currentMatch.Score = distLeft;
+      }
+    }
+
+    // Setup the indices of the "up" pixel
+    itk::Index<2> upPixel = outputIterator.GetIndex();
+    upPixel[1] += -1;
+    itk::Index<2> upMatch = ITKHelpers::GetRegionCenter(this->Output->GetPixel(upPixel).Region);
+    upMatch[1] += 1;
+
+    itk::ImageRegion<2> upMatchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(upMatch, this->PatchRadius);
+
+    if(!this->SourceMask->GetLargestPossibleRegion().IsInside(upMatchRegion) || !this->SourceMask->IsValid(upMatchRegion))
+    {
+      // do nothing
+    }
+    else
+    {
+      float distUp = this->PatchDistanceFunctor->Distance(upMatchRegion, centerRegion);
+
+      if (distUp < currentMatch.Score)
+      {
+        currentMatch.Region = upMatchRegion;
+        currentMatch.Score = distUp;
+      }
+    }
+
+    outputIterator.Set(currentMatch);
+    ++outputIterator;
+  } // end forward loop
+
+}
+
+template <typename TImage>
+void PatchMatch<TImage>::BackwardPropagation()
+{
+  std::cout << "Backward propagation..." << std::endl;
+  // Iterate over patch centers in reverse
+
+  itk::ImageRegionReverseIterator<PMImageType> outputIterator(this->Output,
+                                                              this->SourceMaskBoundingBox);
+
+  // Backward propagation - compare right (1, 0) , center (0,0) and down (0, 1)
+
+  while(!outputIterator.IsAtEnd())
+  {
+    // Only compute the NN-field where the target mask is valid
+    if(!this->TargetMask->IsValid(outputIterator.GetIndex()))
+    {
+      ++outputIterator;
+      continue;
+    }
+
+    // For inpainting, most of the NN-field will be an exact match. We don't have to search anymore
+    // once the exact match is found.
+    if(outputIterator.Get().Score == 0)
+    {
+      ++outputIterator;
+      continue;
+    }
+
+    Match currentMatch = outputIterator.Get();
+
+    itk::Index<2> center = outputIterator.GetIndex();
+    itk::ImageRegion<2> currentRegion = ITKHelpers::GetRegionInRadiusAroundPixel(center, this->PatchRadius);
+
+    // Setup the indices of the "right" pixel
+    itk::Index<2> rightPixel = outputIterator.GetIndex();
+    rightPixel[0] += 1;
+    itk::Index<2> rightMatch = ITKHelpers::GetRegionCenter(this->Output->GetPixel(rightPixel).Region);
+    rightMatch[0] += -1;
+
+    itk::ImageRegion<2> rightMatchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(rightMatch, this->PatchRadius);
+
+    if(!this->SourceMask->GetLargestPossibleRegion().IsInside(rightMatchRegion) ||
+      !this->SourceMask->IsValid(rightMatchRegion))
+    {
+      // do nothing
+    }
+    else
+    {
+      float distRight = this->PatchDistanceFunctor->Distance(rightMatchRegion, currentRegion);
+
+      if (distRight < currentMatch.Score)
+      {
+        currentMatch.Region = rightMatchRegion;
+        currentMatch.Score = distRight;
+      }
+    }
+
+    // Setup the indices of the "down" pixel
+    itk::Index<2> downPixel = outputIterator.GetIndex();
+    downPixel[1] += 1;
+    itk::Index<2> downMatch = ITKHelpers::GetRegionCenter(this->Output->GetPixel(downPixel).Region);
+    downMatch[1] += -1;
+
+    itk::ImageRegion<2> downMatchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(downMatch, this->PatchRadius);
+
+    if(!this->SourceMask->GetLargestPossibleRegion().IsInside(downMatchRegion) ||
+      !this->SourceMask->IsValid(downMatchRegion))
+    {
+      // do nothing
+    }
+    else
+    {
+      float distDown = this->PatchDistanceFunctor->Distance(downMatchRegion, currentRegion);
+
+      if (distDown < currentMatch.Score)
+      {
+        currentMatch.Region = downMatchRegion;
+        currentMatch.Score = distDown;
+      }
+    }
+
+    outputIterator.Set(currentMatch);
+
+    ++outputIterator;
+  } // end backward loop
+
+}
+
+template <typename TImage>
+void PatchMatch<TImage>::RandomSearch()
+{
+  // RANDOM SEARCH - try a random region in smaller windows around the current best patch.
+  std::cout << "Random search..." << std::endl;
+  // Iterate over patch centers
+//     itk::ImageRegion<2> internalRegion =
+//              ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
+  itk::ImageRegionIteratorWithIndex<PMImageType> outputIterator(this->Output,
+                                                                this->SourceMaskBoundingBox);
+  while(!outputIterator.IsAtEnd())
+  {
+    // Only compute the NN-field where the target mask is valid
+    if(!this->TargetMask->IsValid(outputIterator.GetIndex()))
+    {
+      ++outputIterator;
+      continue;
+    }
+
+    // For inpainting, most of the NN-field will be an exact match. We don't have to search anymore
+    // once the exact match is found.
+    if(outputIterator.Get().Score == 0)
+    {
+      ++outputIterator;
+      continue;
+    }
+    itk::Index<2> center = outputIterator.GetIndex();
+
+    itk::ImageRegion<2> centerRegion = ITKHelpers::GetRegionInRadiusAroundPixel(center, this->PatchRadius);
+
+    Match currentMatch = outputIterator.Get();
+
+    unsigned int width = Image->GetLargestPossibleRegion().GetSize()[0];
+    unsigned int height = Image->GetLargestPossibleRegion().GetSize()[1];
+
+    unsigned int radius = std::max(width, height);
+    //radius /= 2; // Only search half of the image
+    radius /= 8; // Only search a small window
+
+    // Search an exponentially smaller window each time through the loop
+    itk::Index<2> searchRegionCenter = ITKHelpers::GetRegionCenter(outputIterator.Get().Region);
+
+    while (radius > this->PatchRadius * 2) // the *2 is arbitrary, just want a small-ish region
+    {
+      itk::ImageRegion<2> searchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(searchRegionCenter, radius);
+      searchRegion.Crop(this->Image->GetLargestPossibleRegion());
+
+      unsigned int maxNumberOfAttempts = 5; // How many random patches to test for validity before giving up
+      itk::ImageRegion<2> randomValidRegion =
+                MaskOperations::GetRandomValidPatchInRegion(this->SourceMask.GetPointer(),
+                                                            searchRegion, this->PatchRadius, maxNumberOfAttempts);
+
+      // If no suitable region is found, move on
+      if(randomValidRegion.GetSize()[0] == 0)
+      {
+        radius /= 2;
+        continue;
+      }
+
+      float dist = this->PatchDistanceFunctor->Distance(randomValidRegion, centerRegion);
+
+      if (dist < currentMatch.Score)
+      {
+        currentMatch.Region = randomValidRegion;
+        currentMatch.Score = dist;
+      }
+
+      outputIterator.Set(currentMatch);
+
+      radius /= 2;
+    } // end while radius
+
+    ++outputIterator;
+  } // end random search loop
+
 }
 
 #endif
