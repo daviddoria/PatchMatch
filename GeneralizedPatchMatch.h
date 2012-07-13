@@ -39,8 +39,18 @@ public:
   /** Get the Output. */
   GeneralizedPMImageType* GetOutput();
 
-  /** The intermediate and final output. */
+  /** Add this match to the top matches if it is better than any of the current matches. */
+  void AddIfBetter(const itk::Index<2>& index, const Match& match);
+
+  /** Set the number of bestcandidate matches to store at each pixel. */
+  void SetNumberOfCandidates(const unsigned int numberOfCandidates);
+
+private:
+  /** The intermediate and final output. This is a different type than in the parent class. */
   GeneralizedPMImageType::Pointer Output;
+
+  /** The number of bestcandidate matches to store at each pixel. */
+  unsigned int NumberOfCandidates;
 };
 
 #include "GeneralizedPatchMatch.hpp"

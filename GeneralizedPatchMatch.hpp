@@ -61,4 +61,42 @@ typename GeneralizedPatchMatch<TImage>::GeneralizedPMImageType* GeneralizedPatch
   return Output;
 }
 
+template <typename TImage>
+void GeneralizedPatchMatch<TImage>::SetNumberOfCandidates(const unsigned int numberOfCandidates)
+{
+  this->NumberOfCandidates = numberOfCandidates;
+}
+
+template <typename TImage>
+void GeneralizedPatchMatch<TImage>::AddIfBetter(const itk::Index<2>& index, const Match& potentialMatch)
+{
+  std::vector<Match> currentMatches = this->Output->GetPixel(index);
+
+  // Check if the item is already in the container
+  auto result = std::find_if(currentMatches.begin(), currentMatches.end(), [&potentialMatch](const Match& match) {
+        return match.Region==potentialMatch.Region;});
+
+  // If the item was not found
+  if(result != currentMatches.end())
+  {
+    // Add the item to the container
+    currentMatches.push_back(potentialMatch);
+
+    // Sort the container
+    std::sort(currentMatches.begin(), currentMatches.end(), [](const Match& match1, const Match& match2 )
+    {
+      return match1.Score < match2.Score;
+    }
+    );
+
+    // Trim the container
+    if(currentMatches.size() > this->NumberOfCandidates)
+    {
+      currentMatches.resize(this->NumberOfCandidates);
+    }
+  }
+
+  this->Output->SetPixel(index, currentMatches);
+}
+
 #endif

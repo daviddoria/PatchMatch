@@ -102,6 +102,10 @@ public:
    *  boundary in the valid region. */
   void BoundaryInit();
 
+  /** Replace the best match if necessary. In subclasses (e.g. GeneralizedPatchMatch), this will
+    * add the 'match' to the list of nearest matches. */
+  void AddIfBetter(const itk::Index<2>& index, const Match& match);
+
 private:
 
   /** Set the nearest neighbor field to exactly iself in the valid region. */

@@ -249,7 +249,6 @@ void PatchMatch<TImage>::SetPatchRadius(const unsigned int patchRadius)
   this->PatchRadius = patchRadius;
 }
 
-
 template <typename TImage>
 void PatchMatch<TImage>::SetImage(TImage* const image)
 {
@@ -359,11 +358,12 @@ void PatchMatch<TImage>::Propagation(const std::vector<itk::Offset<2> >& offsets
       {
         float distance = this->PatchDistanceFunctor->Distance(potentialMatchRegion, centerRegion);
 
-        if (distance < currentMatch.Score)
-        {
-          currentMatch.Region = potentialMatchRegion;
-          currentMatch.Score = distance;
-        }
+        Match potentialMatch;
+        potentialMatch.Region = potentialMatchRegion;
+        potentialMatch.Score = distance;
+
+        AddIfBetter(center, potentialMatch);
+
       }
     } // end loop over offsets
 
@@ -433,8 +433,6 @@ void PatchMatch<TImage>::RandomSearch()
 
     itk::ImageRegion<2> centerRegion = ITKHelpers::GetRegionInRadiusAroundPixel(center, this->PatchRadius);
 
-    Match currentMatch = outputIterator.Get();
-
     unsigned int width = this->Image->GetLargestPossibleRegion().GetSize()[0];
     unsigned int height = this->Image->GetLargestPossibleRegion().GetSize()[1];
 
@@ -464,13 +462,11 @@ void PatchMatch<TImage>::RandomSearch()
 
       float dist = this->PatchDistanceFunctor->Distance(randomValidRegion, centerRegion);
 
-      if (dist < currentMatch.Score)
-      {
-        currentMatch.Region = randomValidRegion;
-        currentMatch.Score = dist;
-      }
+      Match potentialMatch;
+      potentialMatch.Region = randomValidRegion;
+      potentialMatch.Score = dist;
 
-      outputIterator.Set(currentMatch);
+      AddIfBetter(center, potentialMatch);
 
       radius /= 2;
     } // end while radius
@@ -478,6 +474,16 @@ void PatchMatch<TImage>::RandomSearch()
     ++outputIterator;
   } // end random search loop
 
+}
+
+template <typename TImage>
+void PatchMatch<TImage>::AddIfBetter(const itk::Index<2>& index, const Match& match)
+{
+  Match currentMatch = this->Output->GetPixel(index);
+  if(match.Score < currentMatch.Score)
+  {
+    this->Output->SetPixel(index, match);
+  }
 }
 
 #endif
