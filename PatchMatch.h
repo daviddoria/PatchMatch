@@ -36,12 +36,14 @@
 
 #include "PatchComparison/PatchDistance.h"
 
+/** A simple container to pair a region with its patch difference value/score. */
 struct Match
 {
   itk::ImageRegion<2> Region;
   float Score;
 };
 
+/** This class computes a nearest neighbor field using the PatchMatch algorithm. */
 template<typename TImage>
 class PatchMatch
 {
@@ -59,7 +61,7 @@ public:
   /** The type that is used to output the (X,Y,Score) image for inspection. */
   typedef itk::VectorImage<float, 2> CoordinateImageType;
 
-  /** Do the real work. */
+  /** Perform multiple iterations of propagation and random search (do the real work). */
   void Compute(PMImageType* const initialization);
 
   /** Propagate good matches from specified offsets. */

@@ -62,7 +62,6 @@ void PatchMatch<TImage>::Compute(PMImageType* const initialization)
   ITKHelpers::WriteImage(initialOutput.GetPointer(), "initialization.mha");
   }
 
-
   bool forwardSearch = true;
 
   for(unsigned int iteration = 0; iteration < this->Iterations; ++iteration)
