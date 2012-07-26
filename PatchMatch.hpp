@@ -299,11 +299,10 @@ void PatchMatch<TImage>::GetPatchCentersImage(PMImageType* const pmImage, Coordi
 }
 
 template <typename TImage>
-void PatchMatch<TImage>::SetPatchDistanceFunctor(PatchDistance* const patchDistanceFunctor)
+void PatchMatch<TImage>::SetPatchDistanceFunctor(PatchDistance<TImage>* const patchDistanceFunctor)
 {
   this->PatchDistanceFunctor = patchDistanceFunctor;
 }
-
 
 template <typename TImage>
 void PatchMatch<TImage>::Propagation(const std::vector<itk::Offset<2> >& offsets)

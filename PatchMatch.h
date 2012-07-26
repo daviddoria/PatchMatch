@@ -53,7 +53,7 @@ public:
   PatchMatch();
 
   /** Set the functor to use to compare patches. */
-  void SetPatchDistanceFunctor(PatchDistance* const patchDistanceFunctor);
+  void SetPatchDistanceFunctor(PatchDistance<TImage>* const patchDistanceFunctor);
 
   /** The type that is used to store the nearest neighbor field. */
   typedef itk::Image<Match, 2> PMImageType;
@@ -132,7 +132,7 @@ private:
   Mask::Pointer TargetMask;
 
   /** The functor used to compare two patches. */
-  PatchDistance* PatchDistanceFunctor;
+  PatchDistance<TImage>* PatchDistanceFunctor;
 
   /** The bounding box of the source mask. */
   itk::ImageRegion<2> SourceMaskBoundingBox;
