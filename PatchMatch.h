@@ -22,9 +22,6 @@
 // STL
 #include <functional>
 
-// Eigen
-#include <Eigen/Dense>
-
 // ITK
 #include "itkCovariantVector.h"
 #include "itkImage.h"

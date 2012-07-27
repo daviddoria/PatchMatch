@@ -3,11 +3,8 @@ cmake_minimum_required(VERSION 2.6)
 PROJECT(PatchMatch)
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=gnu++0x")
 
-# Eigen
-include_directories(/media/portable/src/Eigen)
-
-# VTK
-FIND_PACKAGE(ITK REQUIRED ITKCommon ITKIOImageBase
+# ITK
+FIND_PACKAGE(ITK REQUIRED ITKCommon ITKIOImageBase ITKIOPNG ITKIOMeta
 ITKImageIntensity ITKImageFeature ITKMathematicalMorphology ITKBinaryMathematicalMorphology)
 INCLUDE(${USE_ITK_FILE})
 
