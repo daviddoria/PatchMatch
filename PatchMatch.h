@@ -46,6 +46,9 @@ class PatchMatch
 {
 public:
 
+  /** Choices for initialization. */
+  enum InitializationStrategyEnum {RANDOM, BOUNDARY};
+  
   /** Constructor. */
   PatchMatch();
 
@@ -112,6 +115,9 @@ public:
     * add the 'match' to the list of nearest matches if it is better than the worst match. */
   void AddIfBetter(const itk::Index<2>& index, const Match& match);
 
+  /** Set the choice of initialization strategy. */
+  void SetInitializationStrategy(const InitializationStrategyEnum initializationStrategy);
+  
 private:
 
   /** Set the nearest neighbor of each patch in the valid region to itself . */
@@ -144,6 +150,9 @@ private:
 
   /** The bounding box of the target mask. */
   itk::ImageRegion<2> TargetMaskBoundingBox;
+
+  /** The choice of initialization strategy. */
+  InitializationStrategyEnum InitializationStrategy;
 };
 
 #include "PatchMatch.hpp"

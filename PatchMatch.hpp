@@ -53,8 +53,18 @@ void PatchMatch<TImage>::Compute(PMImageType* const initialization)
   }
   else
   {
-    //RandomInit();
-    BoundaryInit();
+    if(this->InitializationStrategy == RANDOM)
+    {
+      RandomInit();
+    }
+    else if(this->InitializationStrategy == BOUNDARY)
+    {
+      BoundaryInit();
+    }
+    else
+    {
+      throw std::runtime_error("PatchMatch::Compute: An invalid initialization strategy was chosen!");
+    }
   }
 
   { // Debug only
@@ -501,6 +511,12 @@ void PatchMatch<TImage>::AddIfBetter(const itk::Index<2>& index, const Match& ma
   {
     this->Output->SetPixel(index, match);
   }
+}
+
+template <typename TImage>
+void PatchMatch<TImage>::SetInitializationStrategy(const InitializationStrategyEnum initializationStrategy)
+{
+  this->InitializationStrategy = initializationStrategy;
 }
 
 #endif
