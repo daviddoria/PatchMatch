@@ -46,6 +46,7 @@ void PatchMatch<TImage>::Compute(PMImageType* const initialization)
 {
   srand(time(NULL));
 
+  // If an initialization is provided, use it. Otherwise, generate one.
   if(initialization)
   {
     ITKHelpers::DeepCopy(initialization, this->Output.GetPointer());
@@ -56,19 +57,21 @@ void PatchMatch<TImage>::Compute(PMImageType* const initialization)
     BoundaryInit();
   }
 
-  {
+  { // Debug only
   CoordinateImageType::Pointer initialOutput = CoordinateImageType::New();
   GetPatchCentersImage(this->Output, initialOutput);
   ITKHelpers::WriteImage(initialOutput.GetPointer(), "initialization.mha");
   }
 
-  bool forwardSearch = true;
+  // Initialize this so that we propagate forward first (the propagation direction toggles at each iteration)
+  bool forwardPropagation = true;
 
+  // For the number of iterations specified, perform the appropriate propagation and then a random search
   for(unsigned int iteration = 0; iteration < this->Iterations; ++iteration)
   {
     std::cout << "PatchMatch iteration " << iteration << std::endl;
 
-    if(forwardSearch)
+    if(forwardPropagation)
     {
       ForwardPropagation();
     }
@@ -77,17 +80,19 @@ void PatchMatch<TImage>::Compute(PMImageType* const initialization)
       BackwardPropagation();
     }
 
-    // Switch the search direction for the next iteration
-    forwardSearch = !forwardSearch;
+    // Switch the propagation direction for the next iteration
+    forwardPropagation = !forwardPropagation;
 
     RandomSearch();
 
+    { // Debug only
     // Write the intermediate output
     std::stringstream ss;
     ss << "PatchMatch_" << Helpers::ZeroPad(iteration, 2) << ".mha";
     CoordinateImageType::Pointer temp = CoordinateImageType::New();
     GetPatchCentersImage(this->Output, temp);
     ITKHelpers::WriteImage(temp.GetPointer(), ss.str());
+    }
   }
 
 }
@@ -99,15 +104,20 @@ void PatchMatch<TImage>::InitKnownRegion()
   itk::Index<2> zeroIndex = {{0,0}};
   itk::Size<2> zeroSize = {{0,0}};
   itk::ImageRegion<2> zeroRegion(zeroIndex, zeroSize);
+
+  // Create an invalid match
   Match zeroMatch;
   zeroMatch.Region = zeroRegion;
   zeroMatch.Score = 0.0f;
 
+  // Initialize the entire NNfield to be invalid matches
   ITKHelpers::SetImageToConstant(this->Output.GetPointer(), zeroMatch);
 
+  // Get all of the regions that are entirely inside the image
   itk::ImageRegion<2> internalRegion =
              ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
 
+  // Set all of the patches that are entirely inside the source region to exactly themselves as their nearest neighbor
   itk::ImageRegionIteratorWithIndex<PMImageType> outputIterator(this->Output, internalRegion);
 
   while(!outputIterator.IsAtEnd())
@@ -120,7 +130,7 @@ void PatchMatch<TImage>::InitKnownRegion()
     {
       Match randomMatch;
       randomMatch.Region = currentRegion;
-      randomMatch.Score = 0;
+      randomMatch.Score = 0.0f;
       outputIterator.Set(randomMatch);
     }
 
@@ -216,7 +226,8 @@ void PatchMatch<TImage>::RandomInit()
 
     if(!this->SourceMask->IsValid(currentRegion))
     {
-      itk::ImageRegion<2> randomValidRegion = ValidSourceRegions[Helpers::RandomInt(0, ValidSourceRegions.size() - 1)];
+      unsigned int randomSourceRegionId = Helpers::RandomInt(0, ValidSourceRegions.size() - 1);
+      itk::ImageRegion<2> randomValidRegion = ValidSourceRegions[randomSourceRegionId];
 
       Match randomMatch;
       randomMatch.Region = randomValidRegion;
@@ -434,39 +445,47 @@ void PatchMatch<TImage>::RandomSearch()
     unsigned int width = this->Image->GetLargestPossibleRegion().GetSize()[0];
     unsigned int height = this->Image->GetLargestPossibleRegion().GetSize()[1];
 
-    unsigned int radius = std::max(width, height);
-    //radius /= 2; // Only search half of the image
-    radius /= 8; // Only search a small window
+    unsigned int radius = std::max(width, height); // The maximum (first) search radius, as prescribed in PatchMatch paper section 3.2
+    float alpha = 1.0f/2.0f; // The fraction by which to reduce the search radius at each iteration, as prescribed in PatchMatch paper section 3.2
 
     // Search an exponentially smaller window each time through the loop
     itk::Index<2> searchRegionCenter = ITKHelpers::GetRegionCenter(outputIterator.Get().Region);
 
-    while (radius > this->PatchRadius * 2) // the *2 is arbitrary, just want a small-ish region
+    while (radius > this->PatchRadius) // while there is more than just the current patch to search
     {
       itk::ImageRegion<2> searchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(searchRegionCenter, radius);
       searchRegion.Crop(this->Image->GetLargestPossibleRegion());
 
       unsigned int maxNumberOfAttempts = 5; // How many random patches to test for validity before giving up
-      itk::ImageRegion<2> randomValidRegion =
+
+      itk::ImageRegion<2> randomValidRegion;
+      try
+      {
+      // This function throws an exception if no valid patch was found
+      randomValidRegion =
                 MaskOperations::GetRandomValidPatchInRegion(this->SourceMask.GetPointer(),
                                                             searchRegion, this->PatchRadius, maxNumberOfAttempts);
-
-      // If no suitable region is found, move on
-      if(randomValidRegion.GetSize()[0] == 0)
+      }
+      catch (...) // If no suitable region is found, move on
       {
-        radius /= 2;
+        radius *= alpha;
         continue;
       }
 
+      // Compute the patch difference
       float dist = this->PatchDistanceFunctor->Distance(randomValidRegion, centerRegion);
 
+      // Construct a match object
       Match potentialMatch;
       potentialMatch.Region = randomValidRegion;
       potentialMatch.Score = dist;
 
+      // Store this match as the best match if it meets the criteria. In this class, the criteria is simply that it is
+      // better than the current best patch. In subclasses (i.e. GeneralizedPatchMatch), it must be better than the worst
+      // patch currently stored.
       AddIfBetter(center, potentialMatch);
 
-      radius /= 2;
+      radius *= alpha;
     } // end while radius
 
     ++outputIterator;
