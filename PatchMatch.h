@@ -20,10 +20,10 @@
 #define PATCHMATCH_H
 
 // STL
-#include <functional>
+// #include <functional>
 
 // ITK
-#include "itkCovariantVector.h"
+//#include "itkCovariantVector.h"
 #include "itkImage.h"
 #include "itkImageRegion.h"
 #include "itkVectorImage.h"
@@ -97,27 +97,32 @@ public:
     * region of the source mask can be used as nearest neighbors. */
   void SetSourceMask(Mask* const mask);
 
-  /** Set the mask indicating where to compute the NNField. Only compute the NN where the target mask is Valid. */
+  /** Set the mask indicating where to compute the NNField. Only compute the NN where
+    * the target mask is Valid. */
   void SetTargetMask(Mask* const mask);
 
-  /** Get an image where the channels are (x component, y component, score) from the nearest neighbor field struct. */
+  /** Get an image where the channels are (x component, y component, score) from the nearest
+    * neighbor field struct. */
   static void GetPatchCentersImage(PMImageType* const pmImage, CoordinateImageType* const output);
 
-  /** Set the nearest neighbor field to exactly iself in the valid region, and random values in the hole region. */
+  /** Set the nearest neighbor field to exactly iself in the valid region, and random
+    * values in the hole region. */
   void RandomInit();
 
-  /** Assume that hole pixels near the hole boundary will have best matching patches on the other side of the hole
+  /** Assume that hole pixels near the hole boundary will have best matching patches on
+    * the other side of the hole
     * boundary in the valid region. */
   void BoundaryInit();
 
-  /** Replace the best match if necessary. In this class, 'match' simply replaces the current best match if it is better.
+  /** Replace the best match if necessary. In this class, 'match' simply replaces
+    * the current best match if it is better.
     * In subclasses (e.g. GeneralizedPatchMatch), this will
     * add the 'match' to the list of nearest matches if it is better than the worst match. */
   void AddIfBetter(const itk::Index<2>& index, const Match& match);
 
   /** Set the choice of initialization strategy. */
   void SetInitializationStrategy(const InitializationStrategyEnum initializationStrategy);
-  
+
 private:
 
   /** Set the nearest neighbor of each patch in the valid region to itself . */
@@ -139,7 +144,8 @@ private:
     * region of the source mask can be used as nearest neighbors. */
   Mask::Pointer SourceMask;
 
-  /** This mask indicates where to compute the NN field. Only compute the NN where the target mask is Valid. */
+  /** This mask indicates where to compute the NN field. Only compute the NN where the
+    * target mask is Valid. */
   Mask::Pointer TargetMask;
 
   /** The functor used to compare two patches. */
