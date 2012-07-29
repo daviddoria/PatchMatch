@@ -156,6 +156,12 @@ private:
 
   /** The choice of initialization strategy. */
   InitializationStrategyEnum InitializationStrategy;
+
+  /** Compute target regions. */
+  void ComputeTargetRegions();
+
+  /** The target regions which are to be searched for a good NN. */
+  std::vector<itk::ImageRegion<2> > TargetRegions;
 };
 
 #include "PatchMatch.hpp"

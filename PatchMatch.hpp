@@ -47,6 +47,8 @@ void PatchMatch<TImage>::Compute(PMImageType* const initialization)
 {
   srand(time(NULL));
 
+  ComputeTargetRegions();
+
   // If an initialization is provided, use it. Otherwise, generate one.
   if(initialization)
   {
@@ -223,36 +225,28 @@ void PatchMatch<TImage>::RandomInit()
   itk::ImageRegion<2> internalRegion =
              ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
 
-  std::vector<itk::ImageRegion<2> > ValidSourceRegions =
+  std::vector<itk::ImageRegion<2> > validSourceRegions =
         MaskOperations::GetAllFullyValidRegions(this->SourceMask, internalRegion, this->PatchRadius);
 
-  if(ValidSourceRegions.size() == 0)
+  if(validSourceRegions.size() == 0)
   {
     throw std::runtime_error("PatchMatch: No valid source regions!");
   }
 
   // std::cout << "Initializing region: " << internalRegion << std::endl;
-  itk::ImageRegionIteratorWithIndex<PMImageType> outputIterator(this->Output, internalRegion);
-
-  while(!outputIterator.IsAtEnd())
+  for(size_t targetRegionId = 0; targetRegionId < this->TargetRegions.size(); ++targetRegionId)
   {
-    // Construct the current region
-    itk::Index<2> currentIndex = outputIterator.GetIndex();
-    itk::ImageRegion<2> currentRegion =
-          ITKHelpers::GetRegionInRadiusAroundPixel(currentIndex, this->PatchRadius);
+    itk::ImageRegion<2> targetRegion = this->TargetRegions[targetRegionId];
 
-    if(!this->SourceMask->IsValid(currentRegion))
-    {
-      unsigned int randomSourceRegionId = Helpers::RandomInt(0, ValidSourceRegions.size() - 1);
-      itk::ImageRegion<2> randomValidRegion = ValidSourceRegions[randomSourceRegionId];
+    unsigned int randomSourceRegionId = Helpers::RandomInt(0, validSourceRegions.size() - 1);
+    itk::ImageRegion<2> randomValidRegion = validSourceRegions[randomSourceRegionId];
 
-      Match randomMatch;
-      randomMatch.Region = randomValidRegion;
-      randomMatch.Score = this->PatchDistanceFunctor->Distance(randomValidRegion, currentRegion);
-      outputIterator.Set(randomMatch);
-    }
+    Match randomMatch;
+    randomMatch.Region = randomValidRegion;
+    randomMatch.Score = this->PatchDistanceFunctor->Distance(randomValidRegion, targetRegion);
 
-    ++outputIterator;
+    itk::Index<2> regionCenter = ITKHelpers::GetRegionCenter(this->TargetRegions[targetRegionId]);
+    this->Output->SetPixel(regionCenter, randomMatch);
   }
 
   //std::cout << "Finished initializing." << internalRegion << std::endl;
@@ -333,34 +327,24 @@ void PatchMatch<TImage>::SetPatchDistanceFunctor(PatchDistance<TImage>* const pa
 template <typename TImage>
 void PatchMatch<TImage>::Propagation(const std::vector<itk::Offset<2> >& offsets)
 {
-  // Iterate over target patch centers
-  itk::ImageRegionIteratorWithIndex<PMImageType> outputIterator(this->Output,
-                                                                this->TargetMaskBoundingBox);
-
-  while(!outputIterator.IsAtEnd())
+  for(size_t targetRegionId = 0; targetRegionId < this->TargetRegions.size(); ++targetRegionId)
   {
-    // Only compute the NN-field where the target mask is valid
-    if(!this->TargetMask->IsValid(outputIterator.GetIndex()))
-    {
-      ++outputIterator;
-      continue;
-    }
-
+    itk::Index<2> targetRegionCenter = ITKHelpers::GetRegionCenter(this->TargetRegions[targetRegionId]);
     // When using PatchMatch for inpainting, most of the NN-field will be an exact match.
     // We don't have to search anymore
     // once the exact match is found.
-    if(outputIterator.Get().Score == 0)
+    if(this->Output->GetPixel(targetRegionCenter).Score == 0)
     {
-      ++outputIterator;
       continue;
     }
 
-    itk::Index<2> center = outputIterator.GetIndex();
-    itk::ImageRegion<2> centerRegion = ITKHelpers::GetRegionInRadiusAroundPixel(center, this->PatchRadius);
+    itk::ImageRegion<2> centerRegion =
+          ITKHelpers::GetRegionInRadiusAroundPixel(targetRegionCenter, this->PatchRadius);
+
     for(size_t potentialPropagationPixelId = 0; potentialPropagationPixelId < offsets.size();
         ++potentialPropagationPixelId)
     {
-      itk::Index<2> potentialPropagationPixel = outputIterator.GetIndex() +
+      itk::Index<2> potentialPropagationPixel = targetRegionCenter +
                                                 offsets[potentialPropagationPixelId];
 
       // The potential match is the opposite (hence the " - offsets[...]" in the following line)
@@ -389,24 +373,23 @@ void PatchMatch<TImage>::Propagation(const std::vector<itk::Offset<2> >& offsets
         potentialMatch.Region = potentialMatchRegion;
         potentialMatch.Score = distance;
 
-        float oldScore = this->Output->GetPixel(center).Score; // For debugging only
+        float oldScore = this->Output->GetPixel(targetRegionCenter).Score; // For debugging only
 
-        bool better = AddIfBetter(center, potentialMatch);
-        if(better)
-        {
-          std::cout << "Propagation successful for " << center << " - lowered score from " << oldScore
-                    << " to " << potentialMatch.Score << std::endl;
-        }
-        else
-        {
-          std::cout << "Propagation not successful." << std::endl;
-        }
+        bool better = AddIfBetter(targetRegionCenter, potentialMatch);
+//         if(better)
+//         {
+//           std::cout << "Propagation successful for " << center << " - lowered score from " << oldScore
+//                     << " to " << potentialMatch.Score << std::endl;
+//         }
+//         else
+//         {
+//           std::cout << "Propagation not successful." << std::endl;
+//         }
 
       }
     } // end loop over offsets
 
-    ++outputIterator;
-  } // end forward loop
+  } // end loop over target patches
 
 }
 
@@ -444,32 +427,18 @@ void PatchMatch<TImage>::BackwardPropagation()
 template <typename TImage>
 void PatchMatch<TImage>::RandomSearch()
 {
-  // RANDOM SEARCH - try a random region in smaller windows around the current best patch.
-  std::cout << "Random search..." << std::endl;
-
-  // Iterate over target patch centers
-  itk::ImageRegionIteratorWithIndex<PMImageType> outputIterator(this->Output,
-                                                                this->TargetMaskBoundingBox);
-  while(!outputIterator.IsAtEnd())
+  for(size_t targetRegionId = 0; targetRegionId < this->TargetRegions.size(); ++targetRegionId)
   {
-    // Only compute the NN-field where the target mask is valid
-    if(!this->TargetMask->IsValid(outputIterator.GetIndex()))
-    {
-      ++outputIterator;
-      continue;
-    }
+    itk::ImageRegion<2> targetRegion = this->TargetRegions[targetRegionId];
+
+    itk::Index<2> targetRegionCenter = ITKHelpers::GetRegionCenter(targetRegion);
 
     // For inpainting, most of the NN-field will be an exact match. We don't have to search anymore
     // once the exact match is found.
-    if(outputIterator.Get().Score == 0)
+    if(this->Output->GetPixel(targetRegionCenter).Score == 0)
     {
-      ++outputIterator;
       continue;
     }
-
-    itk::Index<2> center = outputIterator.GetIndex();
-
-    itk::ImageRegion<2> centerRegion = ITKHelpers::GetRegionInRadiusAroundPixel(center, this->PatchRadius);
 
     unsigned int width = this->Image->GetLargestPossibleRegion().GetSize()[0];
     unsigned int height = this->Image->GetLargestPossibleRegion().GetSize()[1];
@@ -482,11 +451,10 @@ void PatchMatch<TImage>::RandomSearch()
     float alpha = 1.0f/2.0f; 
 
     // Search an exponentially smaller window each time through the loop
-    itk::Index<2> searchRegionCenter = ITKHelpers::GetRegionCenter(outputIterator.Get().Region);
 
     while (radius > this->PatchRadius) // while there is more than just the current patch to search
     {
-      itk::ImageRegion<2> searchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(searchRegionCenter, radius);
+      itk::ImageRegion<2> searchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(targetRegionCenter, radius);
       searchRegion.Crop(this->Image->GetLargestPossibleRegion());
 
       unsigned int maxNumberOfAttempts = 5; // How many random patches to test for validity before giving up
@@ -502,13 +470,13 @@ void PatchMatch<TImage>::RandomSearch()
       }
       catch (...) // If no suitable region is found, move on
       {
-        std::cout << "No suitable region found." << std::endl;
+        //std::cout << "No suitable region found." << std::endl;
         radius *= alpha;
         continue;
       }
 
       // Compute the patch difference
-      float dist = this->PatchDistanceFunctor->Distance(randomValidRegion, centerRegion);
+      float dist = this->PatchDistanceFunctor->Distance(randomValidRegion, targetRegion);
 
       // Construct a match object
       Match potentialMatch;
@@ -519,23 +487,22 @@ void PatchMatch<TImage>::RandomSearch()
       // In this class, the criteria is simply that it is
       // better than the current best patch. In subclasses (i.e. GeneralizedPatchMatch),
       // it must be better than the worst patch currently stored.
-      float oldScore = this->Output->GetPixel(center).Score; // For debugging only
-      bool better = AddIfBetter(center, potentialMatch);
-      if(better)
-      {
-        std::cout << "Random search successful for " << center << " - lowered score from " << oldScore
-                  << " to " << potentialMatch.Score << std::endl;
-      }
-      else
-      {
-        std::cout << "Random search not successful." << std::endl;
-      }
+      float oldScore = this->Output->GetPixel(targetRegionCenter).Score; // For debugging only
+      bool better = AddIfBetter(targetRegionCenter, potentialMatch);
+//       if(better)
+//       {
+//         std::cout << "Random search successful for " << center << " - lowered score from " << oldScore
+//                   << " to " << potentialMatch.Score << std::endl;
+//       }
+//       else
+//       {
+//         std::cout << "Random search not successful." << std::endl;
+//       }
 
       radius *= alpha;
-    } // end while radius
+    } // end decreasing radius loop
 
-    ++outputIterator;
-  } // end random search loop
+  } // end loop over target regions
 
 }
 
@@ -555,6 +522,29 @@ template <typename TImage>
 void PatchMatch<TImage>::SetInitializationStrategy(const InitializationStrategyEnum initializationStrategy)
 {
   this->InitializationStrategy = initializationStrategy;
+}
+
+template <typename TImage>
+void PatchMatch<TImage>::ComputeTargetRegions()
+{
+  itk::ImageRegionIteratorWithIndex<TImage> imageIterator(this->Image,
+                                                          this->Image->GetLargestPossibleRegion());
+
+  while(!imageIterator.IsAtEnd())
+  {
+    // Construct the current region
+    itk::Index<2> currentIndex = imageIterator.GetIndex();
+
+    itk::ImageRegion<2> currentRegion =
+          ITKHelpers::GetRegionInRadiusAroundPixel(currentIndex, this->PatchRadius);
+
+    if(this->TargetMask->HasValidPixels())
+    {
+      this->TargetRegions.push_back(currentRegion);
+    }
+
+    ++imageIterator;
+  }
 }
 
 #endif
