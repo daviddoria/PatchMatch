@@ -373,9 +373,10 @@ void PatchMatch<TImage>::Propagation(const std::vector<itk::Offset<2> >& offsets
         potentialMatch.Region = potentialMatchRegion;
         potentialMatch.Score = distance;
 
-        float oldScore = this->Output->GetPixel(targetRegionCenter).Score; // For debugging only
+        //float oldScore = this->Output->GetPixel(targetRegionCenter).Score; // For debugging only
+        //bool better = AddIfBetter(targetRegionCenter, potentialMatch);
 
-        bool better = AddIfBetter(targetRegionCenter, potentialMatch);
+        AddIfBetter(targetRegionCenter, potentialMatch);
 //         if(better)
 //         {
 //           std::cout << "Propagation successful for " << center << " - lowered score from " << oldScore
@@ -487,8 +488,10 @@ void PatchMatch<TImage>::RandomSearch()
       // In this class, the criteria is simply that it is
       // better than the current best patch. In subclasses (i.e. GeneralizedPatchMatch),
       // it must be better than the worst patch currently stored.
-      float oldScore = this->Output->GetPixel(targetRegionCenter).Score; // For debugging only
-      bool better = AddIfBetter(targetRegionCenter, potentialMatch);
+//       float oldScore = this->Output->GetPixel(targetRegionCenter).Score; // For debugging only
+//       bool better = AddIfBetter(targetRegionCenter, potentialMatch);
+      
+      AddIfBetter(targetRegionCenter, potentialMatch);
 //       if(better)
 //       {
 //         std::cout << "Random search successful for " << center << " - lowered score from " << oldScore
@@ -527,24 +530,42 @@ void PatchMatch<TImage>::SetInitializationStrategy(const InitializationStrategyE
 template <typename TImage>
 void PatchMatch<TImage>::ComputeTargetRegions()
 {
+  this->TargetRegions.clear();
+
+  itk::ImageRegion<2> searchRegion = this->TargetMaskBoundingBox;
+
+  itk::Index<2> searchRegionCorner = searchRegion.GetIndex();
+  searchRegionCorner[0] -= (this->PatchRadius + 1);
+  searchRegionCorner[1] -= (this->PatchRadius + 1);
+  searchRegion.SetIndex(searchRegionCorner);
+
+  // 2*PatchRadius is the number of pixels that a patch can be shifted and still
+  // touch the original region. The second *2 is because this is possible on both sides.
+  itk::Size<2> searchRegionSize = searchRegion.GetSize();
+  searchRegionSize[0] += (this->PatchRadius*2 * 2);
+  searchRegionSize[1] += (this->PatchRadius*2 * 2);
+  searchRegion.SetSize(searchRegionSize);
+
   itk::ImageRegionIteratorWithIndex<TImage> imageIterator(this->Image,
-                                                          this->Image->GetLargestPossibleRegion());
+                                                          searchRegion);
 
   while(!imageIterator.IsAtEnd())
   {
+    //std::cout << "Testing " << regionCounter << " of " << searchRegion.GetNumberOfPixels() << std::endl;
     // Construct the current region
     itk::Index<2> currentIndex = imageIterator.GetIndex();
 
     itk::ImageRegion<2> currentRegion =
           ITKHelpers::GetRegionInRadiusAroundPixel(currentIndex, this->PatchRadius);
 
-    if(this->TargetMask->HasValidPixels())
+    if(this->TargetMask->HasValidPixels(currentRegion))
     {
       this->TargetRegions.push_back(currentRegion);
     }
-
     ++imageIterator;
   }
+
+  std::cout << "ComputeTargetRegions() finished." << std::endl;
 }
 
 #endif

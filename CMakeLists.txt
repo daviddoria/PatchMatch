@@ -9,18 +9,13 @@ ITKImageIntensity ITKImageFeature ITKMathematicalMorphology ITKBinaryMathematica
 INCLUDE(${USE_ITK_FILE})
 
 # Submodules
-if(NOT TARGET Mask)
-  add_subdirectory(Mask)
-  include_directories(${Mask_includes})
-endif()
-
 if(NOT TARGET PatchComparison)
   add_subdirectory(PatchComparison)
   include_directories(${PatchComparison_includes})
 endif()
 
 if(NOT ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
-  set(PatchMatch_includes ${Mask_includes} ${PatchComparison_includes}
+  set(PatchMatch_includes ${PatchComparison_includes}
       ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
 endif()
 
