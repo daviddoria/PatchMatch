@@ -40,9 +40,10 @@ void GeneralizedPatchMatch<TImage>::GetPatchCentersImage(GeneralizedPMImageType*
   while(!imageIterator.IsAtEnd())
     {
     typename PatchMatch<TImage>::CoordinateImageType::PixelType pixel;
-    pixel.SetSize(3);
 
-    Match match = imageIterator.Get()[0]; // This is the only difference from this function in PatchMatch - that we get the first element instead of the only element
+    // This is the only difference from this function in PatchMatch -
+    // that we get the first element instead of the only element
+    Match match = imageIterator.Get()[0]; 
     itk::Index<2> center = ITKHelpers::GetRegionCenter(match.Region);
 
     pixel[0] = center[0];

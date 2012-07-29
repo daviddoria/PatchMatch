@@ -35,61 +35,77 @@
 // Custom
 #include "PatchMatch.h"
 
-typedef itk::Image<itk::CovariantVector<float, 3>, 2> ImageType;
-
 int main(int argc, char*argv[])
 {
-  if(argc < 4)
+  // Verify arguments
+  if(argc < 5)
   {
-    std::cerr << "Required arguments: image mask output" << std::endl;
+    std::cerr << "Required arguments: image mask patchRadius output" << std::endl;
     return EXIT_FAILURE;
   }
 
-  std::string imageFilename = argv[1];
-  std::string maskFilename = argv[2];
-  std::string outputFilename = argv[3];
+  // Parse arguments
+  std::stringstream ss;
+  for(int i = 1; i < argc; ++i)
+  {
+    ss << argv[i] << " ";
+  }
+  std::string imageFilename;
+  std::string maskFilename;
+  unsigned int patchRadius;
+  std::string outputFilename;
 
+  ss >> imageFilename >> maskFilename >> patchRadius >> outputFilename;
+
+  // Output arguments
   std::cout << "imageFilename: " << imageFilename << std::endl;
   std::cout << "maskFilename: " << maskFilename << std::endl;
+  std::cout << "patchRadius: " << patchRadius << std::endl;
   std::cout << "outputFilename: " << outputFilename << std::endl;
+
+  typedef itk::Image<itk::CovariantVector<unsigned char, 3>, 2> ImageType;
 
   typedef itk::ImageFileReader<ImageType> ImageReaderType;
   ImageReaderType::Pointer imageReader = ImageReaderType::New();
   imageReader->SetFileName(imageFilename);
   imageReader->Update();
 
+  ImageType* image = imageReader->GetOutput();
+
   Mask::Pointer sourceMask = Mask::New();
   sourceMask->Read(maskFilename);
 
+  // Compute the entire NN-field
   Mask::Pointer targetMask = Mask::New();
   targetMask->SetRegions(sourceMask->GetLargestPossibleRegion());
   targetMask->Allocate();
   ITKHelpers::SetImageToConstant(targetMask.GetPointer(), targetMask->GetValidValue());
 
-  SSD<ImageType>* patchDistanceFunctor = new SSD<ImageType>;
-  patchDistanceFunctor->SetImage(imageReader->GetOutput());
-  
-  PatchMatch<ImageType> patchMatch;
-  patchMatch.SetImage(imageReader->GetOutput());
-  patchMatch.SetPatchRadius(3);
-  
-  patchMatch.SetPatchDistanceFunctor(patchDistanceFunctor);
+  // Only compute the NN-field in the hole
+//   Mask::Pointer targetMask = Mask::New();
+//   sourceMask->Read(maskFilename);
 
-//   patchMatch.SetDistanceType(PatchMatch::PCA);
-//   patchMatch.ComputeProjectionMatrix();
+  SSD<ImageType>* patchDistanceFunctor = new SSD<ImageType>;
+  patchDistanceFunctor->SetImage(image);
+
+  typedef PatchMatch<ImageType> PatchMatchType;
+  PatchMatchType patchMatch;
+  patchMatch.SetImage(image);
+  patchMatch.SetPatchRadius(3);
+
+  patchMatch.SetPatchDistanceFunctor(patchDistanceFunctor);
 
   patchMatch.SetTargetMask(targetMask);
   patchMatch.SetSourceMask(sourceMask);
-  patchMatch.SetIterations(10);
+  patchMatch.SetIterations(5);
 
   patchMatch.Compute(NULL);
 
-  typedef itk::VectorImage<float, 2> VectorImageType;
-  VectorImageType::Pointer output = VectorImageType::New();
+  PatchMatchType::CoordinateImageType::Pointer output = PatchMatchType::CoordinateImageType::New();
 
   patchMatch.GetPatchCentersImage(patchMatch.GetOutput(), output.GetPointer());
 
-  typedef itk::ImageFileWriter<VectorImageType> WriterType;
+  typedef itk::ImageFileWriter<PatchMatchType::CoordinateImageType> WriterType;
   WriterType::Pointer writer = WriterType::New();
   writer->SetFileName(outputFilename);
   writer->SetInput(output);

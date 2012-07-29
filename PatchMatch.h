@@ -19,11 +19,7 @@
 #ifndef PATCHMATCH_H
 #define PATCHMATCH_H
 
-// STL
-// #include <functional>
-
 // ITK
-//#include "itkCovariantVector.h"
 #include "itkImage.h"
 #include "itkImageRegion.h"
 #include "itkVectorImage.h"
@@ -59,7 +55,7 @@ public:
   typedef itk::Image<Match, 2> PMImageType;
 
   /** The type that is used to output the (X,Y,Score) image for inspection. */
-  typedef itk::VectorImage<float, 2> CoordinateImageType;
+  typedef itk::Image<itk::CovariantVector<float, 3>, 2> CoordinateImageType;
 
   /** Perform multiple iterations of propagation and random search (do the real work).
     * 'initialization' can come from a previous iteration of an algorithm like BDSInpainting. If
@@ -117,8 +113,9 @@ public:
   /** Replace the best match if necessary. In this class, 'match' simply replaces
     * the current best match if it is better.
     * In subclasses (e.g. GeneralizedPatchMatch), this will
-    * add the 'match' to the list of nearest matches if it is better than the worst match. */
-  void AddIfBetter(const itk::Index<2>& index, const Match& match);
+    * add the 'match' to the list of nearest matches if it is better than the worst match.
+    * Returns true if the 'match' was added. */
+  bool AddIfBetter(const itk::Index<2>& index, const Match& match);
 
   /** Set the choice of initialization strategy. */
   void SetInitializationStrategy(const InitializationStrategyEnum initializationStrategy);

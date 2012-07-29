@@ -9,3 +9,6 @@ TARGET_LINK_LIBRARIES(PatchMatchDemo Mask)
 
 ADD_EXECUTABLE(PatchMatchInitDemo PatchMatchInitDemo.cpp)
 TARGET_LINK_LIBRARIES(PatchMatchInitDemo Mask)
+
+ADD_EXECUTABLE(GroundTruthNNField GroundTruthNNField.cpp)
+TARGET_LINK_LIBRARIES(GroundTruthNNField Mask)

@@ -68,8 +68,9 @@ int main(int argc, char*argv[])
 
   SSD<ImageType>* patchDistanceFunctor = new SSD<ImageType>;
   patchDistanceFunctor->SetImage(imageReader->GetOutput());
-  
-  PatchMatch<ImageType> patchMatch;
+
+  typedef PatchMatch<ImageType> PatchMatchType;
+  PatchMatchType patchMatch;
   patchMatch.SetImage(imageReader->GetOutput());
   patchMatch.SetPatchRadius(3);
   
@@ -84,12 +85,11 @@ int main(int argc, char*argv[])
 
   patchMatch.Compute(NULL);
 
-  typedef itk::VectorImage<float, 2> VectorImageType;
-  VectorImageType::Pointer output = VectorImageType::New();
+  PatchMatchType::CoordinateImageType::Pointer output = PatchMatchType::CoordinateImageType::New();
 
   patchMatch.GetPatchCentersImage(patchMatch.GetOutput(), output.GetPointer());
 
-  typedef itk::ImageFileWriter<VectorImageType> WriterType;
+  typedef itk::ImageFileWriter<PatchMatchType::CoordinateImageType> WriterType;
   WriterType::Pointer writer = WriterType::New();
   writer->SetFileName(outputFilename);
   writer->SetInput(output);
