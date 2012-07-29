@@ -355,8 +355,6 @@ void PatchMatch<TImage>::Propagation(const std::vector<itk::Offset<2> >& offsets
       continue;
     }
 
-    Match currentMatch = outputIterator.Get();
-
     itk::Index<2> center = outputIterator.GetIndex();
     itk::ImageRegion<2> centerRegion = ITKHelpers::GetRegionInRadiusAroundPixel(center, this->PatchRadius);
     for(size_t potentialPropagationPixelId = 0; potentialPropagationPixelId < offsets.size();
@@ -407,7 +405,6 @@ void PatchMatch<TImage>::Propagation(const std::vector<itk::Offset<2> >& offsets
       }
     } // end loop over offsets
 
-    outputIterator.Set(currentMatch);
     ++outputIterator;
   } // end forward loop
 
