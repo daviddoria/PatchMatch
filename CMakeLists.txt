@@ -17,6 +17,7 @@ endif()
 if(NOT ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
   set(PatchMatch_includes ${PatchComparison_includes}
       ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
+  message("PatchMatch submodule used from ${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 
 SET(PatchMatch_BuildExamples ON CACHE BOOL "Build examples?")
