@@ -61,7 +61,7 @@ public:
     * 'initialization' can come from a previous iteration of an algorithm like BDSInpainting. If
     * 'initialization' is null, this function computes an initialization using one of the algorithms
     * provided by this class (RandomInit() or BoundaryInit() ).*/
-  void Compute(PMImageType* const initialization);
+  virtual void Compute(PMImageType* const initialization);
 
   /** Propagate good matches from specified offsets. In the traditional algorithm,
     * ForwardPropagation() and BackwardPropagation() call this function with "above and left"

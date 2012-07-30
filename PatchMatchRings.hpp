@@ -29,12 +29,79 @@ PatchMatchRings<TImage>::PatchMatchRings() : PatchMatch<TImage>()
 template <typename TImage>
 bool PatchMatchRings<TImage>::AllowPropagationFrom(const itk::Index<2>& potentialPropagationPixel)
 {
-  if(this->SourceMask->IsValid(potentialPropagationPixel))
+  if(this->SourceMask->IsValid(potentialPropagationPixel) ||
+     this->TargetMask->IsValid(potentialPropagationPixel))
   {
     return true;
   }
 
   return false;
+}
+
+template <typename TImage>
+void PatchMatchRings<TImage>::Compute(typename PatchMatch<TImage>::PMImageType* const initialization)
+{
+  ITKHelpers::WriteImage(this->TargetMask.GetPointer(), "OriginalTargetMask.png");
+
+  // Save the original mask, as we will be modifying the internal masks below
+  Mask::Pointer currentTargetMask = Mask::New();
+  currentTargetMask->DeepCopyFrom(this->TargetMask);
+
+  unsigned int ringCounter = 0;
+  while(currentTargetMask->HasValidPixels())
+  {
+    {
+    std::stringstream ssCurrentTargetMask;
+    ssCurrentTargetMask << "CurrentTargetMask_" << Helpers::ZeroPad(ringCounter, 4) << ".png";
+    ITKHelpers::WriteImage(currentTargetMask.GetPointer(), ssCurrentTargetMask.str());
+    }
+
+    // Get the outside boundary of the target region
+    Mask::BoundaryImageType::Pointer boundaryImage = Mask::BoundaryImageType::New();
+    Mask::BoundaryImageType::PixelType boundaryColor = 255;
+    currentTargetMask->FindBoundary(boundaryImage, Mask::HOLE, boundaryColor);
+
+    {
+    std::stringstream ssBoundary;
+    ssBoundary << "Boundary_" << Helpers::ZeroPad(ringCounter, 4) << ".png";
+    ITKHelpers::WriteImage(boundaryImage.GetPointer(), ssBoundary.str());
+    }
+
+    // Create a mask of just the boundary
+    Mask::Pointer boundaryMask = Mask::New();
+    Mask::BoundaryImageType::PixelType holeColor = boundaryColor;
+    boundaryMask->CreateFromImage(boundaryImage.GetPointer(), holeColor);
+    boundaryMask->Invert(); // Make the thin boundary the only valid pixels
+
+    {
+    std::stringstream ssBoundaryMask;
+    ssBoundaryMask << "BoundaryMask_" << Helpers::ZeroPad(ringCounter, 4) << ".png";
+    ITKHelpers::WriteImage(boundaryImage.GetPointer(), ssBoundaryMask.str());
+    }
+
+    // Set the mask to use in the PatchMatch algorithm
+    this->TargetMask->DeepCopyFrom(boundaryMask);
+    if(ringCounter == 0)
+    {
+      PatchMatch<TImage>::Compute(NULL);
+    }
+    else
+    {
+      PatchMatch<TImage>::Compute(this->GetOutput());
+    }
+
+    typename PatchMatch<TImage>::CoordinateImageType::Pointer coordinateImage = PatchMatch<TImage>::CoordinateImageType::New();
+    GetPatchCentersImage(this->GetOutput(), coordinateImage);
+    std::stringstream ssOutput;
+    ssOutput << "NNField_" << Helpers::ZeroPad(ringCounter, 3) << ".mha";
+    ITKHelpers::WriteImage(coordinateImage.GetPointer(), ssOutput.str());
+    
+    // Reduce the size of the target region (we "enlarge the hole", because the "hole" is considered the valid part of the target mask)
+    unsigned int kernelRadius = 1;
+    currentTargetMask->ExpandHole(kernelRadius);
+
+    ringCounter++;
+  }
 }
 
 #endif

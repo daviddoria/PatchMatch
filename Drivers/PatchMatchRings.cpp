@@ -77,13 +77,8 @@ int main(int argc, char*argv[])
 
   // Compute the entire NN-field
   Mask::Pointer targetMask = Mask::New();
-  targetMask->SetRegions(sourceMask->GetLargestPossibleRegion());
-  targetMask->Allocate();
-  ITKHelpers::SetImageToConstant(targetMask.GetPointer(), targetMask->GetValidValue());
-
-  // Only compute the NN-field in the hole
-//   Mask::Pointer targetMask = Mask::New();
-//   sourceMask->Read(maskFilename);
+  targetMask->Read(maskFilename);
+  targetMask->Invert();
 
   SSD<ImageType>* patchDistanceFunctor = new SSD<ImageType>;
   patchDistanceFunctor->SetImage(image);
@@ -97,7 +92,8 @@ int main(int argc, char*argv[])
 
   patchMatch.SetTargetMask(targetMask);
   patchMatch.SetSourceMask(sourceMask);
-  patchMatch.SetIterations(5);
+  //patchMatch.SetIterations(5);
+  patchMatch.SetIterations(1);
 
   patchMatch.Compute(NULL);
 
