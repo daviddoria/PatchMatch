@@ -150,15 +150,20 @@ void PatchMatch<TImage>::InitKnownRegion()
 
     if(this->SourceMask->IsValid(currentRegion))
     {
-      Match randomMatch;
-      randomMatch.Region = currentRegion;
-      randomMatch.Score = 0.0f;
-      outputIterator.Set(randomMatch);
+      Match selfMatch;
+      selfMatch.Region = currentRegion;
+      selfMatch.Score = 0.0f;
+      outputIterator.Set(selfMatch);
     }
 
     ++outputIterator;
   }
 
+  { // Debug only
+  CoordinateImageType::Pointer initialOutput = CoordinateImageType::New();
+  GetPatchCentersImage(this->Output, initialOutput);
+  ITKHelpers::WriteImage(initialOutput.GetPointer(), "InitKnownRegion_Output.mha");
+  }
 }
 
 template <typename TImage>
@@ -256,6 +261,12 @@ void PatchMatch<TImage>::RandomInit()
     this->Output->SetPixel(regionCenter, randomMatch);
   }
 
+
+  { // Debug only
+  CoordinateImageType::Pointer initialOutput = CoordinateImageType::New();
+  GetPatchCentersImage(this->Output, initialOutput);
+  ITKHelpers::WriteImage(initialOutput.GetPointer(), "RandomInit.mha");
+  }
   //std::cout << "Finished initializing." << internalRegion << std::endl;
 }
 

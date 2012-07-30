@@ -29,8 +29,12 @@ PatchMatchRings<TImage>::PatchMatchRings() : PatchMatch<TImage>()
 template <typename TImage>
 bool PatchMatchRings<TImage>::AllowPropagationFrom(const itk::Index<2>& potentialPropagationPixel)
 {
-  if(this->SourceMask->IsValid(potentialPropagationPixel) ||
-     this->TargetMask->IsValid(potentialPropagationPixel))
+//   if(this->SourceMask->IsValid(potentialPropagationPixel) ||
+//      this->TargetMask->IsValid(potentialPropagationPixel))
+//   {
+//     return true;
+//   }
+  if(this->AllowedPropagationMask->IsValid(potentialPropagationPixel))
   {
     return true;
   }
@@ -47,25 +51,28 @@ void PatchMatchRings<TImage>::Compute(typename PatchMatch<TImage>::PMImageType* 
   Mask::Pointer currentTargetMask = Mask::New();
   currentTargetMask->DeepCopyFrom(this->TargetMask);
 
+  // Initialize
+  this->AllowedPropagationMask->DeepCopyFrom(this->SourceMask);
+
   unsigned int ringCounter = 0;
   while(currentTargetMask->HasValidPixels())
   {
-    {
-    std::stringstream ssCurrentTargetMask;
-    ssCurrentTargetMask << "CurrentTargetMask_" << Helpers::ZeroPad(ringCounter, 4) << ".png";
-    ITKHelpers::WriteImage(currentTargetMask.GetPointer(), ssCurrentTargetMask.str());
-    }
+//     {
+//     std::stringstream ssCurrentTargetMask;
+//     ssCurrentTargetMask << "CurrentTargetMask_" << Helpers::ZeroPad(ringCounter, 4) << ".png";
+//     ITKHelpers::WriteImage(currentTargetMask.GetPointer(), ssCurrentTargetMask.str());
+//     }
 
     // Get the outside boundary of the target region
     Mask::BoundaryImageType::Pointer boundaryImage = Mask::BoundaryImageType::New();
     Mask::BoundaryImageType::PixelType boundaryColor = 255;
     currentTargetMask->FindBoundary(boundaryImage, Mask::HOLE, boundaryColor);
 
-    {
-    std::stringstream ssBoundary;
-    ssBoundary << "Boundary_" << Helpers::ZeroPad(ringCounter, 4) << ".png";
-    ITKHelpers::WriteImage(boundaryImage.GetPointer(), ssBoundary.str());
-    }
+//     {
+//     std::stringstream ssBoundary;
+//     ssBoundary << "Boundary_" << Helpers::ZeroPad(ringCounter, 4) << ".png";
+//     ITKHelpers::WriteImage(boundaryImage.GetPointer(), ssBoundary.str());
+//     }
 
     // Create a mask of just the boundary
     Mask::Pointer boundaryMask = Mask::New();
@@ -73,11 +80,11 @@ void PatchMatchRings<TImage>::Compute(typename PatchMatch<TImage>::PMImageType* 
     boundaryMask->CreateFromImage(boundaryImage.GetPointer(), holeColor);
     boundaryMask->Invert(); // Make the thin boundary the only valid pixels
 
-    {
-    std::stringstream ssBoundaryMask;
-    ssBoundaryMask << "BoundaryMask_" << Helpers::ZeroPad(ringCounter, 4) << ".png";
-    ITKHelpers::WriteImage(boundaryImage.GetPointer(), ssBoundaryMask.str());
-    }
+//     { // debug only
+//     std::stringstream ssBoundaryMask;
+//     ssBoundaryMask << "BoundaryMask_" << Helpers::ZeroPad(ringCounter, 4) << ".png";
+//     ITKHelpers::WriteImage(boundaryImage.GetPointer(), ssBoundaryMask.str());
+//     }
 
     // Set the mask to use in the PatchMatch algorithm
     this->TargetMask->DeepCopyFrom(boundaryMask);
@@ -90,11 +97,17 @@ void PatchMatchRings<TImage>::Compute(typename PatchMatch<TImage>::PMImageType* 
       PatchMatch<TImage>::Compute(this->GetOutput());
     }
 
+    { // debug only
     typename PatchMatch<TImage>::CoordinateImageType::Pointer coordinateImage = PatchMatch<TImage>::CoordinateImageType::New();
     GetPatchCentersImage(this->GetOutput(), coordinateImage);
     std::stringstream ssOutput;
     ssOutput << "NNField_" << Helpers::ZeroPad(ringCounter, 3) << ".mha";
     ITKHelpers::WriteImage(coordinateImage.GetPointer(), ssOutput.str());
+    }
+
+    // Update to use the already computed field region - TODO: This is wrong, but works for simple cases (where the source region is the complement of the target region)
+    // It should actually be an XOR of the currentTargetMask and the SourceMask or something like that.
+    this->AllowedPropagationMask->DeepCopyFrom(currentTargetMask);
     
     // Reduce the size of the target region (we "enlarge the hole", because the "hole" is considered the valid part of the target mask)
     unsigned int kernelRadius = 1;
