@@ -28,3 +28,8 @@ SET(PatchMatch_BuildTests ON CACHE BOOL "Build tests?")
 if(PatchMatch_BuildTests)
  add_subdirectory(Tests)
 endif()
+
+SET(PatchMatch_BuildDrivers ON CACHE BOOL "Build drivers?")
+if(PatchMatch_BuildDrivers)
+ add_subdirectory(Drivers)
+endif()

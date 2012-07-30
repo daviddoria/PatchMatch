@@ -347,6 +347,10 @@ void PatchMatch<TImage>::Propagation(const std::vector<itk::Offset<2> >& offsets
       itk::Index<2> potentialPropagationPixel = targetRegionCenter +
                                                 offsets[potentialPropagationPixelId];
 
+      if(!AllowPropagationFrom(potentialPropagationPixel))
+      {
+        continue;
+      }
       // The potential match is the opposite (hence the " - offsets[...]" in the following line)
       // of the offset of the neighbor. Consider the following case:
       // - We are at (4,4) and potentially propagating from (3,4)
@@ -546,6 +550,12 @@ void PatchMatch<TImage>::ComputeTargetRegions()
   searchRegionSize[1] += (this->PatchRadius*2 * 2);
   searchRegion.SetSize(searchRegionSize);
 
+  // Ensure the search region consists of pixels whose surrounding patches are entirely inside the image
+  //searchRegion.Crop(this->Image->GetLargestPossibleRegion());
+  itk::ImageRegion<2> internalRegion =
+             ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
+  searchRegion.Crop(internalRegion);
+
   itk::ImageRegionIteratorWithIndex<TImage> imageIterator(this->Image,
                                                           searchRegion);
 
@@ -566,6 +576,12 @@ void PatchMatch<TImage>::ComputeTargetRegions()
   }
 
   std::cout << "ComputeTargetRegions() finished." << std::endl;
+}
+
+template <typename TImage>
+bool PatchMatch<TImage>::AllowPropagationFrom(const itk::Index<2>& potentialPropagationPixel)
+{
+  return true;
 }
 
 #endif

@@ -91,7 +91,7 @@ int main(int argc, char*argv[])
   typedef PatchMatch<ImageType> PatchMatchType;
   PatchMatchType patchMatch;
   patchMatch.SetImage(image);
-  patchMatch.SetPatchRadius(3);
+  patchMatch.SetPatchRadius(patchRadius);
 
   patchMatch.SetPatchDistanceFunctor(patchDistanceFunctor);
 

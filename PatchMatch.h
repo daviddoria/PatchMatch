@@ -120,7 +120,7 @@ public:
   /** Set the choice of initialization strategy. */
   void SetInitializationStrategy(const InitializationStrategyEnum initializationStrategy);
 
-private:
+protected:
 
   /** Set the nearest neighbor of each patch in the valid region to itself . */
   void InitKnownRegion();
@@ -162,6 +162,9 @@ private:
 
   /** The target regions which are to be searched for a good NN. */
   std::vector<itk::ImageRegion<2> > TargetRegions;
+
+  /** Determine if information can be propagated from a specified pixel. */
+  virtual bool AllowPropagationFrom(const itk::Index<2>& potentialPropagationPixel);
 };
 
 #include "PatchMatch.hpp"
