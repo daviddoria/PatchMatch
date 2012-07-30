@@ -284,6 +284,7 @@ void PatchMatch<TImage>::SetSourceMask(Mask* const mask)
 {
   this->SourceMask->DeepCopyFrom(mask);
   this->SourceMaskBoundingBox = MaskOperations::ComputeValidBoundingBox(this->SourceMask);
+  std::cout << "SourceMaskBoundingBox: " << this->SourceMaskBoundingBox << std::endl;
 }
 
 template <typename TImage>
@@ -291,6 +292,7 @@ void PatchMatch<TImage>::SetTargetMask(Mask* const mask)
 {
   this->TargetMask->DeepCopyFrom(mask);
   this->TargetMaskBoundingBox = MaskOperations::ComputeValidBoundingBox(this->TargetMask);
+  std::cout << "TargetMaskBoundingBox: " << this->TargetMaskBoundingBox << std::endl;
 }
 
 template <typename TImage>
