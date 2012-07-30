@@ -1,0 +1,39 @@
+/*=========================================================================
+ *
+ *  Copyright David Doria 2012 daviddoria@gmail.com
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *         http://www.apache.org/licenses/LICENSE-2.0.txt
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ *=========================================================================*/
+
+#ifndef PatchMatchRings_H
+#define PatchMatchRings_H
+
+#include "PatchMatch.h"
+
+template<typename TImage>
+class PatchMatchRings : public PatchMatch<TImage>
+{
+public:
+
+  /** Constructor. */
+  PatchMatchRings();
+
+private:
+  /** Determine if information can be propagated from a specified pixel. */
+  bool AllowPropagationFrom(const itk::Index<2>& potentialPropagationPixel);
+};
+
+#include "PatchMatchRings.hpp"
+
+#endif
