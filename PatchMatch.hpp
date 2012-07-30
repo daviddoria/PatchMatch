@@ -126,12 +126,12 @@ void PatchMatch<TImage>::InitKnownRegion()
   itk::ImageRegion<2> zeroRegion(zeroIndex, zeroSize);
 
   // Create an invalid match
-  Match zeroMatch;
-  zeroMatch.Region = zeroRegion;
-  zeroMatch.Score = 0.0f;
+  Match invalidMatch;
+  invalidMatch.Region = zeroRegion;
+  invalidMatch.Score = std::numeric_limits<float>::max();
 
   // Initialize the entire NNfield to be invalid matches
-  ITKHelpers::SetImageToConstant(this->Output.GetPointer(), zeroMatch);
+  ITKHelpers::SetImageToConstant(this->Output.GetPointer(), invalidMatch);
 
   // Get all of the regions that are entirely inside the image
   itk::ImageRegion<2> internalRegion =
@@ -586,19 +586,19 @@ void PatchMatch<TImage>::ComputeTargetRegions()
 
   std::cout << "There are " << this->TargetRegions.size() << " target regions." << std::endl;
 
-  { // debug only
-    typedef itk::Image<unsigned char, 2> RegionImageType;
-    RegionImageType::Pointer targetRegionImage = RegionImageType::New();
-    targetRegionImage->SetRegions(this->Image->GetLargestPossibleRegion());
-    targetRegionImage->Allocate();
-    targetRegionImage->FillBuffer(0);
-
-    for(unsigned int i = 0; i < this->TargetRegions.size(); ++i)
-    {
-      ITKHelpers::SetRegionToConstant(targetRegionImage.GetPointer(), this->TargetRegions[i], 255);
-    }
-    ITKHelpers::WriteImage(targetRegionImage.GetPointer(), "TargetRegionImage.png");
-  }
+//   { // debug only
+//     typedef itk::Image<unsigned char, 2> RegionImageType;
+//     RegionImageType::Pointer targetRegionImage = RegionImageType::New();
+//     targetRegionImage->SetRegions(this->Image->GetLargestPossibleRegion());
+//     targetRegionImage->Allocate();
+//     targetRegionImage->FillBuffer(0);
+// 
+//     for(unsigned int i = 0; i < this->TargetRegions.size(); ++i)
+//     {
+//       ITKHelpers::SetRegionToConstant(targetRegionImage.GetPointer(), this->TargetRegions[i], 255);
+//     }
+//     ITKHelpers::WriteImage(targetRegionImage.GetPointer(), "TargetRegionImage.png");
+//   }
 }
 
 template <typename TImage>
