@@ -102,7 +102,7 @@ int main(int argc, char*argv[])
   patchMatch.SetTargetMask(targetMask);
   patchMatch.SetSourceMask(sourceMask);
   patchMatch.SetIterations(5);
-
+  patchMatch.SetRandom(false); // for repeatable testing
   patchMatch.Compute(NULL);
 
   PatchMatchType::CoordinateImageType::Pointer output = PatchMatchType::CoordinateImageType::New();

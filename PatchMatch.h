@@ -120,6 +120,9 @@ public:
   /** Set the choice of initialization strategy. */
   void SetInitializationStrategy(const InitializationStrategyEnum initializationStrategy);
 
+  /** Set if the result should be randomized. This should only be false for testing purposes. */
+  void SetRandom(const bool random);
+
 protected:
 
   /** Set the nearest neighbor of each patch in the valid region to itself . */
@@ -165,6 +168,9 @@ protected:
 
   /** Determine if information can be propagated from a specified pixel. */
   virtual bool AllowPropagationFrom(const itk::Index<2>& potentialPropagationPixel);
+
+  /** Determine if the result should be randomized. This should only be false for testing purposes. */
+  bool Random;
 };
 
 #include "PatchMatch.hpp"

@@ -34,7 +34,7 @@
 
 template <typename TImage>
 PatchMatch<TImage>::PatchMatch() : PatchRadius(0), PatchDistanceFunctor(NULL),
-                                   InitializationStrategy(RANDOM)
+                                   InitializationStrategy(RANDOM), Random(true)
 {
   this->Output = PMImageType::New();
   this->Image = TImage::New();
@@ -45,7 +45,14 @@ PatchMatch<TImage>::PatchMatch() : PatchRadius(0), PatchDistanceFunctor(NULL),
 template <typename TImage>
 void PatchMatch<TImage>::Compute(PMImageType* const initialization)
 {
-  srand(time(NULL));
+  if(this->Random)
+  {
+    srand(time(NULL));
+  }
+  else
+  {
+    srand(0);
+  }
 
   ComputeTargetRegions();
 
@@ -584,6 +591,12 @@ template <typename TImage>
 bool PatchMatch<TImage>::AllowPropagationFrom(const itk::Index<2>& potentialPropagationPixel)
 {
   return true;
+}
+
+template <typename TImage>
+void PatchMatch<TImage>::SetRandom(const bool random)
+{
+  this->Random = random;
 }
 
 #endif
