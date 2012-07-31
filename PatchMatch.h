@@ -33,6 +33,22 @@ struct Match
 {
   itk::ImageRegion<2> Region;
   float Score;
+
+  static constexpr float InvalidScore = std::numeric_limits< float >::quiet_NaN();
+  bool IsValid()
+  {
+    if(Helpers::IsNaN(this->Score))
+    {
+      return false;
+    }
+
+    if(this->Region.GetSize()[0] == 0 || this->Region.GetSize()[1] == 0)
+    {
+      return false;
+    }
+
+    return true;
+  }
 };
 
 /** This class computes a nearest neighbor field using the PatchMatch algorithm. */
@@ -106,6 +122,9 @@ public:
     * neighbor field struct. */
   static void GetPatchCentersImage(PMImageType* const pmImage, CoordinateImageType* const output);
 
+  /** Set the nearest neighbor of each patch entirely in the source region to itself . */
+  void InitKnownRegion();
+
   /** Set the nearest neighbor field to exactly iself in the valid region, and random
     * values in the hole region. */
   void RandomInit();
@@ -128,16 +147,7 @@ public:
   /** Set if the result should be randomized. This should only be false for testing purposes. */
   void SetRandom(const bool random);
 
-  /** Get the target regions that contain a 'pixel'. */
-  std::vector<itk::ImageRegion<2> > GetTargetRegionsContainingPixel(const itk::Index<2>& pixel);
-
-  /** Specify whether or not we trust all pixels. */
-  void SetTrustAllPixels(const bool trustAllPixels);
-
 protected:
-
-  /** Set the nearest neighbor of each patch entirely in the source region to itself . */
-  void InitKnownRegion();
 
   /** Set the number of iterations to perform. */
   unsigned int Iterations;
@@ -171,16 +181,6 @@ protected:
   /** The choice of initialization strategy. */
   InitializationStrategyEnum InitializationStrategy;
 
-  /** Compute all regions that contain at least one target pixel. */
-  void ComputeAllRegionsTouchingTargetPixels();
-
-  /** Compute all regions that contain at least one target pixel. */
-  void ComputeHalfValidRegionsTouchingTargetPixels();
-
-  /** The target regions which are to be searched for a nearest neighbor.
-    * That is, the NN-Field will be computed at the centers of the TargetRegions.*/
-  std::vector<itk::ImageRegion<2> > TargetRegions;
-
   /** Determine if information can be propagated from a specified pixel. */
   virtual bool AllowPropagationFrom(const itk::Index<2>& potentialPropagationPixel);
 
@@ -190,8 +190,6 @@ protected:
   /** Only valid pixels in this mask can be propagated. */
   Mask::Pointer AllowedPropagationMask;
 
-  /** Determine whether or not we trust all pixels. */
-  bool TrustAllPixels;
 };
 
 #include "PatchMatch.hpp"

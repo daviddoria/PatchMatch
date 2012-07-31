@@ -35,27 +35,17 @@
 template <typename TImage>
 PatchMatch<TImage>::PatchMatch() : PatchRadius(0), PatchDistanceFunctor(NULL),
                                    InitializationStrategy(RANDOM), Random(true),
-                                   TrustAllPixels(true)
+                                   AllowedPropagationMask(NULL)
 {
   this->Output = PMImageType::New();
   this->Image = TImage::New();
   this->SourceMask = Mask::New();
   this->TargetMask = Mask::New();
-  this->AllowedPropagationMask = NULL;
 }
 
 template <typename TImage>
 void PatchMatch<TImage>::AutomaticCompute(PMImageType* const initialization)
 {
-  if(this->TrustAllPixels)
-  {
-    ComputeAllRegionsTouchingTargetPixels(); // For traditional PatchMatch
-  }
-  else
-  {
-    ComputeHalfValidRegionsTouchingTargetPixels(); // For PatchMatch that doesn't trust information inside the target region
-  }
-
   // If an initialization is provided, use it. Otherwise, generate one.
   if(initialization)
   {
@@ -63,6 +53,8 @@ void PatchMatch<TImage>::AutomaticCompute(PMImageType* const initialization)
   }
   else
   {
+    InitKnownRegion();
+
     if(this->InitializationStrategy == RANDOM)
     {
       RandomInit();
@@ -144,7 +136,7 @@ void PatchMatch<TImage>::InitKnownRegion()
   Match invalidMatch;
   invalidMatch.Region = zeroRegion;
   //invalidMatch.Score = std::numeric_limits<float>::max();
-  invalidMatch.Score = std::numeric_limits<float>::quiet_NaN();
+  invalidMatch.Score = Match::InvalidScore;
 
   // Initialize the entire NNfield to be invalid matches
   ITKHelpers::SetImageToConstant(this->Output.GetPointer(), invalidMatch);
@@ -248,8 +240,6 @@ void PatchMatch<TImage>::BoundaryInit()
 template <typename TImage>
 void PatchMatch<TImage>::RandomInit()
 {
-  InitKnownRegion();
-
   itk::ImageRegion<2> internalRegion =
              ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
 
@@ -261,11 +251,21 @@ void PatchMatch<TImage>::RandomInit()
     throw std::runtime_error("PatchMatch: No valid source regions!");
   }
 
-  // std::cout << "Initializing region: " << internalRegion << std::endl;
-  for(size_t targetRegionId = 0; targetRegionId < this->TargetRegions.size(); ++targetRegionId)
+  std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
+  // std::cout << "There are : " << targetPixels.size() << " target pixels." << std::endl;
+  for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
   {
-    itk::ImageRegion<2> targetRegion = this->TargetRegions[targetRegionId];
+    itk::ImageRegion<2> targetRegion = ITKHelpers::GetRegionInRadiusAroundPixel(targetPixels[targetPixelId], this->PatchRadius);
+    if(!this->Image->GetLargestPossibleRegion().IsInside(targetRegion))
+    {
+      continue;
+    }
 
+    itk::Index<2> targetPixel = targetPixels[targetPixelId];
+    if(this->Output->GetPixel(targetPixel).IsValid())
+    {
+      continue;
+    }
     unsigned int randomSourceRegionId = Helpers::RandomInt(0, validSourceRegions.size() - 1);
     itk::ImageRegion<2> randomValidRegion = validSourceRegions[randomSourceRegionId];
 
@@ -273,8 +273,7 @@ void PatchMatch<TImage>::RandomInit()
     randomMatch.Region = randomValidRegion;
     randomMatch.Score = this->PatchDistanceFunctor->Distance(randomValidRegion, targetRegion);
 
-    itk::Index<2> regionCenter = ITKHelpers::GetRegionCenter(this->TargetRegions[targetRegionId]);
-    this->Output->SetPixel(regionCenter, randomMatch);
+    this->Output->SetPixel(targetPixel, randomMatch);
   }
 
 
@@ -381,9 +380,13 @@ void PatchMatch<TImage>::SetPatchDistanceFunctor(PatchDistance<TImage>* const pa
 template <typename TImage>
 void PatchMatch<TImage>::Propagation(const std::vector<itk::Offset<2> >& offsets)
 {
-  for(size_t targetRegionId = 0; targetRegionId < this->TargetRegions.size(); ++targetRegionId)
+  assert(this->AllowedPropagationMask);
+
+  std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
+  std::cout << "There are " << targetPixels.size() << " target pixels." << std::endl;
+  for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
   {
-    itk::Index<2> targetRegionCenter = ITKHelpers::GetRegionCenter(this->TargetRegions[targetRegionId]);
+    itk::Index<2> targetRegionCenter = targetPixels[targetPixelId];
     // When using PatchMatch for inpainting, most of the NN-field will be an exact match.
     // We don't have to search anymore
     // once the exact match is found.
@@ -395,11 +398,23 @@ void PatchMatch<TImage>::Propagation(const std::vector<itk::Offset<2> >& offsets
     itk::ImageRegion<2> centerRegion =
           ITKHelpers::GetRegionInRadiusAroundPixel(targetRegionCenter, this->PatchRadius);
 
+    if(!this->Image->GetLargestPossibleRegion().IsInside(centerRegion))
+      {
+        //std::cerr << "Pixel " << potentialPropagationPixel << " is outside of the image." << std::endl;
+        continue;
+      }
+
     for(size_t potentialPropagationPixelId = 0; potentialPropagationPixelId < offsets.size();
         ++potentialPropagationPixelId)
     {
       itk::Index<2> potentialPropagationPixel = targetRegionCenter +
                                                 offsets[potentialPropagationPixelId];
+      //assert(this->Image->GetLargestPossibleRegion().IsInside(potentialPropagationPixel));
+      if(!this->Image->GetLargestPossibleRegion().IsInside(potentialPropagationPixel))
+      {
+        //std::cerr << "Pixel " << potentialPropagationPixel << " is outside of the image." << std::endl;
+        continue;
+      }
 
       if(!AllowPropagationFrom(potentialPropagationPixel))
       {
@@ -486,11 +501,11 @@ void PatchMatch<TImage>::BackwardPropagation()
 template <typename TImage>
 void PatchMatch<TImage>::RandomSearch()
 {
-  for(size_t targetRegionId = 0; targetRegionId < this->TargetRegions.size(); ++targetRegionId)
-  {
-    itk::ImageRegion<2> targetRegion = this->TargetRegions[targetRegionId];
+  std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
 
-    itk::Index<2> targetRegionCenter = ITKHelpers::GetRegionCenter(targetRegion);
+  for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
+  {
+    itk::Index<2> targetRegionCenter = targetPixels[targetPixelId];
 
     // For inpainting, most of the NN-field will be an exact match. We don't have to search anymore
     // once the exact match is found.
@@ -498,6 +513,14 @@ void PatchMatch<TImage>::RandomSearch()
     {
       continue;
     }
+
+    itk::ImageRegion<2> targetRegion = ITKHelpers::GetRegionInRadiusAroundPixel(targetRegionCenter, this->PatchRadius);
+
+    if(!this->Image->GetLargestPossibleRegion().IsInside(targetRegion))
+      {
+        //std::cerr << "Pixel " << potentialPropagationPixel << " is outside of the image." << std::endl;
+        continue;
+      }
 
     unsigned int width = this->Image->GetLargestPossibleRegion().GetSize()[0];
     unsigned int height = this->Image->GetLargestPossibleRegion().GetSize()[1];
@@ -586,100 +609,10 @@ void PatchMatch<TImage>::SetInitializationStrategy(const InitializationStrategyE
 }
 
 template <typename TImage>
-void PatchMatch<TImage>::ComputeHalfValidRegionsTouchingTargetPixels()
-{
-  this->TargetRegions.clear();
-
-  itk::ImageRegion<2> searchRegion = ITKHelpers::DilateRegion(this->TargetMaskBoundingBox, this->PatchRadius);
-
-  // Ensure the search region consists of pixels whose surrounding patches are entirely inside the image
-  //searchRegion.Crop(this->Image->GetLargestPossibleRegion());
-  itk::ImageRegion<2> internalRegion =
-             ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
-  searchRegion.Crop(internalRegion);
-
-  itk::ImageRegionIteratorWithIndex<TImage> imageIterator(this->Image,
-                                                          searchRegion);
-
-  std::cout << "HalfValidRegions_PropagationMask: " << std::endl; this->AllowedPropagationMask->OutputMembers();
-  ITKHelpers::WriteImage(this->AllowedPropagationMask.GetPointer(), "HalfValidRegions_PropagationMask.png"); // Debug only
-
-  while(!imageIterator.IsAtEnd())
-  {
-    //std::cout << "Testing " << regionCounter << " of " << searchRegion.GetNumberOfPixels() << std::endl;
-    // Construct the current region
-    itk::Index<2> currentIndex = imageIterator.GetIndex();
-
-    itk::ImageRegion<2> currentRegion =
-          ITKHelpers::GetRegionInRadiusAroundPixel(currentIndex, this->PatchRadius);
-
-    // Only keep regions where less than half of the pixels are unknown.
-    // This is the only line different from ComputeAllRegionsTouchingTargetPixels()
-    if(this->TargetMask->IsValid(imageIterator.GetIndex()) && 
-       this->AllowedPropagationMask->CountValidPixels(currentRegion) < (currentRegion.GetNumberOfPixels() / 2)) 
-    {
-      this->TargetRegions.push_back(currentRegion);
-    }
-    ++imageIterator;
-  }
-
-  std::cout << "There are " << this->TargetRegions.size() << " HalfValidRegionsTouchingTargetPixels." << std::endl;
-
-}
-
-template <typename TImage>
-void PatchMatch<TImage>::ComputeAllRegionsTouchingTargetPixels()
-{
-  this->TargetRegions.clear();
-
-  itk::ImageRegion<2> searchRegion = ITKHelpers::DilateRegion(this->TargetMaskBoundingBox, this->PatchRadius);
-
-  // Ensure the search region consists of pixels whose surrounding patches are entirely inside the image
-  //searchRegion.Crop(this->Image->GetLargestPossibleRegion());
-  itk::ImageRegion<2> internalRegion =
-             ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
-  searchRegion.Crop(internalRegion);
-
-  itk::ImageRegionIteratorWithIndex<TImage> imageIterator(this->Image,
-                                                          searchRegion);
-
-  while(!imageIterator.IsAtEnd())
-  {
-    //std::cout << "Testing " << regionCounter << " of " << searchRegion.GetNumberOfPixels() << std::endl;
-    // Construct the current region
-    itk::Index<2> currentIndex = imageIterator.GetIndex();
-
-    itk::ImageRegion<2> currentRegion =
-          ITKHelpers::GetRegionInRadiusAroundPixel(currentIndex, this->PatchRadius);
-
-    if(this->TargetMask->HasValidPixels(currentRegion))
-    {
-      this->TargetRegions.push_back(currentRegion);
-    }
-    ++imageIterator;
-  }
-
-  std::cout << "There are " << this->TargetRegions.size() << " RegionsTouchingTargetPixels." << std::endl;
-
-//   { // debug only
-//     typedef itk::Image<unsigned char, 2> RegionImageType;
-//     RegionImageType::Pointer targetRegionImage = RegionImageType::New();
-//     targetRegionImage->SetRegions(this->Image->GetLargestPossibleRegion());
-//     targetRegionImage->Allocate();
-//     targetRegionImage->FillBuffer(0);
-// 
-//     for(unsigned int i = 0; i < this->TargetRegions.size(); ++i)
-//     {
-//       ITKHelpers::SetRegionToConstant(targetRegionImage.GetPointer(), this->TargetRegions[i], 255);
-//     }
-//     ITKHelpers::WriteImage(targetRegionImage.GetPointer(), "TargetRegionImage.png");
-//   }
-}
-
-template <typename TImage>
 bool PatchMatch<TImage>::AllowPropagationFrom(const itk::Index<2>& potentialPropagationPixel)
 {
-  if(this->AllowedPropagationMask->IsValid(potentialPropagationPixel))
+  if(this->AllowedPropagationMask->IsValid(potentialPropagationPixel) &&
+     this->Output->GetPixel(potentialPropagationPixel).IsValid())
   {
     return true;
   }
@@ -691,28 +624,6 @@ template <typename TImage>
 void PatchMatch<TImage>::SetRandom(const bool random)
 {
   this->Random = random;
-}
-
-
-template <typename TImage>
-std::vector<itk::ImageRegion<2> > PatchMatch<TImage>::GetTargetRegionsContainingPixel(const itk::Index<2>& pixel)
-{
-  std::vector<itk::ImageRegion<2> > containingRegions;
-  for(unsigned int i = 0; i < this->TargetRegions.size(); ++i)
-  {
-    if(this->TargetRegions[i].IsInside(pixel))
-    {
-      containingRegions.push_back(this->TargetRegions[i]);
-    }
-  }
-
-  return containingRegions;
-}
-
-template <typename TImage>
-void PatchMatch<TImage>::SetTrustAllPixels(const bool trustAllPixels)
-{
-  this->TrustAllPixels = trustAllPixels;
 }
 
 #endif
