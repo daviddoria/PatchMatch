@@ -97,6 +97,9 @@ public:
     * the target mask is Valid. */
   void SetTargetMask(Mask* const mask);
 
+  /** Set the mask indicating which pixels (only valid pixels) can be propagated. */
+  void SetAllowedPropagationMask(Mask* const mask);
+
   /** Get an image where the channels are (x component, y component, score) from the nearest
     * neighbor field struct. */
   static void GetPatchCentersImage(PMImageType* const pmImage, CoordinateImageType* const output);
@@ -160,8 +163,11 @@ protected:
   /** The choice of initialization strategy. */
   InitializationStrategyEnum InitializationStrategy;
 
-  /** Compute target regions. */
-  void ComputeTargetRegions();
+  /** Compute all regions that contain at least one target pixel. */
+  void ComputeAllRegionsTouchingTargetPixels();
+
+  /** Compute all regions that contain at least one target pixel. */
+  void ComputeHalfValidRegionsTouchingTargetPixels();
 
   /** The target regions which are to be searched for a good NN. */
   std::vector<itk::ImageRegion<2> > TargetRegions;
@@ -171,6 +177,9 @@ protected:
 
   /** Determine if the result should be randomized. This should only be false for testing purposes. */
   bool Random;
+
+  /** Only valid pixels in this mask can be propagated. */
+  Mask::Pointer AllowedPropagationMask;
 };
 
 #include "PatchMatch.hpp"

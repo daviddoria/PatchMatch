@@ -40,6 +40,7 @@ PatchMatch<TImage>::PatchMatch() : PatchRadius(0), PatchDistanceFunctor(NULL),
   this->Image = TImage::New();
   this->SourceMask = Mask::New();
   this->TargetMask = Mask::New();
+  this->AllowedPropagationMask = NULL;
 }
 
 template <typename TImage>
@@ -128,7 +129,8 @@ void PatchMatch<TImage>::InitKnownRegion()
   // Create an invalid match
   Match invalidMatch;
   invalidMatch.Region = zeroRegion;
-  invalidMatch.Score = std::numeric_limits<float>::max();
+  //invalidMatch.Score = std::numeric_limits<float>::max();
+  invalidMatch.Score = std::numeric_limits<float>::quiet_NaN();
 
   // Initialize the entire NNfield to be invalid matches
   ITKHelpers::SetImageToConstant(this->Output.GetPointer(), invalidMatch);
@@ -311,6 +313,24 @@ void PatchMatch<TImage>::SetTargetMask(Mask* const mask)
   this->TargetMask->DeepCopyFrom(mask);
   this->TargetMaskBoundingBox = MaskOperations::ComputeValidBoundingBox(this->TargetMask);
   std::cout << "TargetMaskBoundingBox: " << this->TargetMaskBoundingBox << std::endl;
+
+  // By default, we want to allow propagation from the source region
+  if(!this->AllowedPropagationMask)
+  {
+    this->AllowedPropagationMask = Mask::New();
+    this->AllowedPropagationMask->DeepCopyFrom(mask);
+  }
+}
+
+template <typename TImage>
+void PatchMatch<TImage>::SetAllowedPropagationMask(Mask* const mask)
+{
+  if(!this->AllowedPropagationMask)
+  {
+    this->AllowedPropagationMask = Mask::New();
+  }
+
+  this->AllowedPropagationMask->DeepCopyFrom(mask);
 }
 
 template <typename TImage>
@@ -552,7 +572,56 @@ void PatchMatch<TImage>::SetInitializationStrategy(const InitializationStrategyE
 }
 
 template <typename TImage>
-void PatchMatch<TImage>::ComputeTargetRegions()
+void PatchMatch<TImage>::ComputeHalfValidRegionsTouchingTargetPixels()
+{
+  this->TargetRegions.clear();
+
+  itk::ImageRegion<2> searchRegion = this->TargetMaskBoundingBox;
+
+  itk::Index<2> searchRegionCorner = searchRegion.GetIndex();
+  searchRegionCorner[0] -= (this->PatchRadius + 1);
+  searchRegionCorner[1] -= (this->PatchRadius + 1);
+  searchRegion.SetIndex(searchRegionCorner);
+
+  // 2*PatchRadius is the number of pixels that a patch can be shifted and still
+  // touch the original region. The second *2 is because this is possible on both sides.
+  itk::Size<2> searchRegionSize = searchRegion.GetSize();
+  searchRegionSize[0] += (this->PatchRadius*2 * 2);
+  searchRegionSize[1] += (this->PatchRadius*2 * 2);
+  searchRegion.SetSize(searchRegionSize);
+
+  // Ensure the search region consists of pixels whose surrounding patches are entirely inside the image
+  //searchRegion.Crop(this->Image->GetLargestPossibleRegion());
+  itk::ImageRegion<2> internalRegion =
+             ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
+  searchRegion.Crop(internalRegion);
+
+  itk::ImageRegionIteratorWithIndex<TImage> imageIterator(this->Image,
+                                                          searchRegion);
+
+  while(!imageIterator.IsAtEnd())
+  {
+    //std::cout << "Testing " << regionCounter << " of " << searchRegion.GetNumberOfPixels() << std::endl;
+    // Construct the current region
+    itk::Index<2> currentIndex = imageIterator.GetIndex();
+
+    itk::ImageRegion<2> currentRegion =
+          ITKHelpers::GetRegionInRadiusAroundPixel(currentIndex, this->PatchRadius);
+
+    // Only keep regions where less than half of the pixels are unknown
+    if(this->TargetMask->CountValidPixels(currentRegion) < (currentRegion.GetNumberOfPixels() / 2)) // This is the only line different from ComputeAllRegionsTouchingTargetPixels()
+    {
+      this->TargetRegions.push_back(currentRegion);
+    }
+    ++imageIterator;
+  }
+
+  std::cout << "There are " << this->TargetRegions.size() << " target regions." << std::endl;
+
+}
+
+template <typename TImage>
+void PatchMatch<TImage>::ComputeAllRegionsTouchingTargetPixels()
 {
   this->TargetRegions.clear();
 
@@ -615,7 +684,12 @@ void PatchMatch<TImage>::ComputeTargetRegions()
 template <typename TImage>
 bool PatchMatch<TImage>::AllowPropagationFrom(const itk::Index<2>& potentialPropagationPixel)
 {
-  return true;
+  if(this->AllowedPropagationMask->IsValid(potentialPropagationPixel))
+  {
+    return true;
+  }
+
+  return false;
 }
 
 template <typename TImage>

@@ -37,7 +37,6 @@ private:
   /** Determine if information can be propagated from a specified pixel. */
   bool AllowPropagationFrom(const itk::Index<2>& potentialPropagationPixel);
 
-  Mask::Pointer AllowedPropagationMask;
 };
 
 #include "PatchMatchRings.hpp"
