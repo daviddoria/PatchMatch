@@ -30,7 +30,7 @@
 // Submodules
 #include <Mask/Mask.h>
 #include <Mask/ITKHelpers/ITKHelpers.h>
-#include <PatchComparison/SSD.>
+#include <PatchComparison/SSD.h>
 
 // Custom
 #include "PatchMatch.h"

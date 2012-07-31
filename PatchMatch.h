@@ -56,6 +56,9 @@ public:
   /** The type that is used to output the (X,Y,Score) image for inspection. */
   typedef itk::Image<itk::CovariantVector<float, 3>, 2> CoordinateImageType;
 
+  /** Initialize internally.*/
+  virtual void AutomaticCompute(PMImageType* const initialization);
+  
   /** Perform multiple iterations of propagation and random search (do the real work).
     * 'initialization' can come from a previous iteration of an algorithm like BDSInpainting. If
     * 'initialization' is null, this function computes an initialization using one of the algorithms
@@ -125,9 +128,15 @@ public:
   /** Set if the result should be randomized. This should only be false for testing purposes. */
   void SetRandom(const bool random);
 
+  /** Get the target regions that contain a 'pixel'. */
+  std::vector<itk::ImageRegion<2> > GetTargetRegionsContainingPixel(const itk::Index<2>& pixel);
+
+  /** Specify whether or not we trust all pixels. */
+  void SetTrustAllPixels(const bool trustAllPixels);
+
 protected:
 
-  /** Set the nearest neighbor of each patch in the valid region to itself . */
+  /** Set the nearest neighbor of each patch entirely in the source region to itself . */
   void InitKnownRegion();
 
   /** Set the number of iterations to perform. */
@@ -180,6 +189,9 @@ protected:
 
   /** Only valid pixels in this mask can be propagated. */
   Mask::Pointer AllowedPropagationMask;
+
+  /** Determine whether or not we trust all pixels. */
+  bool TrustAllPixels;
 };
 
 #include "PatchMatch.hpp"

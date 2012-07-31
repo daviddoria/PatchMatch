@@ -48,7 +48,7 @@ int main(int argc, char*argv[])
   // The target mask should be valid in the region to fill
   Mask::Pointer targetMask = Mask::New();
   targetMask->Read(maskFilename);
-  targetMask->Invert();
+  targetMask->InvertData();
 
   // The source mask should be valid in the region from which to take source patches
   Mask::Pointer sourceMask = Mask::New();

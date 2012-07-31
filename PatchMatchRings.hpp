@@ -78,7 +78,7 @@ void PatchMatchRings<TImage>::Compute(typename PatchMatch<TImage>::PMImageType* 
     Mask::Pointer boundaryMask = Mask::New();
     Mask::BoundaryImageType::PixelType holeColor = boundaryColor;
     boundaryMask->CreateFromImage(boundaryImage.GetPointer(), holeColor);
-    boundaryMask->Invert(); // Make the thin boundary the only valid pixels
+    boundaryMask->InvertData(); // Make the thin boundary the only valid pixels
 
 //     { // debug only
 //     std::stringstream ssBoundaryMask;

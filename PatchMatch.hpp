@@ -34,7 +34,8 @@
 
 template <typename TImage>
 PatchMatch<TImage>::PatchMatch() : PatchRadius(0), PatchDistanceFunctor(NULL),
-                                   InitializationStrategy(RANDOM), Random(true)
+                                   InitializationStrategy(RANDOM), Random(true),
+                                   TrustAllPixels(true)
 {
   this->Output = PMImageType::New();
   this->Image = TImage::New();
@@ -44,19 +45,16 @@ PatchMatch<TImage>::PatchMatch() : PatchRadius(0), PatchDistanceFunctor(NULL),
 }
 
 template <typename TImage>
-void PatchMatch<TImage>::Compute(PMImageType* const initialization)
+void PatchMatch<TImage>::AutomaticCompute(PMImageType* const initialization)
 {
-  if(this->Random)
+  if(this->TrustAllPixels)
   {
-    srand(time(NULL));
+    ComputeAllRegionsTouchingTargetPixels(); // For traditional PatchMatch
   }
   else
   {
-    srand(0);
+    ComputeHalfValidRegionsTouchingTargetPixels(); // For PatchMatch that doesn't trust information inside the target region
   }
-
-  // ComputeAllRegionsTouchingTargetPixels(); // For traditional PatchMatch
-  ComputeHalfValidRegionsTouchingTargetPixels(); // For PatchMatch that doesn't trust information inside the target region
 
   // If an initialization is provided, use it. Otherwise, generate one.
   if(initialization)
@@ -77,6 +75,21 @@ void PatchMatch<TImage>::Compute(PMImageType* const initialization)
     {
       throw std::runtime_error("PatchMatch::Compute: An invalid initialization strategy was chosen!");
     }
+  }
+
+  Compute(initialization);
+}
+
+template <typename TImage>
+void PatchMatch<TImage>::Compute(PMImageType* const initialization)
+{
+  if(this->Random)
+  {
+    srand(time(NULL));
+  }
+  else
+  {
+    srand(0);
   }
 
   { // Debug only
@@ -588,6 +601,9 @@ void PatchMatch<TImage>::ComputeHalfValidRegionsTouchingTargetPixels()
   itk::ImageRegionIteratorWithIndex<TImage> imageIterator(this->Image,
                                                           searchRegion);
 
+  std::cout << "HalfValidRegions_PropagationMask: " << std::endl; this->AllowedPropagationMask->OutputMembers();
+  ITKHelpers::WriteImage(this->AllowedPropagationMask.GetPointer(), "HalfValidRegions_PropagationMask.png"); // Debug only
+
   while(!imageIterator.IsAtEnd())
   {
     //std::cout << "Testing " << regionCounter << " of " << searchRegion.GetNumberOfPixels() << std::endl;
@@ -599,14 +615,15 @@ void PatchMatch<TImage>::ComputeHalfValidRegionsTouchingTargetPixels()
 
     // Only keep regions where less than half of the pixels are unknown.
     // This is the only line different from ComputeAllRegionsTouchingTargetPixels()
-    if(this->AllowedPropagationMask->CountValidPixels(currentRegion) < (currentRegion.GetNumberOfPixels() / 2)) 
+    if(this->TargetMask->IsValid(imageIterator.GetIndex()) && 
+       this->AllowedPropagationMask->CountValidPixels(currentRegion) < (currentRegion.GetNumberOfPixels() / 2)) 
     {
       this->TargetRegions.push_back(currentRegion);
     }
     ++imageIterator;
   }
 
-  std::cout << "There are " << this->TargetRegions.size() << " target regions." << std::endl;
+  std::cout << "There are " << this->TargetRegions.size() << " HalfValidRegionsTouchingTargetPixels." << std::endl;
 
 }
 
@@ -642,7 +659,7 @@ void PatchMatch<TImage>::ComputeAllRegionsTouchingTargetPixels()
     ++imageIterator;
   }
 
-  std::cout << "There are " << this->TargetRegions.size() << " target regions." << std::endl;
+  std::cout << "There are " << this->TargetRegions.size() << " RegionsTouchingTargetPixels." << std::endl;
 
 //   { // debug only
 //     typedef itk::Image<unsigned char, 2> RegionImageType;
@@ -674,6 +691,28 @@ template <typename TImage>
 void PatchMatch<TImage>::SetRandom(const bool random)
 {
   this->Random = random;
+}
+
+
+template <typename TImage>
+std::vector<itk::ImageRegion<2> > PatchMatch<TImage>::GetTargetRegionsContainingPixel(const itk::Index<2>& pixel)
+{
+  std::vector<itk::ImageRegion<2> > containingRegions;
+  for(unsigned int i = 0; i < this->TargetRegions.size(); ++i)
+  {
+    if(this->TargetRegions[i].IsInside(pixel))
+    {
+      containingRegions.push_back(this->TargetRegions[i]);
+    }
+  }
+
+  return containingRegions;
+}
+
+template <typename TImage>
+void PatchMatch<TImage>::SetTrustAllPixels(const bool trustAllPixels)
+{
+  this->TrustAllPixels = trustAllPixels;
 }
 
 #endif
