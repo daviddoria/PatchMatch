@@ -25,9 +25,8 @@
 #include "itkVectorImage.h"
 
 // Submodules
-#include "Mask/Mask.h"
-
-#include "PatchComparison/PatchDistance.h"
+#include <Mask/Mask.h>
+#include <PatchComparison/PatchDistance.h>
 
 /** A simple container to pair a region with its patch difference value/score. */
 struct Match
@@ -169,7 +168,8 @@ protected:
   /** Compute all regions that contain at least one target pixel. */
   void ComputeHalfValidRegionsTouchingTargetPixels();
 
-  /** The target regions which are to be searched for a good NN. */
+  /** The target regions which are to be searched for a nearest neighbor.
+    * That is, the NN-Field will be computed at the centers of the TargetRegions.*/
   std::vector<itk::ImageRegion<2> > TargetRegions;
 
   /** Determine if information can be propagated from a specified pixel. */

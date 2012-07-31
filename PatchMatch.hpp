@@ -22,9 +22,9 @@
 #include "PatchMatch.h"
 
 // Submodules
-#include "Mask/ITKHelpers/ITKHelpers.h"
-#include "Mask/MaskOperations.h"
-#include "PatchComparison/SSD.h"
+#include <Mask/ITKHelpers/ITKHelpers.h>
+#include <Mask/MaskOperations.h>
+#include <PatchComparison/SSD.h>
 
 // ITK
 #include "itkImageRegionReverseIterator.h"
@@ -55,7 +55,8 @@ void PatchMatch<TImage>::Compute(PMImageType* const initialization)
     srand(0);
   }
 
-  ComputeTargetRegions();
+  // ComputeAllRegionsTouchingTargetPixels(); // For traditional PatchMatch
+  ComputeHalfValidRegionsTouchingTargetPixels(); // For PatchMatch that doesn't trust information inside the target region
 
   // If an initialization is provided, use it. Otherwise, generate one.
   if(initialization)
@@ -576,19 +577,7 @@ void PatchMatch<TImage>::ComputeHalfValidRegionsTouchingTargetPixels()
 {
   this->TargetRegions.clear();
 
-  itk::ImageRegion<2> searchRegion = this->TargetMaskBoundingBox;
-
-  itk::Index<2> searchRegionCorner = searchRegion.GetIndex();
-  searchRegionCorner[0] -= (this->PatchRadius + 1);
-  searchRegionCorner[1] -= (this->PatchRadius + 1);
-  searchRegion.SetIndex(searchRegionCorner);
-
-  // 2*PatchRadius is the number of pixels that a patch can be shifted and still
-  // touch the original region. The second *2 is because this is possible on both sides.
-  itk::Size<2> searchRegionSize = searchRegion.GetSize();
-  searchRegionSize[0] += (this->PatchRadius*2 * 2);
-  searchRegionSize[1] += (this->PatchRadius*2 * 2);
-  searchRegion.SetSize(searchRegionSize);
+  itk::ImageRegion<2> searchRegion = ITKHelpers::DilateRegion(this->TargetMaskBoundingBox, this->PatchRadius);
 
   // Ensure the search region consists of pixels whose surrounding patches are entirely inside the image
   //searchRegion.Crop(this->Image->GetLargestPossibleRegion());
@@ -608,8 +597,9 @@ void PatchMatch<TImage>::ComputeHalfValidRegionsTouchingTargetPixels()
     itk::ImageRegion<2> currentRegion =
           ITKHelpers::GetRegionInRadiusAroundPixel(currentIndex, this->PatchRadius);
 
-    // Only keep regions where less than half of the pixels are unknown
-    if(this->TargetMask->CountValidPixels(currentRegion) < (currentRegion.GetNumberOfPixels() / 2)) // This is the only line different from ComputeAllRegionsTouchingTargetPixels()
+    // Only keep regions where less than half of the pixels are unknown.
+    // This is the only line different from ComputeAllRegionsTouchingTargetPixels()
+    if(this->AllowedPropagationMask->CountValidPixels(currentRegion) < (currentRegion.GetNumberOfPixels() / 2)) 
     {
       this->TargetRegions.push_back(currentRegion);
     }
@@ -625,19 +615,7 @@ void PatchMatch<TImage>::ComputeAllRegionsTouchingTargetPixels()
 {
   this->TargetRegions.clear();
 
-  itk::ImageRegion<2> searchRegion = this->TargetMaskBoundingBox;
-
-  itk::Index<2> searchRegionCorner = searchRegion.GetIndex();
-  searchRegionCorner[0] -= (this->PatchRadius + 1);
-  searchRegionCorner[1] -= (this->PatchRadius + 1);
-  searchRegion.SetIndex(searchRegionCorner);
-
-  // 2*PatchRadius is the number of pixels that a patch can be shifted and still
-  // touch the original region. The second *2 is because this is possible on both sides.
-  itk::Size<2> searchRegionSize = searchRegion.GetSize();
-  searchRegionSize[0] += (this->PatchRadius*2 * 2);
-  searchRegionSize[1] += (this->PatchRadius*2 * 2);
-  searchRegion.SetSize(searchRegionSize);
+  itk::ImageRegion<2> searchRegion = ITKHelpers::DilateRegion(this->TargetMaskBoundingBox, this->PatchRadius);
 
   // Ensure the search region consists of pixels whose surrounding patches are entirely inside the image
   //searchRegion.Crop(this->Image->GetLargestPossibleRegion());

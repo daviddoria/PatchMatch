@@ -28,9 +28,9 @@
 #include "itkCovariantVector.h"
 
 // Submodules
-#include "Mask/Mask.h"
-#include "Mask/ITKHelpers/ITKHelpers.h"
-#include "PatchComparison/SSD.h"
+#include <Mask/Mask.h>
+#include <Mask/ITKHelpers/ITKHelpers.h>
+#include <PatchComparison/SSD.h>
 
 // Custom
 #include "PatchMatch.h"
