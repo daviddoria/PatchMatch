@@ -34,3 +34,6 @@ SET(PatchMatch_BuildDrivers ON CACHE BOOL "Build drivers?")
 if(PatchMatch_BuildDrivers)
  add_subdirectory(Drivers)
 endif()
+
+GET_DIRECTORY_PROPERTY(AllPatchMatchIncludes INCLUDE_DIRECTORIES)
+message("Final PatchMatch includes: ${AllPatchMatchIncludes}")

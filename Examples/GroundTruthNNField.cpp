@@ -4,9 +4,9 @@
 #include "PatchMatch.h"
 
 // Submodules
-#include "PatchComparison/SelfPatchCompare.h"
-#include "PatchComparison/SSD.h"
-#include "Helpers/Helpers.h"
+#include <PatchComparison/SelfPatchCompare.h>
+#include <PatchComparison/SSD.h>
+#include <Helpers/Helpers.h>
 
 int main(int argc, char*argv[])
 {
