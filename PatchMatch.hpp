@@ -88,6 +88,10 @@ void PatchMatch<TImage>::Compute(PMImageType* const initialization)
   CoordinateImageType::Pointer initialOutput = CoordinateImageType::New();
   GetPatchCentersImage(this->Output, initialOutput);
   ITKHelpers::WriteImage(initialOutput.GetPointer(), "initialization.mha");
+
+  ITKHelpers::WriteImage(this->TargetMask.GetPointer(), "PatchMatch_TargetMask.png");
+  ITKHelpers::WriteImage(this->SourceMask.GetPointer(), "PatchMatch_SourceMask.png");
+  ITKHelpers::WriteImage(this->AllowedPropagationMask.GetPointer(), "PatchMatch_PropagationMask.png");
   }
 
   // Initialize this so that we propagate forward first (the propagation direction toggles at each iteration)
@@ -122,6 +126,7 @@ void PatchMatch<TImage>::Compute(PMImageType* const initialization)
     }
   }
 
+  std::cout << "PatchMatch finished." << std::endl;
 }
 
 template <typename TImage>
@@ -252,7 +257,7 @@ void PatchMatch<TImage>::RandomInit()
   }
 
   std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
-  // std::cout << "There are : " << targetPixels.size() << " target pixels." << std::endl;
+  // std::cout << "RandomInit: There are : " << targetPixels.size() << " target pixels." << std::endl;
   for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
   {
     itk::ImageRegion<2> targetRegion = ITKHelpers::GetRegionInRadiusAroundPixel(targetPixels[targetPixelId], this->PatchRadius);
@@ -317,7 +322,7 @@ void PatchMatch<TImage>::SetSourceMask(Mask* const mask)
 {
   this->SourceMask->DeepCopyFrom(mask);
   this->SourceMaskBoundingBox = MaskOperations::ComputeValidBoundingBox(this->SourceMask);
-  std::cout << "SourceMaskBoundingBox: " << this->SourceMaskBoundingBox << std::endl;
+  //std::cout << "SourceMaskBoundingBox: " << this->SourceMaskBoundingBox << std::endl;
 }
 
 template <typename TImage>
@@ -325,7 +330,7 @@ void PatchMatch<TImage>::SetTargetMask(Mask* const mask)
 {
   this->TargetMask->DeepCopyFrom(mask);
   this->TargetMaskBoundingBox = MaskOperations::ComputeValidBoundingBox(this->TargetMask);
-  std::cout << "TargetMaskBoundingBox: " << this->TargetMaskBoundingBox << std::endl;
+  //std::cout << "TargetMaskBoundingBox: " << this->TargetMaskBoundingBox << std::endl;
 
   // By default, we want to allow propagation from the source region
   if(!this->AllowedPropagationMask)
@@ -383,7 +388,7 @@ void PatchMatch<TImage>::Propagation(const std::vector<itk::Offset<2> >& offsets
   assert(this->AllowedPropagationMask);
 
   std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
-  std::cout << "There are " << targetPixels.size() << " target pixels." << std::endl;
+  std::cout << "Propagation: There are " << targetPixels.size() << " target pixels." << std::endl;
   for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
   {
     itk::Index<2> targetRegionCenter = targetPixels[targetPixelId];
@@ -624,6 +629,36 @@ template <typename TImage>
 void PatchMatch<TImage>::SetRandom(const bool random)
 {
   this->Random = random;
+}
+
+template <typename TImage>
+Mask* PatchMatch<TImage>::GetAllowedPropagationMask()
+{
+  return this->AllowedPropagationMask;
+}
+
+template <typename TImage>  
+void PatchMatch<TImage>::WriteValidPixels(const std::string& fileName)
+{
+  typedef itk::Image<unsigned char> ImageType;
+  ImageType::Pointer image = ImageType::New();
+  image->SetRegions(this->Output->GetLargestPossibleRegion());
+  image->Allocate();
+  image->FillBuffer(0);
+
+  itk::ImageRegionConstIterator<PMImageType> imageIterator(this->Output, this->Output->GetLargestPossibleRegion());
+
+  while(!imageIterator.IsAtEnd())
+  {
+    if(imageIterator.Get().IsValid())
+    {
+      image->SetPixel(imageIterator.GetIndex(), 255);
+    }
+
+    ++imageIterator;
+  }
+
+  ITKHelpers::WriteImage(image.GetPointer(), fileName);
 }
 
 #endif

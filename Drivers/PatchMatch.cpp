@@ -86,7 +86,7 @@ int main(int argc, char*argv[])
 
   // Only compute the NN-field in the hole
   targetMask->Read(maskFilename);
-  targetMask->Invert();
+  targetMask->InvertData();
 
   SSD<ImageType>* patchDistanceFunctor = new SSD<ImageType>;
   patchDistanceFunctor->SetImage(image);

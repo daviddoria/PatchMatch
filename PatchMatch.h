@@ -118,6 +118,9 @@ public:
   /** Set the mask indicating which pixels (only valid pixels) can be propagated. */
   void SetAllowedPropagationMask(Mask* const mask);
 
+  /** Get the mask indicating which pixels (only valid pixels) can be propagated. */
+  Mask* GetAllowedPropagationMask();
+
   /** Get an image where the channels are (x component, y component, score) from the nearest
     * neighbor field struct. */
   static void GetPatchCentersImage(PMImageType* const pmImage, CoordinateImageType* const output);
@@ -146,6 +149,9 @@ public:
 
   /** Set if the result should be randomized. This should only be false for testing purposes. */
   void SetRandom(const bool random);
+
+  /** Write the valid pixels. */
+  void WriteValidPixels(const std::string& fileName);
 
 protected:
 

@@ -12,11 +12,13 @@ INCLUDE(${USE_ITK_FILE})
 if(NOT TARGET PatchComparison)
   add_subdirectory(PatchComparison)
   include_directories(${PatchComparison_includes})
+  set(PatchMatch_libraries ${PatchMatch_libraries} ${PatchComparison_libraries})
 endif()
 
 if(NOT ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
   set(PatchMatch_includes ${PatchComparison_includes}
       ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
+  set(PatchMatch_libraries ${PatchMatch_libraries} PARENT_SCOPE)
   message("PatchMatch submodule used from ${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 

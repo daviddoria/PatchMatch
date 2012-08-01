@@ -78,7 +78,7 @@ int main(int argc, char*argv[])
   // Compute the entire NN-field
   Mask::Pointer targetMask = Mask::New();
   targetMask->Read(maskFilename);
-  targetMask->Invert();
+  targetMask->InvertData();
 
   SSD<ImageType>* patchDistanceFunctor = new SSD<ImageType>;
   patchDistanceFunctor->SetImage(image);
