@@ -616,8 +616,13 @@ void PatchMatch<TImage>::SetInitializationStrategy(const InitializationStrategyE
 template <typename TImage>
 bool PatchMatch<TImage>::AllowPropagationFrom(const itk::Index<2>& potentialPropagationPixel)
 {
-  if(this->AllowedPropagationMask->IsValid(potentialPropagationPixel) &&
-     this->Output->GetPixel(potentialPropagationPixel).IsValid())
+  if(!this->Output->GetPixel(potentialPropagationPixel).IsValid())
+  {
+    return false;
+  }
+
+  if(this->AllowedPropagationMask->IsValid(potentialPropagationPixel) ||
+     this->TargetMask->IsValid(potentialPropagationPixel))
   {
     return true;
   }
