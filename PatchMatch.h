@@ -59,6 +59,9 @@ public:
 
   /** Choices for initialization. */
   enum InitializationStrategyEnum {RANDOM, BOUNDARY};
+
+  /** Choices for AddIfBetter. */
+  enum AddIfBetterStrategyEnum {SSD, HISTOGRAM};
   
   /** Constructor. */
   PatchMatch();
@@ -144,9 +147,14 @@ public:
     * Returns true if the 'match' was added. */
   bool AddIfBetter(const itk::Index<2>& index, const Match& match);
 
+  bool AddIfBetterSSD(const itk::Index<2>& index, const Match& match);
+  bool AddIfBetterHistogram(const itk::Index<2>& index, const Match& match);
+
   /** Set the choice of initialization strategy. */
   void SetInitializationStrategy(const InitializationStrategyEnum initializationStrategy);
 
+  void SetAddIfBetterStrategy(const AddIfBetterStrategyEnum addIfBetterStrategy);
+  
   /** Set if the result should be randomized. This should only be false for testing purposes. */
   void SetRandom(const bool random);
 
@@ -196,6 +204,7 @@ protected:
   /** Only valid pixels in this mask can be propagated. */
   Mask::Pointer AllowedPropagationMask;
 
+  AddIfBetterStrategyEnum AddIfBetterStrategy;
 };
 
 #include "PatchMatch.hpp"

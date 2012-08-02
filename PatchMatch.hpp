@@ -25,6 +25,7 @@
 #include <Mask/ITKHelpers/ITKHelpers.h>
 #include <Mask/MaskOperations.h>
 #include <PatchComparison/SSD.h>
+#include <Histogram/Histogram.h>
 
 // ITK
 #include "itkImageRegionReverseIterator.h"
@@ -35,7 +36,8 @@
 template <typename TImage>
 PatchMatch<TImage>::PatchMatch() : PatchRadius(0), PatchDistanceFunctor(NULL),
                                    InitializationStrategy(RANDOM), Random(true),
-                                   AllowedPropagationMask(NULL)
+                                   AllowedPropagationMask(NULL),
+                                   AddIfBetterStrategy(HISTOGRAM)
 {
   this->Output = PMImageType::New();
   this->Image = TImage::New();
@@ -182,64 +184,63 @@ void PatchMatch<TImage>::InitKnownRegion()
 template <typename TImage>
 void PatchMatch<TImage>::BoundaryInit()
 {
-  //InitKnownRegion();
-  RandomInit();
-
   itk::ImageRegion<2> internalRegion =
              ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
 
   // Expand the hole
-  Mask::Pointer expandedMask = Mask::New();
-  expandedMask->DeepCopyFrom(this->SourceMask);
-  expandedMask->ExpandHole(this->PatchRadius);
+  Mask::Pointer expandedSourceMask = Mask::New();
+  expandedSourceMask->DeepCopyFrom(this->SourceMask);
+  expandedSourceMask->ExpandHole(this->PatchRadius);
 
   // Get the expanded boundary
   Mask::BoundaryImageType::Pointer boundaryImage = Mask::BoundaryImageType::New();
   unsigned char outputBoundaryPixelValue = 255;
-  expandedMask->FindBoundary(boundaryImage.GetPointer(), Mask::VALID, outputBoundaryPixelValue);
+  expandedSourceMask->FindBoundary(boundaryImage.GetPointer(), Mask::VALID, outputBoundaryPixelValue);
   ITKHelpers::WriteImage(boundaryImage.GetPointer(), "ExpandedBoundary.png");
 
   // Get the boundary pixels
   std::vector<itk::Index<2> > boundaryIndices =
          ITKHelpers::GetPixelsWithValue(boundaryImage.GetPointer(), outputBoundaryPixelValue);
 
-  std::vector<itk::ImageRegion<2> > validSourceRegions =
-        MaskOperations::GetAllFullyValidRegions(this->SourceMask, internalRegion, this->PatchRadius);
+  std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
 
-  if(validSourceRegions.size() == 0)
-  {
-    throw std::runtime_error("PatchMatch: No valid source regions!");
-  }
-
-  // std::cout << "Initializing region: " << internalRegion << std::endl;
-  itk::ImageRegionIteratorWithIndex<PMImageType> outputIterator(this->Output, internalRegion);
-
-  while(!outputIterator.IsAtEnd())
+  for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
   {
     // Construct the current region
-    itk::Index<2> currentIndex = outputIterator.GetIndex();
+    itk::Index<2> targetPixelIndex = targetPixels[targetPixelId];
 
-    if(expandedMask->IsHole(currentIndex))
+    // Only do this for pixels which have not already been initialized to themselves
+    if(this->Output->GetPixel(targetPixelIndex).Score == 0)
     {
-      itk::ImageRegion<2> currentRegion =
-            ITKHelpers::GetRegionInRadiusAroundPixel(currentIndex, this->PatchRadius);
-
-      // Find the nearest valid boundary patch
-      unsigned int closestIndexId = ITKHelpers::ClosestIndexId(boundaryIndices, currentIndex);
-      itk::Index<2> closestBoundaryPatchCenter = boundaryIndices[closestIndexId];
-      itk::ImageRegion<2> closestBoundaryPatchRegion =
-            ITKHelpers::GetRegionInRadiusAroundPixel(closestBoundaryPatchCenter,
-                                                     this->PatchRadius);
-
-      Match match;
-      match.Region = closestBoundaryPatchRegion;
-      match.Score = this->PatchDistanceFunctor->Distance(closestBoundaryPatchRegion, currentRegion);
-      outputIterator.Set(match);
+      continue;
     }
-    ++outputIterator;
+
+    itk::ImageRegion<2> currentRegion =
+          ITKHelpers::GetRegionInRadiusAroundPixel(targetPixelIndex, this->PatchRadius);
+
+    if(!this->Image->GetLargestPossibleRegion().IsInside(currentRegion))
+    {
+      continue;
+    }
+    // Find the nearest valid boundary patch
+    unsigned int closestIndexId = ITKHelpers::ClosestIndexId(boundaryIndices, targetPixelIndex);
+    itk::Index<2> closestBoundaryPatchCenter = boundaryIndices[closestIndexId];
+    itk::ImageRegion<2> closestBoundaryPatchRegion =
+          ITKHelpers::GetRegionInRadiusAroundPixel(closestBoundaryPatchCenter,
+                                                    this->PatchRadius);
+
+    if(!this->Image->GetLargestPossibleRegion().IsInside(closestBoundaryPatchRegion))
+    {
+      continue;
+    }
+
+    Match match;
+    match.Region = closestBoundaryPatchRegion;
+    match.Score = this->PatchDistanceFunctor->Distance(closestBoundaryPatchRegion, currentRegion);
+    this->Output->SetPixel(targetPixelIndex, match);
   }
 
-  //std::cout << "Finished initializing." << internalRegion << std::endl;
+  std::cout << "Finished BoundaryInit()." << internalRegion << std::endl;
 }
 
 template <typename TImage>
@@ -257,7 +258,7 @@ void PatchMatch<TImage>::RandomInit()
   }
 
   std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
-  // std::cout << "RandomInit: There are : " << targetPixels.size() << " target pixels." << std::endl;
+  std::cout << "RandomInit: There are : " << targetPixels.size() << " target pixels." << std::endl;
   for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
   {
     itk::ImageRegion<2> targetRegion = ITKHelpers::GetRegionInRadiusAroundPixel(targetPixels[targetPixelId], this->PatchRadius);
@@ -287,7 +288,7 @@ void PatchMatch<TImage>::RandomInit()
   GetPatchCentersImage(this->Output, initialOutput);
   ITKHelpers::WriteImage(initialOutput.GetPointer(), "RandomInit.mha");
   }
-  //std::cout << "Finished initializing." << internalRegion << std::endl;
+  //std::cout << "Finished RandomInit." << internalRegion << std::endl;
 }
 
 template <typename TImage>
@@ -389,14 +390,21 @@ void PatchMatch<TImage>::Propagation(const std::vector<itk::Offset<2> >& offsets
 
   std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
   std::cout << "Propagation: There are " << targetPixels.size() << " target pixels." << std::endl;
+  unsigned int skippedPixels = 0;
   for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
   {
+    if(targetPixelId % 10000 == 0)
+    {
+      std::cout << "Propagation() processing " << targetPixelId << " of " << targetPixels.size() << std::endl;
+    }
+
     itk::Index<2> targetRegionCenter = targetPixels[targetPixelId];
     // When using PatchMatch for inpainting, most of the NN-field will be an exact match.
-    // We don't have to search anymore
-    // once the exact match is found.
-    if(this->Output->GetPixel(targetRegionCenter).Score == 0)
+    // We don't have to search anymore once the exact match is found.
+    if((this->Output->GetPixel(targetRegionCenter).Score == 0) ||
+       !this->Output->GetPixel(targetRegionCenter).IsValid() )
     {
+      skippedPixels++;
       continue;
     }
 
@@ -441,7 +449,7 @@ void PatchMatch<TImage>::Propagation(const std::vector<itk::Offset<2> >& offsets
       if(!this->SourceMask->GetLargestPossibleRegion().IsInside(potentialMatchRegion) ||
          !this->SourceMask->IsValid(potentialMatchRegion))
       {
-        // do nothing
+        // do nothing - we don't want to propagate information that is not originally valid
       }
       else
       {
@@ -455,6 +463,7 @@ void PatchMatch<TImage>::Propagation(const std::vector<itk::Offset<2> >& offsets
         //bool better = AddIfBetter(targetRegionCenter, potentialMatch);
 
         AddIfBetter(targetRegionCenter, potentialMatch);
+
 //         if(better)
 //         {
 //           std::cout << "Propagation successful for " << center << " - lowered score from " << oldScore
@@ -468,8 +477,9 @@ void PatchMatch<TImage>::Propagation(const std::vector<itk::Offset<2> >& offsets
       }
     } // end loop over offsets
 
-  } // end loop over target patches
+  } // end loop over target pixels
 
+  std::cout << "Propagation skipped " << skippedPixels << " pixels." << std::endl;
 }
 
 template <typename TImage>
@@ -507,15 +517,23 @@ template <typename TImage>
 void PatchMatch<TImage>::RandomSearch()
 {
   std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
-
+  std::cout << "RandomSearch: There are : " << targetPixels.size() << " target pixels." << std::endl;
+  unsigned int skippedPixels = 0;
   for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
   {
+    if(targetPixelId % 10000 == 0)
+    {
+      std::cout << "RandomSearch() processing " << targetPixelId << " of " << targetPixels.size() << std::endl;
+    }
+
     itk::Index<2> targetRegionCenter = targetPixels[targetPixelId];
 
     // For inpainting, most of the NN-field will be an exact match. We don't have to search anymore
     // once the exact match is found.
-    if(this->Output->GetPixel(targetRegionCenter).Score == 0)
+    if((this->Output->GetPixel(targetRegionCenter).Score == 0) ||
+       !this->Output->GetPixel(targetRegionCenter).IsValid() )
     {
+      skippedPixels++;
       continue;
     }
 
@@ -591,12 +609,96 @@ void PatchMatch<TImage>::RandomSearch()
       radius *= alpha;
     } // end decreasing radius loop
 
-  } // end loop over target regions
+  } // end loop over target pixels
 
+  std::cout << "RandomSearch skipped " << skippedPixels << " pixels." << std::endl;
 }
 
+
 template <typename TImage>
-bool PatchMatch<TImage>::AddIfBetter(const itk::Index<2>& index, const Match& potentialMatch)
+bool PatchMatch<TImage>::AddIfBetterHistogram(const itk::Index<2>& index, const Match& potentialMatch)
+{
+  Match currentMatch = this->Output->GetPixel(index);
+  if(potentialMatch.Score < currentMatch.Score)
+  {
+    const unsigned int numberOfBinsPerDimension = 20;
+
+    itk::ImageRegion<2> queryRegion = ITKHelpers::GetRegionInRadiusAroundPixel(index, this->PatchRadius);
+
+    //typedef float BinValueType;
+    typedef int BinValueType;
+    typedef Histogram<BinValueType>::HistogramType HistogramType;
+
+    HistogramType queryHistogram = Histogram<BinValueType>::Compute1DConcatenatedHistogramOfMultiChannelImage(
+                  this->Image.GetPointer(), queryRegion, numberOfBinsPerDimension, 0, 255);
+
+    HistogramType potentialMatchHistogram = Histogram<BinValueType>::Compute1DConcatenatedHistogramOfMultiChannelImage(
+                  this->Image.GetPointer(), potentialMatch.Region, numberOfBinsPerDimension, 0, 255);
+
+    float potentialMatchHistogramDifference = Histogram<BinValueType>::HistogramDifference(queryHistogram, potentialMatchHistogram);
+
+    float acceptanceThreshold = 500.0f;
+    if(potentialMatchHistogramDifference < acceptanceThreshold)
+    {
+//       std::cout << "Match accepted. SSD " << potentialMatch.Score << " (better than " << currentMatch.Score << ", "
+//                 << " Potential Match Histogram score: " << potentialMatchHistogramDifference << std::endl;
+      this->Output->SetPixel(index, potentialMatch);
+    }
+    else
+    {
+//       std::cout << "Rejected better SSD match:" << potentialMatch.Score << " (better than " << currentMatch.Score << std::endl
+//                 << " Potential Match Histogram score: " << potentialMatchHistogramDifference << std::endl;
+    }
+    return true;
+  }
+  return false;
+}
+/*
+template <typename TImage>
+bool PatchMatch<TImage>::AddIfBetterNeighborHistogram(const itk::Index<2>& index, const Match& potentialMatch)
+{
+  Match currentMatch = this->Output->GetPixel(index);
+  if(potentialMatch.Score < currentMatch.Score)
+  {
+    const unsigned int numberOfBinsPerDimension = 20;
+
+    itk::ImageRegion<2> queryRegion = ITKHelpers::GetRegionInRadiusAroundPixel(index, this->PatchRadius);
+
+    Histogram::HistogramType queryHistogram = Histogram::Compute1DConcatenatedHistogramOfMultiChannelImage(
+                  this->Image.GetPointer(), queryRegion, numberOfBinsPerDimension, 0, 255);
+
+    Histogram::HistogramType potentialMatchHistogram = Histogram::Compute1DConcatenatedHistogramOfMultiChannelImage(
+                  this->Image.GetPointer(), potentialMatch.Region, numberOfBinsPerDimension, 0, 255);
+
+    itk::Index<2> neighbor = {{index[0] - 1, index[1]}}; // This should be randomized
+    itk::ImageRegion<2> neighborRegion = ITKHelpers::GetRegionInRadiusAroundPixel(neighbor, this->PatchRadius);
+    Histogram::HistogramType neighborHistogram = Histogram::Compute1DConcatenatedHistogramOfMultiChannelImage(
+                  this->Image.GetPointer(), neighborRegion, numberOfBinsPerDimension, 0, 255);
+
+    float neighborHistogramDifference = Histogram::HistogramDifference(neighborHistogram, queryHistogram);
+
+    float potentialMatchHistogramDifference = Histogram::HistogramDifference(queryHistogram, potentialMatchHistogram);
+
+    if(potentialMatchHistogramDifference < 2.0f * neighborHistogramDifference)
+    {
+      std::cout << "Match accepted. SSD " << potentialMatch.Score << " (better than " << currentMatch.Score << ", "
+                << " Potential Match Histogram score: " << potentialMatchHistogramDifference
+                << " vs neighbor histogram score " << neighborHistogramDifference << std::endl;
+      this->Output->SetPixel(index, potentialMatch);
+    }
+    else
+    {
+      std::cout << "Rejected better SSD match:" << potentialMatch.Score << " (better than " << currentMatch.Score << std::endl
+                << " Potential Match Histogram score: " << potentialMatchHistogramDifference
+                << " vs neighbor histogram score " << neighborHistogramDifference << std::endl;
+    }
+    return true;
+  }
+  return false;
+}*/
+
+template <typename TImage>
+bool PatchMatch<TImage>::AddIfBetterSSD(const itk::Index<2>& index, const Match& potentialMatch)
 {
   Match currentMatch = this->Output->GetPixel(index);
   if(potentialMatch.Score < currentMatch.Score)
@@ -605,6 +707,29 @@ bool PatchMatch<TImage>::AddIfBetter(const itk::Index<2>& index, const Match& po
     return true;
   }
   return false;
+}
+
+template <typename TImage>
+bool PatchMatch<TImage>::AddIfBetter(const itk::Index<2>& index, const Match& potentialMatch)
+{
+  if(this->AddIfBetterStrategy == HISTOGRAM)
+  {
+    return AddIfBetterHistogram(index, potentialMatch);
+  }
+  else if(this->AddIfBetterStrategy == SSD)
+  {
+    return AddIfBetterSSD(index, potentialMatch);
+  }
+  else
+  {
+    throw std::runtime_error("Invalid AddIfBetterStrategy specified!");
+  }
+}
+
+template <typename TImage>
+void PatchMatch<TImage>::SetAddIfBetterStrategy(const AddIfBetterStrategyEnum addIfBetterStrategy)
+{
+  this->AddIfBetterStrategy = addIfBetterStrategy;
 }
 
 template <typename TImage>
