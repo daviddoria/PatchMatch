@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 2.6)
 
 PROJECT(PatchMatch)
+SET(CMAKE_INCLUDE_CURRENT_DIR ON)
+
+# C++11 support
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=gnu++0x")
 
 # ITK
@@ -12,6 +15,7 @@ INCLUDE(${USE_ITK_FILE})
 if(NOT TARGET PatchComparison)
   add_subdirectory(PatchComparison)
   include_directories(${PatchComparison_includes})
+  set(PatchMatch_includes ${PatchMatch_includes} ${PatchComparison_includes})
   set(PatchMatch_libraries ${PatchMatch_libraries} ${PatchComparison_libraries})
 endif()
 

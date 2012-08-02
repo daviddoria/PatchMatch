@@ -62,6 +62,8 @@ public:
 
   /** Choices for AddIfBetter. */
   enum AddIfBetterStrategyEnum {SSD, HISTOGRAM};
+
+  static constexpr float DownsampleFactor = 0.5f;
   
   /** Constructor. */
   PatchMatch();
@@ -135,6 +137,9 @@ public:
     * values in the hole region. */
   void RandomInit();
 
+  /** Set the NN to random pixels that have a reasonable histogram difference. */
+  void RandomInitWithHistogramTest();
+
   /** Assume that hole pixels near the hole boundary will have best matching patches on
     * the other side of the hole
     * boundary in the valid region. */
@@ -161,6 +166,8 @@ public:
   /** Write the valid pixels. */
   void WriteValidPixels(const std::string& fileName);
 
+  void SetHistogramAcceptanceThreshold(const float histogramAcceptanceThreshold);
+  
 protected:
 
   /** Set the number of iterations to perform. */
@@ -175,6 +182,9 @@ protected:
   /** The image to operate on. */
   typename TImage::Pointer Image;
 
+  /** The downsampled image to use for histogram computations. */
+  typename TImage::Pointer DownsampledImage;
+  
   /** This mask indicates where to take source patches from. Patches completely inside the valid
     * region of the source mask can be used as nearest neighbors. */
   Mask::Pointer SourceMask;
@@ -205,6 +215,12 @@ protected:
   Mask::Pointer AllowedPropagationMask;
 
   AddIfBetterStrategyEnum AddIfBetterStrategy;
+
+  float HistogramAcceptanceThreshold;
+
+  typedef itk::VectorImage<float, 2> HSVImageType;
+  HSVImageType::Pointer HSVImage;
+
 };
 
 #include "PatchMatch.hpp"
