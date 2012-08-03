@@ -40,7 +40,8 @@ PatchMatch<TImage>::PatchMatch() : PatchRadius(0), PatchDistanceFunctor(NULL),
                                    AllowedPropagationMask(NULL),
                                    AddIfBetterStrategy(HISTOGRAM),
                                    HistogramAcceptanceThreshold(500.0f),
-                                   PropagationStrategy(UNIFORM)
+                                   PropagationStrategy(UNIFORM),
+                                   NeighborHistogramMultiplier(2.0f)
 {
   this->Output = PMImageType::New();
   this->Image = TImage::New();
@@ -316,6 +317,7 @@ void PatchMatch<TImage>::RandomInitWithHistogramTest()
     Histogram<int>::HistogramType randomPatchHistogram;
     unsigned int attempts = 0;
     bool acceptableMatchFound = true;
+    unsigned int maxAttemps = 10;
     do
     {
       unsigned int randomSourceRegionId = Helpers::RandomInt(0, validSourceRegions.size() - 1);
@@ -325,7 +327,7 @@ void PatchMatch<TImage>::RandomInitWithHistogramTest()
       histogramDifference = Histogram<int>::HistogramDifference(queryHistogram, randomPatchHistogram);
       //std::cout << "histogramDifference: " << histogramDifference << std::endl;
       attempts++;
-      if(attempts > 1000)
+      if(attempts > maxAttemps)
       {
 //         std::stringstream ss;
 //         ss << "Too many attempts to find a good random match for " << targetPixel;
@@ -379,6 +381,8 @@ void PatchMatch<TImage>::RandomInitWithHistogramNeighborTest()
 
   std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
   std::cout << "RandomInitWithHistogramTest: There are : " << targetPixels.size() << " target pixels." << std::endl;
+
+  unsigned int failedMatches = 0;
   for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
   {
     if(targetPixelId % 10000 == 0)
@@ -414,7 +418,8 @@ void PatchMatch<TImage>::RandomInitWithHistogramNeighborTest()
     HistogramType neighborPatchHistogram;
     unsigned int attempts = 0;
     bool acceptableMatchFound = true;
-    float differenceMultiplier = 2.0f;
+    
+    unsigned int maxAttempts = 10;
     do
     {
       unsigned int randomSourceRegionId = Helpers::RandomInt(0, validSourceRegions.size() - 1);
@@ -435,7 +440,7 @@ void PatchMatch<TImage>::RandomInitWithHistogramNeighborTest()
       neighborHistogramDifference = Histogram<int>::HistogramDifference(queryHistogram, neighborPatchHistogram);
       //std::cout << "histogramDifference: " << histogramDifference << std::endl;
       attempts++;
-      if(attempts > 1000)
+      if(attempts > maxAttempts)
       {
 //         std::stringstream ss;
 //         ss << "Too many attempts to find a good random match for " << targetPixel;
@@ -444,7 +449,7 @@ void PatchMatch<TImage>::RandomInitWithHistogramNeighborTest()
         break;
       }
     }
-    while(randomHistogramDifference > (differenceMultiplier * neighborHistogramDifference));
+    while(randomHistogramDifference > (this->NeighborHistogramMultiplier * neighborHistogramDifference));
 
     //std::cout << "Attempts: " << attempts << std::endl;
     Match randomMatch;
@@ -458,11 +463,13 @@ void PatchMatch<TImage>::RandomInitWithHistogramNeighborTest()
     {
       //std::cout << "Random initialization failed for " << targetPixel << std::endl;
       randomMatch.Score = std::numeric_limits<float>::max();
+      failedMatches++;
     }
 
     this->Output->SetPixel(targetPixel, randomMatch);
-  }
+  } // end loop over target pixels
 
+  std::cout << failedMatches << " matches failed (out of " << targetPixels.size() << ")" << std::endl;
 
   { // Debug only
   CoordinateImageType::Pointer initialOutput = CoordinateImageType::New();
@@ -667,7 +674,7 @@ void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor)
 
       //itk::Offset<2> potentialPropagationPixelOffset = targetRegionCenter - potentialPropagationPixel;
       itk::Offset<2> potentialPropagationPixelOffset = potentialPropagationPixel - targetRegionCenter;
-      
+
       //assert(this->Image->GetLargestPossibleRegion().IsInside(potentialPropagationPixel));
       if(!this->Image->GetLargestPossibleRegion().IsInside(potentialPropagationPixel))
       {
@@ -893,7 +900,7 @@ bool PatchMatch<TImage>::AddIfBetterDownsampledHistogram(const itk::Index<2>& in
     }
     else
     {
-//       std::cout << "Rejected better SSD match:" << potentialMatch.Score << " (better than " << currentMatch.Score << std::endl
+//       std::cout << "Rejected better SSD match: " << potentialMatch.Score << " (better than " << currentMatch.Score << std::endl
 //                 << " Potential Match Histogram score: " << potentialMatchHistogramDifference << std::endl;
       return false;
     }
@@ -930,8 +937,7 @@ bool PatchMatch<TImage>::AddIfBetterHistogram(const itk::Index<2>& index, const 
 
     float potentialMatchHistogramDifference = Histogram<BinValueType>::HistogramDifference(queryHistogram, potentialMatchHistogram);
 
-    float acceptanceThreshold = 500.0f;
-    if(potentialMatchHistogramDifference < acceptanceThreshold)
+    if(potentialMatchHistogramDifference < this->HistogramAcceptanceThreshold)
     {
 //       std::cout << "Match accepted. SSD " << potentialMatch.Score << " (better than " << currentMatch.Score << ", "
 //                 << " Potential Match Histogram score: " << potentialMatchHistogramDifference << std::endl;
@@ -940,7 +946,7 @@ bool PatchMatch<TImage>::AddIfBetterHistogram(const itk::Index<2>& index, const 
     }
     else
     {
-//       std::cout << "Rejected better SSD match:" << potentialMatch.Score << " (better than " << currentMatch.Score << std::endl
+//       std::cout << "Rejected better SSD match: " << potentialMatch.Score << " (better than " << currentMatch.Score << std::endl
 //                 << " Potential Match Histogram score: " << potentialMatchHistogramDifference << std::endl;
       return false;
     }
@@ -982,11 +988,9 @@ bool PatchMatch<TImage>::AddIfBetterNeighborHistogram(const itk::Index<2>& query
 
     float potentialMatchHistogramDifference = Histogram<int>::HistogramDifference(queryHistogram, potentialMatchHistogram);
 
-    float differenceMultiplier = 2.0f;
-    
-    if(potentialMatchHistogramDifference < differenceMultiplier * neighborHistogramDifference)
+    if(potentialMatchHistogramDifference < (this->NeighborHistogramMultiplier * neighborHistogramDifference))
     {
-//       std::cout << "Match accepted. SSD " << potentialMatch.Score << " (better than " << currentMatch.Score << ", "
+//       std::cout << "AddIfBetterNeighborHistogram: Match accepted. SSD " << potentialMatch.Score << " (better than " << currentMatch.Score << ", "
 //                 << " Potential Match Histogram score: " << potentialMatchHistogramDifference
 //                 << " vs neighbor histogram score " << neighborHistogramDifference << std::endl;
       this->Output->SetPixel(queryIndex, potentialMatch);
@@ -994,7 +998,7 @@ bool PatchMatch<TImage>::AddIfBetterNeighborHistogram(const itk::Index<2>& query
     }
     else
     {
-//       std::cout << "Rejected better SSD match:" << potentialMatch.Score << " (better than " << currentMatch.Score << std::endl
+//       std::cout << "AddIfBetterNeighborHistogram: Rejected better SSD match: " << potentialMatch.Score << " (better than " << currentMatch.Score << std::endl
 //                 << " Potential Match Histogram score: " << potentialMatchHistogramDifference
 //                 << " vs neighbor histogram score " << neighborHistogramDifference << std::endl;
       return false;
@@ -1119,11 +1123,11 @@ itk::Offset<2> PatchMatch<TImage>::RandomNeighborNonZeroOffset()
 {
   int randomOffsetX = 0;
   int randomOffsetY = 0;
-  while(!( (randomOffsetX == 0) && (randomOffsetX == randomOffsetY) )) // We don't want the random offset to be (0,0), because the histogram difference would be zero!
+  while((randomOffsetX == 0) && (randomOffsetY == 0) ) // We don't want the random offset to be (0,0), because the histogram difference would be zero!
   {
-    // Generate random numbers in the set (-1,0,1)
-    randomOffsetX = rand()%3 + 1;
-    randomOffsetY = rand()%3 + 1;
+    // Generate random numbers in the set (-1,0,1) by generating a number in (0,1,2) and then subtracting 1
+    randomOffsetX = rand()%3 - 1;
+    randomOffsetY = rand()%3 - 1;
   }
 
   itk::Offset<2> randomNeighborNonZeroOffset = {{randomOffsetX, randomOffsetY}};

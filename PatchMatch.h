@@ -243,6 +243,7 @@ protected:
   AddIfBetterStrategyEnum AddIfBetterStrategy;
 
   float HistogramAcceptanceThreshold;
+  float NeighborHistogramMultiplier;
 
   PropagationStrategyEnum PropagationStrategy;
   
