@@ -39,12 +39,38 @@ PatchMatch<TImage>::PatchMatch() : PatchRadius(0), PatchDistanceFunctor(NULL),
                                    InitializationStrategy(RANDOM), Random(true),
                                    AllowedPropagationMask(NULL),
                                    AddIfBetterStrategy(HISTOGRAM),
-                                   HistogramAcceptanceThreshold(500.0f)
+                                   HistogramAcceptanceThreshold(500.0f),
+                                   PropagationStrategy(UNIFORM)
 {
   this->Output = PMImageType::New();
   this->Image = TImage::New();
   this->SourceMask = Mask::New();
   this->TargetMask = Mask::New();
+}
+
+template <typename TImage>
+void PatchMatch<TImage>::Initialize()
+{
+    if(this->InitializationStrategy == RANDOM)
+    {
+      RandomInit();
+    }
+    else if(this->InitializationStrategy == RANDOM_WITH_HISTOGRAM)
+    {
+      RandomInitWithHistogramTest();
+    }
+    else if(this->InitializationStrategy == RANDOM_WITH_HISTOGRAM_NEIGHBOR)
+    {
+      RandomInitWithHistogramNeighborTest();
+    }
+    else if(this->InitializationStrategy == BOUNDARY)
+    {
+      BoundaryInit();
+    }
+    else
+    {
+      throw std::runtime_error("PatchMatch::Initialize: An invalid initialization strategy was chosen!");
+    }
 }
 
 template <typename TImage>
@@ -59,18 +85,7 @@ void PatchMatch<TImage>::AutomaticCompute(PMImageType* const initialization)
   {
     InitKnownRegion();
 
-    if(this->InitializationStrategy == RANDOM)
-    {
-      RandomInit();
-    }
-    else if(this->InitializationStrategy == BOUNDARY)
-    {
-      BoundaryInit();
-    }
-    else
-    {
-      throw std::runtime_error("PatchMatch::Compute: An invalid initialization strategy was chosen!");
-    }
+    Initialize();
   }
 
   Compute(initialization);
@@ -110,13 +125,24 @@ void PatchMatch<TImage>::Compute(PMImageType* const initialization)
   {
     std::cout << "PatchMatch iteration " << iteration << std::endl;
 
-    if(forwardPropagation)
+    if(this->PropagationStrategy == UNIFORM)
     {
-      ForwardPropagation();
+      if(forwardPropagation)
+      {
+        ForwardPropagation();
+      }
+      else
+      {
+        BackwardPropagation();
+      }
+    }
+    else if(this->PropagationStrategy == INWARD)
+    {
+      InwardPropagation();
     }
     else
     {
-      BackwardPropagation();
+      throw std::runtime_error("Invalid propagation strategy specified!");
     }
 
     // Switch the propagation direction for the next iteration
@@ -125,12 +151,9 @@ void PatchMatch<TImage>::Compute(PMImageType* const initialization)
     RandomSearch();
 
     { // Debug only
-    // Write the intermediate output
-    std::stringstream ss;
-    ss << "PatchMatch_" << Helpers::ZeroPad(iteration, 2) << ".mha";
     CoordinateImageType::Pointer temp = CoordinateImageType::New();
     GetPatchCentersImage(this->Output, temp);
-    ITKHelpers::WriteImage(temp.GetPointer(), ss.str());
+    ITKHelpers::WriteSequentialImage(temp.GetPointer(), "PatchMatch", iteration, 2, "mha");
     }
   }
 
@@ -281,9 +304,9 @@ void PatchMatch<TImage>::RandomInitWithHistogramTest()
 
     unsigned int numberOfBinsPerDimension = 20;
     typename TypeTraits<typename HSVImageType::PixelType>::ComponentType rangeMin = 0;
-    typename TypeTraits<typename HSVImageType::PixelType>::ComponentType rangeMax = 255;
-    std::cout << "Range min: " << rangeMin << std::endl;
-    std::cout << "Range max: " << rangeMax << std::endl;
+    typename TypeTraits<typename HSVImageType::PixelType>::ComponentType rangeMax = 1;
+//     std::cout << "Range min: " << rangeMin << std::endl;
+//     std::cout << "Range max: " << rangeMax << std::endl;
 
     Histogram<int>::HistogramType queryHistogram = Histogram<int>::ComputeImageHistogram1D(this->HSVImage.GetPointer(),
                                                                                            targetRegion, numberOfBinsPerDimension, rangeMin, rangeMax);
@@ -323,7 +346,117 @@ void PatchMatch<TImage>::RandomInitWithHistogramTest()
     }
     else
     {
-      std::cout << "Random initialization failed for " << targetPixel << std::endl;
+      //std::cout << "Random initialization failed for " << targetPixel << std::endl;
+      randomMatch.Score = std::numeric_limits<float>::max();
+    }
+
+    this->Output->SetPixel(targetPixel, randomMatch);
+  }
+
+
+  { // Debug only
+  CoordinateImageType::Pointer initialOutput = CoordinateImageType::New();
+  GetPatchCentersImage(this->Output, initialOutput);
+  ITKHelpers::WriteImage(initialOutput.GetPointer(), "RandomInit.mha");
+  }
+  //std::cout << "Finished RandomInit." << internalRegion << std::endl;
+}
+
+
+template <typename TImage>
+void PatchMatch<TImage>::RandomInitWithHistogramNeighborTest()
+{
+  itk::ImageRegion<2> internalRegion =
+             ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
+
+  std::vector<itk::ImageRegion<2> > validSourceRegions =
+        MaskOperations::GetAllFullyValidRegions(this->SourceMask, internalRegion, this->PatchRadius);
+
+  if(validSourceRegions.size() == 0)
+  {
+    throw std::runtime_error("PatchMatch::RandomInitWithHistogramTest() No valid source regions!");
+  }
+
+  std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
+  std::cout << "RandomInitWithHistogramTest: There are : " << targetPixels.size() << " target pixels." << std::endl;
+  for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
+  {
+    if(targetPixelId % 10000 == 0)
+    {
+      std::cout << "RandomInitWithHistogramNeighborTest() processing " << targetPixelId << " of " << targetPixels.size() << std::endl;
+    }
+    itk::ImageRegion<2> targetRegion = ITKHelpers::GetRegionInRadiusAroundPixel(targetPixels[targetPixelId], this->PatchRadius);
+    if(!this->Image->GetLargestPossibleRegion().IsInside(targetRegion))
+    {
+      continue;
+    }
+
+    itk::Index<2> targetPixel = targetPixels[targetPixelId];
+    if(this->Output->GetPixel(targetPixel).IsValid())
+    {
+      continue;
+    }
+
+    unsigned int numberOfBinsPerDimension = 20;
+    typename TypeTraits<typename HSVImageType::PixelType>::ComponentType rangeMin = 0;
+    typename TypeTraits<typename HSVImageType::PixelType>::ComponentType rangeMax = 1;
+//     std::cout << "Range min: " << rangeMin << std::endl;
+//     std::cout << "Range max: " << rangeMax << std::endl;
+
+    typedef Histogram<int>::HistogramType HistogramType;
+    HistogramType queryHistogram = Histogram<int>::ComputeImageHistogram1D(this->HSVImage.GetPointer(),
+                                                                           targetRegion, numberOfBinsPerDimension, rangeMin, rangeMax);
+
+    float randomHistogramDifference;
+    float neighborHistogramDifference;
+    itk::ImageRegion<2> randomValidRegion;
+    HistogramType randomPatchHistogram;
+    HistogramType neighborPatchHistogram;
+    unsigned int attempts = 0;
+    bool acceptableMatchFound = true;
+    float differenceMultiplier = 2.0f;
+    do
+    {
+      unsigned int randomSourceRegionId = Helpers::RandomInt(0, validSourceRegions.size() - 1);
+      randomValidRegion = validSourceRegions[randomSourceRegionId];
+      randomPatchHistogram = Histogram<int>::ComputeImageHistogram1D(this->HSVImage.GetPointer(),
+                                                                     randomValidRegion, numberOfBinsPerDimension, rangeMin, rangeMax);
+
+      itk::Offset<2> randomNeighborOffset = RandomNeighborNonZeroOffset();
+
+      itk::Index<2> neighbor = targetPixel + randomNeighborOffset;
+
+      itk::ImageRegion<2> neighborRegion = ITKHelpers::GetRegionInRadiusAroundPixel(neighbor, this->PatchRadius);
+      neighborPatchHistogram = Histogram<int>::ComputeImageHistogram1D(this->HSVImage.GetPointer(),
+                                                                       neighborRegion, numberOfBinsPerDimension, rangeMin, rangeMax);
+      
+      randomHistogramDifference = Histogram<int>::HistogramDifference(queryHistogram, randomPatchHistogram);
+
+      neighborHistogramDifference = Histogram<int>::HistogramDifference(queryHistogram, neighborPatchHistogram);
+      //std::cout << "histogramDifference: " << histogramDifference << std::endl;
+      attempts++;
+      if(attempts > 1000)
+      {
+//         std::stringstream ss;
+//         ss << "Too many attempts to find a good random match for " << targetPixel;
+//         throw std::runtime_error(ss.str());
+        acceptableMatchFound = false;
+        break;
+      }
+    }
+    while(randomHistogramDifference > (differenceMultiplier * neighborHistogramDifference));
+
+    //std::cout << "Attempts: " << attempts << std::endl;
+    Match randomMatch;
+    randomMatch.Region = randomValidRegion;
+
+    if(acceptableMatchFound)
+    {
+      randomMatch.Score = this->PatchDistanceFunctor->Distance(randomValidRegion, targetRegion);
+    }
+    else
+    {
+      //std::cout << "Random initialization failed for " << targetPixel << std::endl;
       randomMatch.Score = std::numeric_limits<float>::max();
     }
 
@@ -415,6 +548,7 @@ void PatchMatch<TImage>::SetImage(TImage* const image)
 
   this->HSVImage = HSVImageType::New();
   ITKHelpers::ITKImageToHSVImage(image, this->HSVImage.GetPointer());
+  ITKHelpers::WriteImage(this->HSVImage.GetPointer(), "HSV.mha");
 }
 
 template <typename TImage>
@@ -483,7 +617,15 @@ void PatchMatch<TImage>::SetPatchDistanceFunctor(PatchDistance<TImage>* const pa
 }
 
 template <typename TImage>
-void PatchMatch<TImage>::Propagation(const std::vector<itk::Offset<2> >& offsets)
+void PatchMatch<TImage>::InwardPropagation()
+{
+  AllowedPropagationNeighbors neighborFunctor(this->AllowedPropagationMask, this->TargetMask);
+  Propagation(neighborFunctor);
+}
+
+template <typename TImage>
+template <typename TNeighborFunctor>
+void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor)
 {
   assert(this->AllowedPropagationMask);
 
@@ -516,11 +658,16 @@ void PatchMatch<TImage>::Propagation(const std::vector<itk::Offset<2> >& offsets
         continue;
       }
 
-    for(size_t potentialPropagationPixelId = 0; potentialPropagationPixelId < offsets.size();
+    std::vector<itk::Index<2> > potentialPropagationPixels = neighborFunctor(targetRegionCenter);
+
+    for(size_t potentialPropagationPixelId = 0; potentialPropagationPixelId < potentialPropagationPixels.size();
         ++potentialPropagationPixelId)
     {
-      itk::Index<2> potentialPropagationPixel = targetRegionCenter +
-                                                offsets[potentialPropagationPixelId];
+      itk::Index<2> potentialPropagationPixel = potentialPropagationPixels[potentialPropagationPixelId];
+
+      //itk::Offset<2> potentialPropagationPixelOffset = targetRegionCenter - potentialPropagationPixel;
+      itk::Offset<2> potentialPropagationPixelOffset = potentialPropagationPixel - targetRegionCenter;
+      
       //assert(this->Image->GetLargestPossibleRegion().IsInside(potentialPropagationPixel));
       if(!this->Image->GetLargestPossibleRegion().IsInside(potentialPropagationPixel))
       {
@@ -532,7 +679,7 @@ void PatchMatch<TImage>::Propagation(const std::vector<itk::Offset<2> >& offsets
       {
         continue;
       }
-      // The potential match is the opposite (hence the " - offsets[...]" in the following line)
+      // The potential match is the opposite (hence the " - offset" in the following line)
       // of the offset of the neighbor. Consider the following case:
       // - We are at (4,4) and potentially propagating from (3,4)
       // - The best match to (3,4) is (10,10)
@@ -540,7 +687,7 @@ void PatchMatch<TImage>::Propagation(const std::vector<itk::Offset<2> >& offsets
       // of the neighbor, we need to consider the patch one to the right of the neighbors best match
       itk::Index<2> potentialMatchPixel =
             ITKHelpers::GetRegionCenter(this->Output->GetPixel(potentialPropagationPixel).Region) -
-                                          offsets[potentialPropagationPixelId];
+                                        potentialPropagationPixelOffset;
 
       itk::ImageRegion<2> potentialMatchRegion =
             ITKHelpers::GetRegionInRadiusAroundPixel(potentialMatchPixel, this->PatchRadius);
@@ -574,8 +721,13 @@ void PatchMatch<TImage>::Propagation(const std::vector<itk::Offset<2> >& offsets
 //         }
 
       }
-    } // end loop over offsets
+    } // end loop over potentialPropagationPixels
 
+//     { // Debug only
+//     CoordinateImageType::Pointer temp = CoordinateImageType::New();
+//     GetPatchCentersImage(this->Output, temp);
+//     ITKHelpers::WriteSequentialImage(temp.GetPointer(), "PatchMatch_Propagation", targetPixelId, 6, "mha");
+//     }
   } // end loop over target pixels
 
   std::cout << "Propagation skipped " << skippedPixels << " pixels (processed " << targetPixels.size() - skippedPixels << ")." << std::endl;
@@ -584,32 +736,17 @@ void PatchMatch<TImage>::Propagation(const std::vector<itk::Offset<2> >& offsets
 template <typename TImage>
 void PatchMatch<TImage>::ForwardPropagation()
 {
-  std::vector<itk::Offset<2> > offsets;
+  ForwardPropagationNeighbors neighborFunctor;
 
-  // Setup the indices of the "left" pixel
-  itk::Offset<2> leftPixelOffset = {{-1, 0}};
-  offsets.push_back(leftPixelOffset);
-
-  // Setup the indices of the "up" pixel
-  itk::Offset<2> upPixelOffset = {{0, -1}};
-  offsets.push_back(upPixelOffset);
-
-  Propagation(offsets);
+  Propagation(neighborFunctor);
 }
 
 template <typename TImage>
 void PatchMatch<TImage>::BackwardPropagation()
 {
-  std::vector<itk::Offset<2> > offsets;
-  // Setup the indices of the "right" pixel
-  itk::Offset<2> rightPixel = {{1, 0}};
-  offsets.push_back(rightPixel);
+  BackwardPropagationNeighbors neighborFunctor;
 
-  // Setup the indices of the "down" pixel
-  itk::Offset<2> downPixel = {{0,1}};
-  offsets.push_back(downPixel);
-
-  Propagation(offsets);
+  Propagation(neighborFunctor);
 }
 
 template <typename TImage>
@@ -715,7 +852,7 @@ void PatchMatch<TImage>::RandomSearch()
 
 /*
 template <typename TImage>
-bool PatchMatch<TImage>::AddIfBetterHistogram(const itk::Index<2>& index, const Match& potentialMatch)
+bool PatchMatch<TImage>::AddIfBetterDownsampledHistogram(const itk::Index<2>& index, const Match& potentialMatch)
 {
   Match currentMatch = this->Output->GetPixel(index);
   if(potentialMatch.Score < currentMatch.Score)
@@ -782,11 +919,14 @@ bool PatchMatch<TImage>::AddIfBetterHistogram(const itk::Index<2>& index, const 
     typedef int BinValueType;
     typedef Histogram<BinValueType>::HistogramType HistogramType;
 
-    HistogramType queryHistogram = Histogram<BinValueType>::Compute1DConcatenatedHistogramOfMultiChannelImage(
-                  this->Image.GetPointer(), queryRegion, numberOfBinsPerDimension, 0, 255);
+    typename TypeTraits<typename HSVImageType::PixelType>::ComponentType rangeMin = 0;
+    typename TypeTraits<typename HSVImageType::PixelType>::ComponentType rangeMax = 1;
+    
+    HistogramType queryHistogram = Histogram<BinValueType>::ComputeImageHistogram1D(
+                  this->HSVImage.GetPointer(), queryRegion, numberOfBinsPerDimension, rangeMin, rangeMax);
 
-    HistogramType potentialMatchHistogram = Histogram<BinValueType>::Compute1DConcatenatedHistogramOfMultiChannelImage(
-                  this->Image.GetPointer(), potentialMatch.Region, numberOfBinsPerDimension, 0, 255);
+    HistogramType potentialMatchHistogram = Histogram<BinValueType>::ComputeImageHistogram1D(
+                  this->HSVImage.GetPointer(), potentialMatch.Region, numberOfBinsPerDimension, rangeMin, rangeMax);
 
     float potentialMatchHistogramDifference = Histogram<BinValueType>::HistogramDifference(queryHistogram, potentialMatchHistogram);
 
@@ -810,49 +950,59 @@ bool PatchMatch<TImage>::AddIfBetterHistogram(const itk::Index<2>& index, const 
   return false;
 }
 
-/*
 template <typename TImage>
-bool PatchMatch<TImage>::AddIfBetterNeighborHistogram(const itk::Index<2>& index, const Match& potentialMatch)
+bool PatchMatch<TImage>::AddIfBetterNeighborHistogram(const itk::Index<2>& queryIndex, const Match& potentialMatch)
 {
-  Match currentMatch = this->Output->GetPixel(index);
+  Match currentMatch = this->Output->GetPixel(queryIndex);
   if(potentialMatch.Score < currentMatch.Score)
   {
     const unsigned int numberOfBinsPerDimension = 20;
 
-    itk::ImageRegion<2> queryRegion = ITKHelpers::GetRegionInRadiusAroundPixel(index, this->PatchRadius);
+    typename TypeTraits<typename HSVImageType::PixelType>::ComponentType rangeMin = 0;
+    typename TypeTraits<typename HSVImageType::PixelType>::ComponentType rangeMax = 1;
 
-    Histogram::HistogramType queryHistogram = Histogram::Compute1DConcatenatedHistogramOfMultiChannelImage(
-                  this->Image.GetPointer(), queryRegion, numberOfBinsPerDimension, 0, 255);
+    itk::ImageRegion<2> queryRegion = ITKHelpers::GetRegionInRadiusAroundPixel(queryIndex, this->PatchRadius);
 
-    Histogram::HistogramType potentialMatchHistogram = Histogram::Compute1DConcatenatedHistogramOfMultiChannelImage(
-                  this->Image.GetPointer(), potentialMatch.Region, numberOfBinsPerDimension, 0, 255);
+    typedef Histogram<int>::HistogramType HistogramType;
+    HistogramType queryHistogram = Histogram<int>::ComputeImageHistogram1D(
+                  this->HSVImage.GetPointer(), queryRegion, numberOfBinsPerDimension, rangeMin, rangeMax);
 
-    itk::Index<2> neighbor = {{index[0] - 1, index[1]}}; // This should be randomized
+    HistogramType potentialMatchHistogram = Histogram<int>::ComputeImageHistogram1D(
+                  this->HSVImage.GetPointer(), potentialMatch.Region, numberOfBinsPerDimension, rangeMin, rangeMax);
+
+    itk::Offset<2> randomNeighborOffset = RandomNeighborNonZeroOffset();
+
+    itk::Index<2> neighbor = queryIndex + randomNeighborOffset;
+
     itk::ImageRegion<2> neighborRegion = ITKHelpers::GetRegionInRadiusAroundPixel(neighbor, this->PatchRadius);
-    Histogram::HistogramType neighborHistogram = Histogram::Compute1DConcatenatedHistogramOfMultiChannelImage(
-                  this->Image.GetPointer(), neighborRegion, numberOfBinsPerDimension, 0, 255);
+    HistogramType neighborHistogram = Histogram<int>::ComputeImageHistogram1D(
+                  this->HSVImage.GetPointer(), neighborRegion, numberOfBinsPerDimension, rangeMin, rangeMax);
 
-    float neighborHistogramDifference = Histogram::HistogramDifference(neighborHistogram, queryHistogram);
+    float neighborHistogramDifference = Histogram<int>::HistogramDifference(neighborHistogram, queryHistogram);
 
-    float potentialMatchHistogramDifference = Histogram::HistogramDifference(queryHistogram, potentialMatchHistogram);
+    float potentialMatchHistogramDifference = Histogram<int>::HistogramDifference(queryHistogram, potentialMatchHistogram);
 
-    if(potentialMatchHistogramDifference < 2.0f * neighborHistogramDifference)
+    float differenceMultiplier = 2.0f;
+    
+    if(potentialMatchHistogramDifference < differenceMultiplier * neighborHistogramDifference)
     {
-      std::cout << "Match accepted. SSD " << potentialMatch.Score << " (better than " << currentMatch.Score << ", "
-                << " Potential Match Histogram score: " << potentialMatchHistogramDifference
-                << " vs neighbor histogram score " << neighborHistogramDifference << std::endl;
-      this->Output->SetPixel(index, potentialMatch);
+//       std::cout << "Match accepted. SSD " << potentialMatch.Score << " (better than " << currentMatch.Score << ", "
+//                 << " Potential Match Histogram score: " << potentialMatchHistogramDifference
+//                 << " vs neighbor histogram score " << neighborHistogramDifference << std::endl;
+      this->Output->SetPixel(queryIndex, potentialMatch);
+      return true;
     }
     else
     {
-      std::cout << "Rejected better SSD match:" << potentialMatch.Score << " (better than " << currentMatch.Score << std::endl
-                << " Potential Match Histogram score: " << potentialMatchHistogramDifference
-                << " vs neighbor histogram score " << neighborHistogramDifference << std::endl;
+//       std::cout << "Rejected better SSD match:" << potentialMatch.Score << " (better than " << currentMatch.Score << std::endl
+//                 << " Potential Match Histogram score: " << potentialMatchHistogramDifference
+//                 << " vs neighbor histogram score " << neighborHistogramDifference << std::endl;
+      return false;
     }
-    return true;
+
   }
   return false;
-}*/
+}
 
 template <typename TImage>
 bool PatchMatch<TImage>::AddIfBetterSSD(const itk::Index<2>& index, const Match& potentialMatch)
@@ -872,6 +1022,10 @@ bool PatchMatch<TImage>::AddIfBetter(const itk::Index<2>& index, const Match& po
   if(this->AddIfBetterStrategy == HISTOGRAM)
   {
     return AddIfBetterHistogram(index, potentialMatch);
+  }
+  if(this->AddIfBetterStrategy == NEIGHBOR_HISTOGRAM)
+  {
+    return AddIfBetterNeighborHistogram(index, potentialMatch);
   }
   else if(this->AddIfBetterStrategy == SSD)
   {
@@ -952,6 +1106,29 @@ template <typename TImage>
 void PatchMatch<TImage>::SetHistogramAcceptanceThreshold(const float histogramAcceptanceThreshold)
 {
   this->HistogramAcceptanceThreshold = histogramAcceptanceThreshold;
+}
+
+template <typename TImage>
+void PatchMatch<TImage>::SetPropagationStrategy(const PropagationStrategyEnum propagationStrategy)
+{
+  this->PropagationStrategy = propagationStrategy;
+}
+
+template <typename TImage>
+itk::Offset<2> PatchMatch<TImage>::RandomNeighborNonZeroOffset()
+{
+  int randomOffsetX = 0;
+  int randomOffsetY = 0;
+  while(!( (randomOffsetX == 0) && (randomOffsetX == randomOffsetY) )) // We don't want the random offset to be (0,0), because the histogram difference would be zero!
+  {
+    // Generate random numbers in the set (-1,0,1)
+    randomOffsetX = rand()%3 + 1;
+    randomOffsetY = rand()%3 + 1;
+  }
+
+  itk::Offset<2> randomNeighborNonZeroOffset = {{randomOffsetX, randomOffsetY}};
+
+  return randomNeighborNonZeroOffset;
 }
 
 #endif

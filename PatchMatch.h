@@ -25,6 +25,7 @@
 #include "itkVectorImage.h"
 
 // Submodules
+#include <ITKHelpers/ITKHelpers.h>
 #include <Mask/Mask.h>
 #include <PatchComparison/PatchDistance.h>
 
@@ -58,10 +59,13 @@ class PatchMatch
 public:
 
   /** Choices for initialization. */
-  enum InitializationStrategyEnum {RANDOM, BOUNDARY};
+  enum InitializationStrategyEnum {RANDOM, RANDOM_WITH_HISTOGRAM, RANDOM_WITH_HISTOGRAM_NEIGHBOR, BOUNDARY};
+
+  /** Choices for propagation. */
+  enum PropagationStrategyEnum {UNIFORM, INWARD};
 
   /** Choices for AddIfBetter. */
-  enum AddIfBetterStrategyEnum {SSD, HISTOGRAM};
+  enum AddIfBetterStrategyEnum {SSD, HISTOGRAM, NEIGHBOR_HISTOGRAM};
 
   static constexpr float DownsampleFactor = 0.5f;
   
@@ -89,7 +93,8 @@ public:
   /** Propagate good matches from specified offsets. In the traditional algorithm,
     * ForwardPropagation() and BackwardPropagation() call this function with "above and left"
     * and "below and right" offsets, respectively. */
-  void Propagation(const std::vector<itk::Offset<2> >& offsets);
+  template <typename TNeighborFunctor>
+  void Propagation(const TNeighborFunctor neighborFunctor);
 
   /** Propagate good matches from above and from the left of the current pixel. */
   void ForwardPropagation();
@@ -97,6 +102,9 @@ public:
   /** Propagate good matches from below and from the right of the current pixel. */
   void BackwardPropagation();
 
+  /** Propagate good matches from outside in. */
+  void InwardPropagation();
+  
   /** Search for a better match in several radii of the current pixel. */
   void RandomSearch();
 
@@ -137,8 +145,14 @@ public:
     * values in the hole region. */
   void RandomInit();
 
-  /** Set the NN to random pixels that have a reasonable histogram difference. */
+  /** Call the function corresponding to the IntializationStrategy member. */
+  void Initialize();
+  
+  /** Set the NN to random pixels that have a histogram difference below a pre-specified value. */
   void RandomInitWithHistogramTest();
+
+  /** Set the NN to random pixels that have a histogram difference comparable to the histogram difference of a neighboring patch. */
+  void RandomInitWithHistogramNeighborTest();
 
   /** Assume that hole pixels near the hole boundary will have best matching patches on
     * the other side of the hole
@@ -152,13 +166,25 @@ public:
     * Returns true if the 'match' was added. */
   bool AddIfBetter(const itk::Index<2>& index, const Match& match);
 
+  /** Accept a new match if the new SSD is less than the old SSD. */
   bool AddIfBetterSSD(const itk::Index<2>& index, const Match& match);
+
+  /** Accept a new match if the new SSD is less than the old SSD AND the new histogram difference
+    * is less than a pre-specified value. */
   bool AddIfBetterHistogram(const itk::Index<2>& index, const Match& match);
+
+  /** Accept a new match if the new SSD is less than the old SSD AND the new histogram difference is
+    * less than a pre-specified multiple of a random neighbor histogram difference. */
+  bool AddIfBetterNeighborHistogram(const itk::Index<2>& index, const Match& potentialMatch);
 
   /** Set the choice of initialization strategy. */
   void SetInitializationStrategy(const InitializationStrategyEnum initializationStrategy);
 
+  /** Set the choice of AddIfBetter strategy. */
   void SetAddIfBetterStrategy(const AddIfBetterStrategyEnum addIfBetterStrategy);
+
+  /** Set the choice of propagation strategy. */
+  void SetPropagationStrategy(const PropagationStrategyEnum propagationStrategy);
   
   /** Set if the result should be randomized. This should only be false for testing purposes. */
   void SetRandom(const bool random);
@@ -218,10 +244,76 @@ protected:
 
   float HistogramAcceptanceThreshold;
 
+  PropagationStrategyEnum PropagationStrategy;
+  
   typedef itk::VectorImage<float, 2> HSVImageType;
   HSVImageType::Pointer HSVImage;
 
-};
+  itk::Offset<2> RandomNeighborNonZeroOffset();
+
+  struct AllowedPropagationNeighbors
+  {
+    AllowedPropagationNeighbors(Mask* const allowedPropagationMask, Mask* const targetMask)
+    {
+      this->AllowedPropagationMask = allowedPropagationMask;
+      this->TargetMask = targetMask;
+    }
+
+    std::vector<itk::Index<2> > operator() (const itk::Index<2>& queryIndex) const
+    {
+      std::vector<itk::Index<2> > potentialPropagationNeighbors = ITKHelpers::Get8NeighborsInRegion(AllowedPropagationMask->GetLargestPossibleRegion(),
+                                                                                                  queryIndex);
+
+      std::vector<itk::Index<2> > allowedPropagationNeighbors;
+      for(size_t i = 0; i < potentialPropagationNeighbors.size(); ++i)
+      {
+        if(this->AllowedPropagationMask->IsValid(potentialPropagationNeighbors[i]) ||
+           this->TargetMask->IsValid(potentialPropagationNeighbors[i]) )
+        {
+          allowedPropagationNeighbors.push_back(potentialPropagationNeighbors[i]);
+        }
+      }
+      return allowedPropagationNeighbors;
+    }
+
+  private:
+    Mask* AllowedPropagationMask;
+    Mask* TargetMask;
+  };
+
+  struct ForwardPropagationNeighbors
+  {
+    std::vector<itk::Index<2> > operator() (const itk::Index<2>& queryIndex) const 
+    {
+      std::vector<itk::Index<2> > allowedPropagationNeighbors;
+
+      itk::Offset<2> leftPixelOffset = {{-1, 0}};
+      allowedPropagationNeighbors.push_back(queryIndex + leftPixelOffset);
+
+      itk::Offset<2> upPixelOffset = {{0, -1}};
+      allowedPropagationNeighbors.push_back(queryIndex + upPixelOffset);
+
+      return allowedPropagationNeighbors;
+    }
+  };
+
+  struct BackwardPropagationNeighbors
+  {
+    std::vector<itk::Index<2> > operator() (const itk::Index<2>& queryIndex) const
+    {
+      std::vector<itk::Index<2> > allowedPropagationNeighbors;
+
+      itk::Offset<2> leftPixelOffset = {{1, 0}};
+      allowedPropagationNeighbors.push_back(queryIndex + leftPixelOffset);
+
+      itk::Offset<2> upPixelOffset = {{0, 1}};
+      allowedPropagationNeighbors.push_back(queryIndex + upPixelOffset);
+
+      return allowedPropagationNeighbors;
+    }
+  };
+  
+}; // end PatchMatch class
 
 #include "PatchMatch.hpp"
 
