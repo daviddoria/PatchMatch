@@ -34,6 +34,8 @@
 
 // Custom
 #include "PatchMatch.h"
+#include "InitializerRandom.h"
+#include "InitializerBoundary.h"
 
 typedef itk::Image<itk::CovariantVector<float, 3>, 2> ImageType;
 
@@ -64,33 +66,41 @@ int main(int argc, char*argv[])
   targetMask->Allocate();
   ITKHelpers::SetImageToConstant(targetMask.GetPointer(), targetMask->GetValidValue());
 
+  unsigned int patchRadius = 3;
+
   SSD<ImageType>* patchDistanceFunctor = new SSD<ImageType>;
   patchDistanceFunctor->SetImage(imageReader->GetOutput());
-  
+
   PatchMatch<ImageType> patchMatch;
   patchMatch.SetImage(imageReader->GetOutput());
   patchMatch.SetTargetMask(targetMask);
   patchMatch.SetSourceMask(sourceMask);
   patchMatch.SetIterations(10);
-  patchMatch.SetPatchRadius(3);
+  patchMatch.SetPatchRadius(patchRadius);
   patchMatch.SetPatchDistanceFunctor(patchDistanceFunctor);
 
-  PatchMatch<ImageType>::CoordinateImageType::Pointer output = PatchMatch<ImageType>::CoordinateImageType::New();
+  PatchMatch<ImageType>::CoordinateImageType::Pointer output =
+    PatchMatch<ImageType>::CoordinateImageType::New();
 
   {
+  InitializerRandom<ImageType> initializer(imageReader->GetOutput(), patchRadius);
+  patchMatch.SetInitializer(&initializer);
   std::cout << "Starting randomInit..." << std::endl;
-  patchMatch.RandomInit();
+  patchMatch.Initialize();
 
   PatchMatch<ImageType>::GetPatchCentersImage(patchMatch.GetOutput(), output);
   ITKHelpers::WriteImage(output.GetPointer(), "randomInit.mha");
   }
 
-  {
-  std::cout << "Starting boundaryInit..." << std::endl;
-  patchMatch.BoundaryInit();
-  PatchMatch<ImageType>::GetPatchCentersImage(patchMatch.GetOutput(), output);
-  ITKHelpers::WriteImage(output.GetPointer(), "boundaryInit.mha");
-  }
+//   {
+//   std::cout << "Starting boundaryInit..." << std::endl;
+//   InitializerBoundary<ImageType> initializer(imageReader->GetOutput(), patchRadius);
+//   patchMatch.SetInitializer(&initializer);
+//   patchMatch.Initialize();
+// 
+//   PatchMatch<ImageType>::GetPatchCentersImage(patchMatch.GetOutput(), output);
+//   ITKHelpers::WriteImage(output.GetPointer(), "boundaryInit.mha");
+//   }
 
   return EXIT_SUCCESS;
 }

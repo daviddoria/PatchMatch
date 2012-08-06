@@ -34,44 +34,21 @@
 // STL
 #include <ctime>
 
+// Custom
+#include "Neighbors.h"
+
 template <typename TImage>
 PatchMatch<TImage>::PatchMatch() : PatchRadius(0), PatchDistanceFunctor(NULL),
-                                   InitializationStrategy(RANDOM), Random(true),
+                                   Random(true),
                                    AllowedPropagationMask(NULL),
-                                   AddIfBetterStrategy(HISTOGRAM),
-                                   HistogramAcceptanceThreshold(500.0f),
                                    PropagationStrategy(UNIFORM),
-                                   NeighborHistogramMultiplier(2.0f)
+                                   AcceptanceTestFunctor(NULL),
+                                   InitializeFunctor(NULL)
 {
   this->Output = PMImageType::New();
   this->Image = TImage::New();
   this->SourceMask = Mask::New();
   this->TargetMask = Mask::New();
-}
-
-template <typename TImage>
-void PatchMatch<TImage>::Initialize()
-{
-    if(this->InitializationStrategy == RANDOM)
-    {
-      RandomInit();
-    }
-    else if(this->InitializationStrategy == RANDOM_WITH_HISTOGRAM)
-    {
-      RandomInitWithHistogramTest();
-    }
-    else if(this->InitializationStrategy == RANDOM_WITH_HISTOGRAM_NEIGHBOR)
-    {
-      RandomInitWithHistogramNeighborTest();
-    }
-    else if(this->InitializationStrategy == BOUNDARY)
-    {
-      BoundaryInit();
-    }
-    else
-    {
-      throw std::runtime_error("PatchMatch::Initialize: An invalid initialization strategy was chosen!");
-    }
 }
 
 template <typename TImage>
@@ -84,9 +61,7 @@ void PatchMatch<TImage>::AutomaticCompute(PMImageType* const initialization)
   }
   else
   {
-    InitKnownRegion();
-
-    Initialize();
+    InitializeFunctor->Initialize(this->Output);
   }
 
   Compute(initialization);
@@ -104,9 +79,9 @@ void PatchMatch<TImage>::Compute(PMImageType* const initialization)
     srand(0);
   }
 
-  this->DownsampledImage = TImage::New();
-
-  ITKHelpers::Downsample(this->Image.GetPointer(), this->DownsampleFactor, this->DownsampledImage.GetPointer());
+//   this->DownsampledImage = TImage::New();
+// 
+//   ITKHelpers::Downsample(this->Image.GetPointer(), this->DownsampleFactor, this->DownsampledImage.GetPointer());
 
   { // Debug only
   CoordinateImageType::Pointer initialOutput = CoordinateImageType::New();
@@ -159,372 +134,6 @@ void PatchMatch<TImage>::Compute(PMImageType* const initialization)
   }
 
   std::cout << "PatchMatch finished." << std::endl;
-}
-
-template <typename TImage>
-void PatchMatch<TImage>::InitKnownRegion()
-{
-  // Create a zero region
-  itk::Index<2> zeroIndex = {{0,0}};
-  itk::Size<2> zeroSize = {{0,0}};
-  itk::ImageRegion<2> zeroRegion(zeroIndex, zeroSize);
-
-  // Create an invalid match
-  Match invalidMatch;
-  invalidMatch.Region = zeroRegion;
-  //invalidMatch.Score = std::numeric_limits<float>::max();
-  invalidMatch.Score = Match::InvalidScore;
-
-  // Initialize the entire NNfield to be invalid matches
-  ITKHelpers::SetImageToConstant(this->Output.GetPointer(), invalidMatch);
-
-  // Get all of the regions that are entirely inside the image
-  itk::ImageRegion<2> internalRegion =
-             ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
-
-  // Set all of the patches that are entirely inside the source region to exactly
-  // themselves as their nearest neighbor
-  itk::ImageRegionIteratorWithIndex<PMImageType> outputIterator(this->Output, internalRegion);
-
-  while(!outputIterator.IsAtEnd())
-  {
-    // Construct the current region
-    itk::Index<2> currentIndex = outputIterator.GetIndex();
-    itk::ImageRegion<2> currentRegion =
-         ITKHelpers::GetRegionInRadiusAroundPixel(currentIndex, this->PatchRadius);
-
-    if(this->SourceMask->IsValid(currentRegion))
-    {
-      Match selfMatch;
-      selfMatch.Region = currentRegion;
-      selfMatch.Score = 0.0f;
-      outputIterator.Set(selfMatch);
-    }
-
-    ++outputIterator;
-  }
-
-  { // Debug only
-  CoordinateImageType::Pointer initialOutput = CoordinateImageType::New();
-  GetPatchCentersImage(this->Output, initialOutput);
-  ITKHelpers::WriteImage(initialOutput.GetPointer(), "InitKnownRegion_Output.mha");
-  }
-}
-
-template <typename TImage>
-void PatchMatch<TImage>::BoundaryInit()
-{
-  itk::ImageRegion<2> internalRegion =
-             ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
-
-  // Expand the hole
-  Mask::Pointer expandedSourceMask = Mask::New();
-  expandedSourceMask->DeepCopyFrom(this->SourceMask);
-  expandedSourceMask->ExpandHole(this->PatchRadius);
-
-  // Get the expanded boundary
-  Mask::BoundaryImageType::Pointer boundaryImage = Mask::BoundaryImageType::New();
-  unsigned char outputBoundaryPixelValue = 255;
-  expandedSourceMask->FindBoundary(boundaryImage.GetPointer(), Mask::VALID, outputBoundaryPixelValue);
-  ITKHelpers::WriteImage(boundaryImage.GetPointer(), "ExpandedBoundary.png");
-
-  // Get the boundary pixels
-  std::vector<itk::Index<2> > boundaryIndices =
-         ITKHelpers::GetPixelsWithValue(boundaryImage.GetPointer(), outputBoundaryPixelValue);
-
-  std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
-
-  for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
-  {
-    // Construct the current region
-    itk::Index<2> targetPixelIndex = targetPixels[targetPixelId];
-
-    // Only do this for pixels which have not already been initialized to themselves
-    if(this->Output->GetPixel(targetPixelIndex).Score == 0)
-    {
-      continue;
-    }
-
-    itk::ImageRegion<2> currentRegion =
-          ITKHelpers::GetRegionInRadiusAroundPixel(targetPixelIndex, this->PatchRadius);
-
-    if(!this->Image->GetLargestPossibleRegion().IsInside(currentRegion))
-    {
-      continue;
-    }
-    // Find the nearest valid boundary patch
-    unsigned int closestIndexId = ITKHelpers::ClosestIndexId(boundaryIndices, targetPixelIndex);
-    itk::Index<2> closestBoundaryPatchCenter = boundaryIndices[closestIndexId];
-    itk::ImageRegion<2> closestBoundaryPatchRegion =
-          ITKHelpers::GetRegionInRadiusAroundPixel(closestBoundaryPatchCenter,
-                                                    this->PatchRadius);
-
-    if(!this->Image->GetLargestPossibleRegion().IsInside(closestBoundaryPatchRegion))
-    {
-      continue;
-    }
-
-    Match match;
-    match.Region = closestBoundaryPatchRegion;
-    match.Score = this->PatchDistanceFunctor->Distance(closestBoundaryPatchRegion, currentRegion);
-    this->Output->SetPixel(targetPixelIndex, match);
-  }
-
-  std::cout << "Finished BoundaryInit()." << internalRegion << std::endl;
-}
-
-template <typename TImage>
-void PatchMatch<TImage>::RandomInitWithHistogramTest()
-{
-  itk::ImageRegion<2> internalRegion =
-             ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
-
-  std::vector<itk::ImageRegion<2> > validSourceRegions =
-        MaskOperations::GetAllFullyValidRegions(this->SourceMask, internalRegion, this->PatchRadius);
-
-  if(validSourceRegions.size() == 0)
-  {
-    throw std::runtime_error("PatchMatch::RandomInitWithHistogramTest() No valid source regions!");
-  }
-
-  std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
-  std::cout << "RandomInitWithHistogramTest: There are : " << targetPixels.size() << " target pixels." << std::endl;
-  for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
-  {
-    itk::ImageRegion<2> targetRegion = ITKHelpers::GetRegionInRadiusAroundPixel(targetPixels[targetPixelId], this->PatchRadius);
-    if(!this->Image->GetLargestPossibleRegion().IsInside(targetRegion))
-    {
-      continue;
-    }
-
-    itk::Index<2> targetPixel = targetPixels[targetPixelId];
-    if(this->Output->GetPixel(targetPixel).IsValid())
-    {
-      continue;
-    }
-
-    unsigned int numberOfBinsPerDimension = 20;
-    typename TypeTraits<typename HSVImageType::PixelType>::ComponentType rangeMin = 0;
-    typename TypeTraits<typename HSVImageType::PixelType>::ComponentType rangeMax = 1;
-//     std::cout << "Range min: " << rangeMin << std::endl;
-//     std::cout << "Range max: " << rangeMax << std::endl;
-
-    Histogram<int>::HistogramType queryHistogram = Histogram<int>::ComputeImageHistogram1D(this->HSVImage.GetPointer(),
-                                                                                           targetRegion, numberOfBinsPerDimension, rangeMin, rangeMax);
-
-    float histogramDifference;
-    itk::ImageRegion<2> randomValidRegion;
-    Histogram<int>::HistogramType randomPatchHistogram;
-    unsigned int attempts = 0;
-    bool acceptableMatchFound = true;
-    unsigned int maxAttemps = 10;
-    do
-    {
-      unsigned int randomSourceRegionId = Helpers::RandomInt(0, validSourceRegions.size() - 1);
-      randomValidRegion = validSourceRegions[randomSourceRegionId];
-      randomPatchHistogram = Histogram<int>::ComputeImageHistogram1D(this->HSVImage.GetPointer(),
-                                                                     randomValidRegion, numberOfBinsPerDimension, rangeMin, rangeMax);
-      histogramDifference = Histogram<int>::HistogramDifference(queryHistogram, randomPatchHistogram);
-      //std::cout << "histogramDifference: " << histogramDifference << std::endl;
-      attempts++;
-      if(attempts > maxAttemps)
-      {
-//         std::stringstream ss;
-//         ss << "Too many attempts to find a good random match for " << targetPixel;
-//         throw std::runtime_error(ss.str());
-        acceptableMatchFound = false;
-        break;
-      }
-    }
-    while(histogramDifference > this->HistogramAcceptanceThreshold);
-
-    //std::cout << "Attempts: " << attempts << std::endl;
-    Match randomMatch;
-    randomMatch.Region = randomValidRegion;
-
-    if(acceptableMatchFound)
-    {
-      randomMatch.Score = this->PatchDistanceFunctor->Distance(randomValidRegion, targetRegion);
-    }
-    else
-    {
-      //std::cout << "Random initialization failed for " << targetPixel << std::endl;
-      randomMatch.Score = std::numeric_limits<float>::max();
-    }
-
-    this->Output->SetPixel(targetPixel, randomMatch);
-  }
-
-
-  { // Debug only
-  CoordinateImageType::Pointer initialOutput = CoordinateImageType::New();
-  GetPatchCentersImage(this->Output, initialOutput);
-  ITKHelpers::WriteImage(initialOutput.GetPointer(), "RandomInit.mha");
-  }
-  //std::cout << "Finished RandomInit." << internalRegion << std::endl;
-}
-
-
-template <typename TImage>
-void PatchMatch<TImage>::RandomInitWithHistogramNeighborTest()
-{
-  itk::ImageRegion<2> internalRegion =
-             ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
-
-  std::vector<itk::ImageRegion<2> > validSourceRegions =
-        MaskOperations::GetAllFullyValidRegions(this->SourceMask, internalRegion, this->PatchRadius);
-
-  if(validSourceRegions.size() == 0)
-  {
-    throw std::runtime_error("PatchMatch::RandomInitWithHistogramTest() No valid source regions!");
-  }
-
-  std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
-  std::cout << "RandomInitWithHistogramTest: There are : " << targetPixels.size() << " target pixels." << std::endl;
-
-  unsigned int failedMatches = 0;
-  for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
-  {
-    if(targetPixelId % 10000 == 0)
-    {
-      std::cout << "RandomInitWithHistogramNeighborTest() processing " << targetPixelId << " of " << targetPixels.size() << std::endl;
-    }
-    itk::ImageRegion<2> targetRegion = ITKHelpers::GetRegionInRadiusAroundPixel(targetPixels[targetPixelId], this->PatchRadius);
-    if(!this->Image->GetLargestPossibleRegion().IsInside(targetRegion))
-    {
-      continue;
-    }
-
-    itk::Index<2> targetPixel = targetPixels[targetPixelId];
-    if(this->Output->GetPixel(targetPixel).IsValid())
-    {
-      continue;
-    }
-
-    unsigned int numberOfBinsPerDimension = 20;
-    typename TypeTraits<typename HSVImageType::PixelType>::ComponentType rangeMin = 0;
-    typename TypeTraits<typename HSVImageType::PixelType>::ComponentType rangeMax = 1;
-//     std::cout << "Range min: " << rangeMin << std::endl;
-//     std::cout << "Range max: " << rangeMax << std::endl;
-
-    typedef Histogram<int>::HistogramType HistogramType;
-    HistogramType queryHistogram = Histogram<int>::ComputeImageHistogram1D(this->HSVImage.GetPointer(),
-                                                                           targetRegion, numberOfBinsPerDimension, rangeMin, rangeMax);
-
-    float randomHistogramDifference;
-    float neighborHistogramDifference;
-    itk::ImageRegion<2> randomValidRegion;
-    HistogramType randomPatchHistogram;
-    HistogramType neighborPatchHistogram;
-    unsigned int attempts = 0;
-    bool acceptableMatchFound = true;
-    
-    unsigned int maxAttempts = 10;
-    do
-    {
-      unsigned int randomSourceRegionId = Helpers::RandomInt(0, validSourceRegions.size() - 1);
-      randomValidRegion = validSourceRegions[randomSourceRegionId];
-      randomPatchHistogram = Histogram<int>::ComputeImageHistogram1D(this->HSVImage.GetPointer(),
-                                                                     randomValidRegion, numberOfBinsPerDimension, rangeMin, rangeMax);
-
-      itk::Offset<2> randomNeighborOffset = RandomNeighborNonZeroOffset();
-
-      itk::Index<2> neighbor = targetPixel + randomNeighborOffset;
-
-      itk::ImageRegion<2> neighborRegion = ITKHelpers::GetRegionInRadiusAroundPixel(neighbor, this->PatchRadius);
-      neighborPatchHistogram = Histogram<int>::ComputeImageHistogram1D(this->HSVImage.GetPointer(),
-                                                                       neighborRegion, numberOfBinsPerDimension, rangeMin, rangeMax);
-      
-      randomHistogramDifference = Histogram<int>::HistogramDifference(queryHistogram, randomPatchHistogram);
-
-      neighborHistogramDifference = Histogram<int>::HistogramDifference(queryHistogram, neighborPatchHistogram);
-      //std::cout << "histogramDifference: " << histogramDifference << std::endl;
-      attempts++;
-      if(attempts > maxAttempts)
-      {
-//         std::stringstream ss;
-//         ss << "Too many attempts to find a good random match for " << targetPixel;
-//         throw std::runtime_error(ss.str());
-        acceptableMatchFound = false;
-        break;
-      }
-    }
-    while(randomHistogramDifference > (this->NeighborHistogramMultiplier * neighborHistogramDifference));
-
-    //std::cout << "Attempts: " << attempts << std::endl;
-    Match randomMatch;
-    randomMatch.Region = randomValidRegion;
-
-    if(acceptableMatchFound)
-    {
-      randomMatch.Score = this->PatchDistanceFunctor->Distance(randomValidRegion, targetRegion);
-    }
-    else
-    {
-      //std::cout << "Random initialization failed for " << targetPixel << std::endl;
-      randomMatch.Score = std::numeric_limits<float>::max();
-      failedMatches++;
-    }
-
-    this->Output->SetPixel(targetPixel, randomMatch);
-  } // end loop over target pixels
-
-  std::cout << failedMatches << " matches failed (out of " << targetPixels.size() << ")" << std::endl;
-
-  { // Debug only
-  CoordinateImageType::Pointer initialOutput = CoordinateImageType::New();
-  GetPatchCentersImage(this->Output, initialOutput);
-  ITKHelpers::WriteImage(initialOutput.GetPointer(), "RandomInit.mha");
-  }
-  //std::cout << "Finished RandomInit." << internalRegion << std::endl;
-}
-
-template <typename TImage>
-void PatchMatch<TImage>::RandomInit()
-{
-  itk::ImageRegion<2> internalRegion =
-             ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
-
-  std::vector<itk::ImageRegion<2> > validSourceRegions =
-        MaskOperations::GetAllFullyValidRegions(this->SourceMask, internalRegion, this->PatchRadius);
-
-  if(validSourceRegions.size() == 0)
-  {
-    throw std::runtime_error("PatchMatch: No valid source regions!");
-  }
-
-  std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
-  std::cout << "RandomInit: There are : " << targetPixels.size() << " target pixels." << std::endl;
-  for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
-  {
-    itk::ImageRegion<2> targetRegion = ITKHelpers::GetRegionInRadiusAroundPixel(targetPixels[targetPixelId], this->PatchRadius);
-    if(!this->Image->GetLargestPossibleRegion().IsInside(targetRegion))
-    {
-      continue;
-    }
-
-    itk::Index<2> targetPixel = targetPixels[targetPixelId];
-    if(this->Output->GetPixel(targetPixel).IsValid())
-    {
-      continue;
-    }
-    unsigned int randomSourceRegionId = Helpers::RandomInt(0, validSourceRegions.size() - 1);
-    itk::ImageRegion<2> randomValidRegion = validSourceRegions[randomSourceRegionId];
-
-    Match randomMatch;
-    randomMatch.Region = randomValidRegion;
-    randomMatch.Score = this->PatchDistanceFunctor->Distance(randomValidRegion, targetRegion);
-
-    this->Output->SetPixel(targetPixel, randomMatch);
-  }
-
-
-  { // Debug only
-  CoordinateImageType::Pointer initialOutput = CoordinateImageType::New();
-  GetPatchCentersImage(this->Output, initialOutput);
-  ITKHelpers::WriteImage(initialOutput.GetPointer(), "RandomInit.mha");
-  }
-  //std::cout << "Finished RandomInit." << internalRegion << std::endl;
 }
 
 template <typename TImage>
@@ -618,6 +227,12 @@ void PatchMatch<TImage>::GetPatchCentersImage(PMImageType* const pmImage, Coordi
 }
 
 template <typename TImage>
+PatchDistance<TImage>* PatchMatch<TImage>::GetPatchDistanceFunctor()
+{
+  return this->PatchDistanceFunctor;
+}
+
+template <typename TImage>
 void PatchMatch<TImage>::SetPatchDistanceFunctor(PatchDistance<TImage>* const patchDistanceFunctor)
 {
   this->PatchDistanceFunctor = patchDistanceFunctor;
@@ -646,34 +261,33 @@ void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor)
 //       std::cout << "Propagation() processing " << targetPixelId << " of " << targetPixels.size() << std::endl;
 //     }
 
-    itk::Index<2> targetRegionCenter = targetPixels[targetPixelId];
+    itk::Index<2> targetPixel = targetPixels[targetPixelId];
     // When using PatchMatch for inpainting, most of the NN-field will be an exact match.
     // We don't have to search anymore once the exact match is found.
-    if((this->Output->GetPixel(targetRegionCenter).Score == 0) ||
-       !this->Output->GetPixel(targetRegionCenter).IsValid() )
+    if((this->Output->GetPixel(targetPixel).Score == 0) ||
+       !this->Output->GetPixel(targetPixel).IsValid() )
     {
       skippedPixels++;
       continue;
     }
 
-    itk::ImageRegion<2> centerRegion =
-          ITKHelpers::GetRegionInRadiusAroundPixel(targetRegionCenter, this->PatchRadius);
+    itk::ImageRegion<2> targetRegion =
+          ITKHelpers::GetRegionInRadiusAroundPixel(targetPixel, this->PatchRadius);
 
-    if(!this->Image->GetLargestPossibleRegion().IsInside(centerRegion))
+    if(!this->Image->GetLargestPossibleRegion().IsInside(targetRegion))
       {
         //std::cerr << "Pixel " << potentialPropagationPixel << " is outside of the image." << std::endl;
         continue;
       }
 
-    std::vector<itk::Index<2> > potentialPropagationPixels = neighborFunctor(targetRegionCenter);
+    std::vector<itk::Index<2> > potentialPropagationPixels = neighborFunctor(targetPixel);
 
     for(size_t potentialPropagationPixelId = 0; potentialPropagationPixelId < potentialPropagationPixels.size();
         ++potentialPropagationPixelId)
     {
       itk::Index<2> potentialPropagationPixel = potentialPropagationPixels[potentialPropagationPixelId];
 
-      //itk::Offset<2> potentialPropagationPixelOffset = targetRegionCenter - potentialPropagationPixel;
-      itk::Offset<2> potentialPropagationPixelOffset = potentialPropagationPixel - targetRegionCenter;
+      itk::Offset<2> potentialPropagationPixelOffset = potentialPropagationPixel - targetPixel;
 
       //assert(this->Image->GetLargestPossibleRegion().IsInside(potentialPropagationPixel));
       if(!this->Image->GetLargestPossibleRegion().IsInside(potentialPropagationPixel))
@@ -706,7 +320,7 @@ void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor)
       }
       else
       {
-        float distance = this->PatchDistanceFunctor->Distance(potentialMatchRegion, centerRegion);
+        float distance = this->PatchDistanceFunctor->Distance(potentialMatchRegion, targetRegion);
 
         Match potentialMatch;
         potentialMatch.Region = potentialMatchRegion;
@@ -715,17 +329,10 @@ void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor)
         //float oldScore = this->Output->GetPixel(targetRegionCenter).Score; // For debugging only
         //bool better = AddIfBetter(targetRegionCenter, potentialMatch);
 
-        AddIfBetter(targetRegionCenter, potentialMatch);
-
-//         if(better)
-//         {
-//           std::cout << "Propagation successful for " << center << " - lowered score from " << oldScore
-//                     << " to " << potentialMatch.Score << std::endl;
-//         }
-//         else
-//         {
-//           std::cout << "Propagation not successful." << std::endl;
-//         }
+        if(this->AcceptanceTestFunctor->IsBetter(targetRegion, this->Output->GetPixel(targetPixel), potentialMatch))
+        {
+          this->Output->SetPixel(targetPixel, potentialMatch);
+        }
 
       }
     } // end loop over potentialPropagationPixels
@@ -769,18 +376,18 @@ void PatchMatch<TImage>::RandomSearch()
 //       std::cout << "RandomSearch() processing " << targetPixelId << " of " << targetPixels.size() << std::endl;
 //     }
 
-    itk::Index<2> targetRegionCenter = targetPixels[targetPixelId];
+    itk::Index<2> targetPixel = targetPixels[targetPixelId];
 
     // For inpainting, most of the NN-field will be an exact match. We don't have to search anymore
     // once the exact match is found.
-    if((this->Output->GetPixel(targetRegionCenter).Score == 0) ||
-       !this->Output->GetPixel(targetRegionCenter).IsValid() )
+    if((this->Output->GetPixel(targetPixel).Score == 0) ||
+       !this->Output->GetPixel(targetPixel).IsValid() )
     {
       skippedPixels++;
       continue;
     }
 
-    itk::ImageRegion<2> targetRegion = ITKHelpers::GetRegionInRadiusAroundPixel(targetRegionCenter, this->PatchRadius);
+    itk::ImageRegion<2> targetRegion = ITKHelpers::GetRegionInRadiusAroundPixel(targetPixel, this->PatchRadius);
 
     if(!this->Image->GetLargestPossibleRegion().IsInside(targetRegion))
       {
@@ -802,7 +409,7 @@ void PatchMatch<TImage>::RandomSearch()
 
     while (radius > this->PatchRadius) // while there is more than just the current patch to search
     {
-      itk::ImageRegion<2> searchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(targetRegionCenter, radius);
+      itk::ImageRegion<2> searchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(targetPixel, radius);
       searchRegion.Crop(this->Image->GetLargestPossibleRegion());
 
       unsigned int maxNumberOfAttempts = 5; // How many random patches to test for validity before giving up
@@ -837,17 +444,11 @@ void PatchMatch<TImage>::RandomSearch()
       // it must be better than the worst patch currently stored.
 //       float oldScore = this->Output->GetPixel(targetRegionCenter).Score; // For debugging only
 //       bool better = AddIfBetter(targetRegionCenter, potentialMatch);
-      
-      AddIfBetter(targetRegionCenter, potentialMatch);
-//       if(better)
-//       {
-//         std::cout << "Random search successful for " << center << " - lowered score from " << oldScore
-//                   << " to " << potentialMatch.Score << std::endl;
-//       }
-//       else
-//       {
-//         std::cout << "Random search not successful." << std::endl;
-//       }
+
+      if(this->AcceptanceTestFunctor->IsBetter(targetRegion, this->Output->GetPixel(targetPixel), potentialMatch))
+      {
+        this->Output->SetPixel(targetPixel, potentialMatch);
+      }
 
       radius *= alpha;
     } // end decreasing radius loop
@@ -855,202 +456,6 @@ void PatchMatch<TImage>::RandomSearch()
   } // end loop over target pixels
 
   std::cout << "RandomSearch skipped " << skippedPixels << " (processed " << targetPixels.size() - skippedPixels << ") pixels." << std::endl;
-}
-
-/*
-template <typename TImage>
-bool PatchMatch<TImage>::AddIfBetterDownsampledHistogram(const itk::Index<2>& index, const Match& potentialMatch)
-{
-  Match currentMatch = this->Output->GetPixel(index);
-  if(potentialMatch.Score < currentMatch.Score)
-  {
-    const unsigned int numberOfBinsPerDimension = 20;
-
-    itk::Index<2> smallIndex = {{static_cast<int>(index[0] * this->DownsampleFactor),
-                                  static_cast<int>(index[1] * this->DownsampleFactor)}};
-    unsigned int smallPatchRadius = this->PatchRadius / 2;
-
-    itk::Index<2> queryPatchCenter = ITKHelpers::GetRegionCenter(potentialMatch.Region);
-    itk::Index<2> smallQueryPatchCenter = {{static_cast<int>(queryPatchCenter[0] * this->DownsampleFactor),
-                                            static_cast<int>(queryPatchCenter[1] * this->DownsampleFactor)}};
-
-    itk::ImageRegion<2> smallQueryRegion = ITKHelpers::GetRegionInRadiusAroundPixel(smallIndex, smallPatchRadius);
-
-    itk::ImageRegion<2> smallPotentialMatchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(smallQueryPatchCenter, smallPatchRadius);
-
-    //typedef float BinValueType;
-    typedef int BinValueType;
-    typedef Histogram<BinValueType>::HistogramType HistogramType;
-
-    HistogramType queryHistogram = Histogram<BinValueType>::Compute1DConcatenatedHistogramOfMultiChannelImage(
-                  this->DownsampledImage.GetPointer(), smallQueryRegion, numberOfBinsPerDimension, 0, 255);
-
-    HistogramType potentialMatchHistogram = Histogram<BinValueType>::Compute1DConcatenatedHistogramOfMultiChannelImage(
-                  this->DownsampledImage.GetPointer(), smallPotentialMatchRegion, numberOfBinsPerDimension, 0, 255);
-
-    float potentialMatchHistogramDifference = Histogram<BinValueType>::HistogramDifference(queryHistogram, potentialMatchHistogram);
-
-    
-    if(potentialMatchHistogramDifference < this->HistogramAcceptanceThreshold)
-    {
-//       std::cout << "Match accepted. SSD " << potentialMatch.Score << " (better than " << currentMatch.Score << ", "
-//                 << " Potential Match Histogram score: " << potentialMatchHistogramDifference << std::endl;
-      this->Output->SetPixel(index, potentialMatch);
-      return true;
-    }
-    else
-    {
-//       std::cout << "Rejected better SSD match: " << potentialMatch.Score << " (better than " << currentMatch.Score << std::endl
-//                 << " Potential Match Histogram score: " << potentialMatchHistogramDifference << std::endl;
-      return false;
-    }
-    
-  } // end if SSD is better
-
-  return false;
-}
-*/
-
-
-template <typename TImage>
-bool PatchMatch<TImage>::AddIfBetterHistogram(const itk::Index<2>& index, const Match& potentialMatch)
-{
-  Match currentMatch = this->Output->GetPixel(index);
-  if(potentialMatch.Score < currentMatch.Score)
-  {
-    const unsigned int numberOfBinsPerDimension = 20;
-
-    itk::ImageRegion<2> queryRegion = ITKHelpers::GetRegionInRadiusAroundPixel(index, this->PatchRadius);
-
-    //typedef float BinValueType;
-    typedef int BinValueType;
-    typedef Histogram<BinValueType>::HistogramType HistogramType;
-
-    typename TypeTraits<typename HSVImageType::PixelType>::ComponentType rangeMin = 0;
-    typename TypeTraits<typename HSVImageType::PixelType>::ComponentType rangeMax = 1;
-    
-    HistogramType queryHistogram = Histogram<BinValueType>::ComputeImageHistogram1D(
-                  this->HSVImage.GetPointer(), queryRegion, numberOfBinsPerDimension, rangeMin, rangeMax);
-
-    HistogramType potentialMatchHistogram = Histogram<BinValueType>::ComputeImageHistogram1D(
-                  this->HSVImage.GetPointer(), potentialMatch.Region, numberOfBinsPerDimension, rangeMin, rangeMax);
-
-    float potentialMatchHistogramDifference = Histogram<BinValueType>::HistogramDifference(queryHistogram, potentialMatchHistogram);
-
-    if(potentialMatchHistogramDifference < this->HistogramAcceptanceThreshold)
-    {
-//       std::cout << "Match accepted. SSD " << potentialMatch.Score << " (better than " << currentMatch.Score << ", "
-//                 << " Potential Match Histogram score: " << potentialMatchHistogramDifference << std::endl;
-      this->Output->SetPixel(index, potentialMatch);
-      return true;
-    }
-    else
-    {
-//       std::cout << "Rejected better SSD match: " << potentialMatch.Score << " (better than " << currentMatch.Score << std::endl
-//                 << " Potential Match Histogram score: " << potentialMatchHistogramDifference << std::endl;
-      return false;
-    }
-
-  }
-
-  return false;
-}
-
-template <typename TImage>
-bool PatchMatch<TImage>::AddIfBetterNeighborHistogram(const itk::Index<2>& queryIndex, const Match& potentialMatch)
-{
-  Match currentMatch = this->Output->GetPixel(queryIndex);
-  if(potentialMatch.Score < currentMatch.Score)
-  {
-    const unsigned int numberOfBinsPerDimension = 20;
-
-    typename TypeTraits<typename HSVImageType::PixelType>::ComponentType rangeMin = 0;
-    typename TypeTraits<typename HSVImageType::PixelType>::ComponentType rangeMax = 1;
-
-    itk::ImageRegion<2> queryRegion = ITKHelpers::GetRegionInRadiusAroundPixel(queryIndex, this->PatchRadius);
-
-    typedef Histogram<int>::HistogramType HistogramType;
-    HistogramType queryHistogram = Histogram<int>::ComputeImageHistogram1D(
-                  this->HSVImage.GetPointer(), queryRegion, numberOfBinsPerDimension, rangeMin, rangeMax);
-
-    HistogramType potentialMatchHistogram = Histogram<int>::ComputeImageHistogram1D(
-                  this->HSVImage.GetPointer(), potentialMatch.Region, numberOfBinsPerDimension, rangeMin, rangeMax);
-
-    itk::Offset<2> randomNeighborOffset = RandomNeighborNonZeroOffset();
-
-    itk::Index<2> neighbor = queryIndex + randomNeighborOffset;
-
-    itk::ImageRegion<2> neighborRegion = ITKHelpers::GetRegionInRadiusAroundPixel(neighbor, this->PatchRadius);
-    HistogramType neighborHistogram = Histogram<int>::ComputeImageHistogram1D(
-                  this->HSVImage.GetPointer(), neighborRegion, numberOfBinsPerDimension, rangeMin, rangeMax);
-
-    float neighborHistogramDifference = Histogram<int>::HistogramDifference(neighborHistogram, queryHistogram);
-
-    float potentialMatchHistogramDifference = Histogram<int>::HistogramDifference(queryHistogram, potentialMatchHistogram);
-
-    if(potentialMatchHistogramDifference < (this->NeighborHistogramMultiplier * neighborHistogramDifference))
-    {
-//       std::cout << "AddIfBetterNeighborHistogram: Match accepted. SSD " << potentialMatch.Score << " (better than " << currentMatch.Score << ", "
-//                 << " Potential Match Histogram score: " << potentialMatchHistogramDifference
-//                 << " vs neighbor histogram score " << neighborHistogramDifference << std::endl;
-      this->Output->SetPixel(queryIndex, potentialMatch);
-      return true;
-    }
-    else
-    {
-//       std::cout << "AddIfBetterNeighborHistogram: Rejected better SSD match: " << potentialMatch.Score << " (better than " << currentMatch.Score << std::endl
-//                 << " Potential Match Histogram score: " << potentialMatchHistogramDifference
-//                 << " vs neighbor histogram score " << neighborHistogramDifference << std::endl;
-      return false;
-    }
-
-  }
-  return false;
-}
-
-template <typename TImage>
-bool PatchMatch<TImage>::AddIfBetterSSD(const itk::Index<2>& index, const Match& potentialMatch)
-{
-  Match currentMatch = this->Output->GetPixel(index);
-  if(potentialMatch.Score < currentMatch.Score)
-  {
-    this->Output->SetPixel(index, potentialMatch);
-    return true;
-  }
-  return false;
-}
-
-template <typename TImage>
-bool PatchMatch<TImage>::AddIfBetter(const itk::Index<2>& index, const Match& potentialMatch)
-{
-  if(this->AddIfBetterStrategy == HISTOGRAM)
-  {
-    return AddIfBetterHistogram(index, potentialMatch);
-  }
-  if(this->AddIfBetterStrategy == NEIGHBOR_HISTOGRAM)
-  {
-    return AddIfBetterNeighborHistogram(index, potentialMatch);
-  }
-  else if(this->AddIfBetterStrategy == SSD)
-  {
-    return AddIfBetterSSD(index, potentialMatch);
-  }
-  else
-  {
-    throw std::runtime_error("Invalid AddIfBetterStrategy specified!");
-  }
-}
-
-template <typename TImage>
-void PatchMatch<TImage>::SetAddIfBetterStrategy(const AddIfBetterStrategyEnum addIfBetterStrategy)
-{
-  this->AddIfBetterStrategy = addIfBetterStrategy;
-}
-
-template <typename TImage>
-void PatchMatch<TImage>::SetInitializationStrategy(const InitializationStrategyEnum initializationStrategy)
-{
-  this->InitializationStrategy = initializationStrategy;
 }
 
 template <typename TImage>
@@ -1068,6 +473,18 @@ bool PatchMatch<TImage>::AllowPropagationFrom(const itk::Index<2>& potentialProp
   }
 
   return false;
+}
+
+template <typename TImage>
+void PatchMatch<TImage>::SetInitializer(Initializer* const initializer)
+{
+  this->InitializeFunctor = initializer;
+}
+
+template <typename TImage>
+void PatchMatch<TImage>::SetAcceptanceTest(AcceptanceTest* const acceptanceTest)
+{
+  this->AcceptanceTestFunctor = acceptanceTest;
 }
 
 template <typename TImage>
@@ -1107,32 +524,17 @@ void PatchMatch<TImage>::WriteValidPixels(const std::string& fileName)
 }
 
 template <typename TImage>
-void PatchMatch<TImage>::SetHistogramAcceptanceThreshold(const float histogramAcceptanceThreshold)
-{
-  this->HistogramAcceptanceThreshold = histogramAcceptanceThreshold;
-}
-
-template <typename TImage>
 void PatchMatch<TImage>::SetPropagationStrategy(const PropagationStrategyEnum propagationStrategy)
 {
   this->PropagationStrategy = propagationStrategy;
 }
 
+
+
 template <typename TImage>
-itk::Offset<2> PatchMatch<TImage>::RandomNeighborNonZeroOffset()
+void PatchMatch<TImage>::Initialize()
 {
-  int randomOffsetX = 0;
-  int randomOffsetY = 0;
-  while((randomOffsetX == 0) && (randomOffsetY == 0) ) // We don't want the random offset to be (0,0), because the histogram difference would be zero!
-  {
-    // Generate random numbers in the set (-1,0,1) by generating a number in (0,1,2) and then subtracting 1
-    randomOffsetX = rand()%3 - 1;
-    randomOffsetY = rand()%3 - 1;
-  }
-
-  itk::Offset<2> randomNeighborNonZeroOffset = {{randomOffsetX, randomOffsetY}};
-
-  return randomNeighborNonZeroOffset;
+  this->InitializeFunctor->Initialize(this->Output);
 }
 
 #endif

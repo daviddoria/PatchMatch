@@ -6,5 +6,5 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
 ADD_EXECUTABLE(PatchMatch PatchMatch.cpp)
 TARGET_LINK_LIBRARIES(PatchMatch Mask)
 
-ADD_EXECUTABLE(PatchMatchRings PatchMatchRings.cpp)
-TARGET_LINK_LIBRARIES(PatchMatchRings Mask)
+# ADD_EXECUTABLE(PatchMatchRings PatchMatchRings.cpp)
+# TARGET_LINK_LIBRARIES(PatchMatchRings Mask)

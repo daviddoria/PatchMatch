@@ -34,6 +34,7 @@
 
 // Custom
 #include "PatchMatch.h"
+#include "InitializerRandom.h"
 
 int main(int argc, char*argv[])
 {
@@ -95,7 +96,14 @@ int main(int argc, char*argv[])
   PatchMatchType patchMatch;
   patchMatch.SetImage(image);
   patchMatch.SetPatchRadius(patchRadius);
-  patchMatch.SetInitializationStrategy(PatchMatchType::RANDOM);
+
+  InitializerRandom<ImageType> initializer(image, patchRadius);
+  initializer.SetTargetMask(targetMask);
+  initializer.SetSourceMask(sourceMask);
+  initializer.SetPatchDistanceFunctor(patchDistanceFunctor);
+  
+  patchMatch.SetInitializer(&initializer);
+  patchMatch.Initialize();
 
   patchMatch.SetPatchDistanceFunctor(patchDistanceFunctor);
 
