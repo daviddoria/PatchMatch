@@ -24,6 +24,8 @@
 // Custom
 #include "Match.h"
 
+/** Set every pixel whose surrounding patch is entirely in the source region
+  * to have its nearest neighbor as exactly itself. */
 template <typename TImage>
 class InitializerKnownRegion : public InitializerImage<TImage>
 {
@@ -34,8 +36,15 @@ public:
   InitializerKnownRegion(TImage* const image, const unsigned int patchRadius) :
     InitializerImage<TImage>(image, patchRadius) {}
 
+  /** Set every pixel whose surrounding patch is entirely in the source region
+    * to have its nearest neighbor as exactly itself. Do not modify other pixles in 'initialization'.*/
   virtual void Initialize(itk::Image<Match, 2>* const initialization)
   {
+    assert(initialization);
+    assert(this->Image);
+    assert(initialization->GetLargestPossibleRegion().GetSize() ==
+           this->Image->GetLargestPossibleRegion().GetSize());
+
     // Create a zero region
     itk::Index<2> zeroIndex = {{0,0}};
     itk::Size<2> zeroSize = {{0,0}};
@@ -44,7 +53,6 @@ public:
     // Create an invalid match
     Match invalidMatch;
     invalidMatch.Region = zeroRegion;
-    //invalidMatch.Score = std::numeric_limits<float>::max();
     invalidMatch.Score = Match::InvalidScore;
 
     // Initialize the entire NNfield to be invalid matches
@@ -53,7 +61,8 @@ public:
     // Get all of the regions that are entirely inside the image
     itk::ImageRegion<2> internalRegion =
               ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
-
+    std::cout << "Internal region of " << this->Image->GetLargestPossibleRegion()
+              << " is " << internalRegion << std::endl;
     // Set all of the patches that are entirely inside the source region to exactly
     // themselves as their nearest neighbor
     typedef itk::Image<Match, 2> PMImageType;
@@ -77,11 +86,6 @@ public:
       ++outputIterator;
     }
 
-//     { // Debug only
-//     CoordinateImageType::Pointer initialOutput = CoordinateImageType::New();
-//     GetPatchCentersImage(this->Output, initialOutput);
-//     ITKHelpers::WriteImage(initialOutput.GetPointer(), "InitKnownRegion_Output.mha");
-//     }
   }
 };
 

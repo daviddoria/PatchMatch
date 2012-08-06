@@ -25,7 +25,8 @@
 template <typename TImage>
 class AcceptanceTestHistogram : public AcceptanceTestImage<TImage>
 {
-  virtual bool IsBetter(const itk::ImageRegion<2>& queryRegion, const Match& oldMatch, const Match& potentialBetterMatch)
+  virtual bool IsBetter(const itk::ImageRegion<2>& queryRegion, const Match& oldMatch,
+                        const Match& potentialBetterMatch)
   {
     Match currentMatch = this->Output->GetPixel(index);
     if(potentialMatch.Score < currentMatch.Score)

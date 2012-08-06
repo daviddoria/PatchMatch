@@ -16,26 +16,19 @@
  *
  *=========================================================================*/
 
-#ifndef AcceptanceTestSSD_H
-#define AcceptanceTestSSD_H
+#ifndef AcceptanceTestAcceptAll_H
+#define AcceptanceTestAcceptAll_H
 
 // Custom
 #include "AcceptanceTest.h"
 
 template <typename TImage>
-class AcceptanceTestSSD : public AcceptanceTestImage<TImage>
+class AcceptanceTestAcceptAll : public AcceptanceTestImage<TImage>
 {
-  virtual bool IsBetter(const itk::ImageRegion<2>& queryRegion, const Match& currentMatch,
+  virtual bool IsBetter(const itk::ImageRegion<2>& queryRegion, const Match& oldMatch,
                         const Match& potentialBetterMatch)
   {
-    if(potentialBetterMatch.Score < currentMatch.Score)
-    {
-      return true;
-    }
-    else
-    {
-      return false;
-    }
+    return true;
   }
 
 };

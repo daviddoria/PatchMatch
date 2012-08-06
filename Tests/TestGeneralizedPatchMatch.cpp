@@ -79,7 +79,7 @@ int main(int argc, char*argv[])
   patchMatch.SetSourceMask(sourceMask);
   patchMatch.SetIterations(10);
 
-  patchMatch.Compute(NULL);
+  patchMatch.Compute();
 
   PatchMatch<ImageType>::CoordinateImageType::Pointer output = PatchMatch<ImageType>::CoordinateImageType::New();
 

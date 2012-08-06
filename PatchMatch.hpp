@@ -42,33 +42,16 @@ PatchMatch<TImage>::PatchMatch() : PatchRadius(0), PatchDistanceFunctor(NULL),
                                    Random(true),
                                    AllowedPropagationMask(NULL),
                                    PropagationStrategy(UNIFORM),
-                                   AcceptanceTestFunctor(NULL),
-                                   InitializeFunctor(NULL)
+                                   AcceptanceTestFunctor(NULL)
 {
-  this->Output = PMImageType::New();
+  this->Output = MatchImageType::New();
   this->Image = TImage::New();
   this->SourceMask = Mask::New();
   this->TargetMask = Mask::New();
 }
 
 template <typename TImage>
-void PatchMatch<TImage>::AutomaticCompute(PMImageType* const initialization)
-{
-  // If an initialization is provided, use it. Otherwise, generate one.
-  if(initialization)
-  {
-    ITKHelpers::DeepCopy(initialization, this->Output.GetPointer());
-  }
-  else
-  {
-    InitializeFunctor->Initialize(this->Output);
-  }
-
-  Compute(initialization);
-}
-
-template <typename TImage>
-void PatchMatch<TImage>::Compute(PMImageType* const initialization)
+void PatchMatch<TImage>::Compute()
 {
   if(this->Random)
   {
@@ -79,21 +62,14 @@ void PatchMatch<TImage>::Compute(PMImageType* const initialization)
     srand(0);
   }
 
-//   this->DownsampledImage = TImage::New();
-// 
-//   ITKHelpers::Downsample(this->Image.GetPointer(), this->DownsampleFactor, this->DownsampledImage.GetPointer());
-
   { // Debug only
-  CoordinateImageType::Pointer initialOutput = CoordinateImageType::New();
-  GetPatchCentersImage(this->Output, initialOutput);
-  ITKHelpers::WriteImage(initialOutput.GetPointer(), "initialization.mha");
-
   ITKHelpers::WriteImage(this->TargetMask.GetPointer(), "PatchMatch_TargetMask.png");
   ITKHelpers::WriteImage(this->SourceMask.GetPointer(), "PatchMatch_SourceMask.png");
   ITKHelpers::WriteImage(this->AllowedPropagationMask.GetPointer(), "PatchMatch_PropagationMask.png");
   }
 
-  // Initialize this so that we propagate forward first (the propagation direction toggles at each iteration)
+  // Initialize this so that we propagate forward first
+  // (the propagation direction toggles at each iteration)
   bool forwardPropagation = true;
 
   // For the number of iterations specified, perform the appropriate propagation and then a random search
@@ -137,7 +113,7 @@ void PatchMatch<TImage>::Compute(PMImageType* const initialization)
 }
 
 template <typename TImage>
-typename PatchMatch<TImage>::PMImageType* PatchMatch<TImage>::GetOutput()
+typename PatchMatch<TImage>::MatchImageType* PatchMatch<TImage>::GetOutput()
 {
   return this->Output;
 }
@@ -202,12 +178,14 @@ void PatchMatch<TImage>::SetAllowedPropagationMask(Mask* const mask)
 }
 
 template <typename TImage>
-void PatchMatch<TImage>::GetPatchCentersImage(PMImageType* const pmImage, CoordinateImageType* const output)
+void PatchMatch<TImage>::GetPatchCentersImage(const MatchImageType* const matchImage,
+                                              CoordinateImageType* const output)
 {
-  output->SetRegions(pmImage->GetLargestPossibleRegion());
+  output->SetRegions(matchImage->GetLargestPossibleRegion());
   output->Allocate();
 
-  itk::ImageRegionIterator<PMImageType> imageIterator(pmImage, pmImage->GetLargestPossibleRegion());
+  itk::ImageRegionConstIterator<MatchImageType> imageIterator(matchImage,
+                                                              matchImage->GetLargestPossibleRegion());
 
   while(!imageIterator.IsAtEnd())
     {
@@ -250,6 +228,7 @@ template <typename TNeighborFunctor>
 void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor)
 {
   assert(this->AllowedPropagationMask);
+  assert(this->AcceptanceTestFunctor);
 
   std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
   std::cout << "Propagation: There are " << targetPixels.size() << " target pixels." << std::endl;
@@ -476,9 +455,9 @@ bool PatchMatch<TImage>::AllowPropagationFrom(const itk::Index<2>& potentialProp
 }
 
 template <typename TImage>
-void PatchMatch<TImage>::SetInitializer(Initializer* const initializer)
+void PatchMatch<TImage>::SetInitialNNField(MatchImageType* const initialMatchImage)
 {
-  this->InitializeFunctor = initializer;
+  ITKHelpers::DeepCopy(initialMatchImage, this->Output.GetPointer());
 }
 
 template <typename TImage>
@@ -508,7 +487,8 @@ void PatchMatch<TImage>::WriteValidPixels(const std::string& fileName)
   image->Allocate();
   image->FillBuffer(0);
 
-  itk::ImageRegionConstIterator<PMImageType> imageIterator(this->Output, this->Output->GetLargestPossibleRegion());
+  itk::ImageRegionConstIterator<MatchImageType> imageIterator(this->Output,
+                                                              this->Output->GetLargestPossibleRegion());
 
   while(!imageIterator.IsAtEnd())
   {
@@ -529,12 +509,12 @@ void PatchMatch<TImage>::SetPropagationStrategy(const PropagationStrategyEnum pr
   this->PropagationStrategy = propagationStrategy;
 }
 
-
-
 template <typename TImage>
-void PatchMatch<TImage>::Initialize()
+void PatchMatch<TImage>::WriteNNField(const MatchImageType* const nnField, const std::string& fileName)
 {
-  this->InitializeFunctor->Initialize(this->Output);
+  CoordinateImageType::Pointer coordinateImage = CoordinateImageType::New();
+  GetPatchCentersImage(nnField, coordinateImage.GetPointer());
+  ITKHelpers::WriteImage(coordinateImage.GetPointer(), fileName);
 }
 
 #endif

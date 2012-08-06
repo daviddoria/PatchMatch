@@ -32,7 +32,6 @@
 // Custom
 #include "Match.h"
 #include "AcceptanceTest.h"
-#include "Initializer.h"
 
 /** This class computes a nearest neighbor field using the PatchMatch algorithm. */
 template<typename TImage>
@@ -53,19 +52,13 @@ public:
   PatchDistance<TImage>* GetPatchDistanceFunctor();
 
   /** The type that is used to store the nearest neighbor field. */
-  typedef itk::Image<Match, 2> PMImageType;
+  typedef itk::Image<Match, 2> MatchImageType;
 
   /** The type that is used to output the (X,Y,Score) image for inspection. */
   typedef itk::Image<itk::CovariantVector<float, 3>, 2> CoordinateImageType;
 
-  /** Initialize internally.*/
-  virtual void AutomaticCompute(PMImageType* const initialization);
-  
-  /** Perform multiple iterations of propagation and random search (do the real work).
-    * 'initialization' can come from a previous iteration of an algorithm like BDSInpainting. If
-    * 'initialization' is null, this function computes an initialization using one of the algorithms
-    * provided by this class (RandomInit() or BoundaryInit() ).*/
-  virtual void Compute(PMImageType* const initialization);
+  /** Perform multiple iterations of propagation and random search.*/
+  virtual void Compute();
 
   /** Propagate good matches from specified offsets. In the traditional algorithm,
     * ForwardPropagation() and BackwardPropagation() call this function with "above and left"
@@ -86,7 +79,7 @@ public:
   void RandomSearch();
 
   /** Get the Output. */
-  PMImageType* GetOutput();
+  MatchImageType* GetOutput();
 
   /** Set the number of iterations to perform. */
   void SetIterations(const unsigned int iterations);
@@ -96,9 +89,6 @@ public:
 
   /** Set the image to operate on. */
   void SetImage(TImage* const image);
-
-  /** Set the initializer to use. */
-  void SetInitializer(Initializer* const initializer);
 
   /** Set the acceptance test to use. */
   void SetAcceptanceTest(AcceptanceTest* const acceptanceTest);
@@ -119,18 +109,22 @@ public:
 
   /** Get an image where the channels are (x component, y component, score) from the nearest
     * neighbor field struct. */
-  static void GetPatchCentersImage(PMImageType* const pmImage, CoordinateImageType* const output);
+  static void GetPatchCentersImage(const MatchImageType* const pmImage, CoordinateImageType* const output);
 
   /** Set the choice of propagation strategy. */
   void SetPropagationStrategy(const PropagationStrategyEnum propagationStrategy);
-  
+
   /** Set if the result should be randomized. This should only be false for testing purposes. */
   void SetRandom(const bool random);
 
   /** Write the valid pixels. */
   void WriteValidPixels(const std::string& fileName);
 
-  void Initialize();
+  /** Write a NNField. */
+  static void WriteNNField(const MatchImageType* const nnField, const std::string& fileName);
+
+  /** Initialize the NNField. */
+  void SetInitialNNField(MatchImageType* const initialization);
 
 protected:
 
@@ -141,7 +135,7 @@ protected:
   unsigned int PatchRadius;
 
   /** The intermediate and final output. */
-  PMImageType::Pointer Output;
+  MatchImageType::Pointer Output;
 
   /** The image to operate on. */
   typename TImage::Pointer Image;
@@ -179,8 +173,6 @@ protected:
   HSVImageType::Pointer HSVImage;
 
   AcceptanceTest* AcceptanceTestFunctor;
-
-  Initializer* InitializeFunctor;
 }; // end PatchMatch class
 
 #include "PatchMatch.hpp"

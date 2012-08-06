@@ -21,6 +21,7 @@
 
 #include "Initializer.h"
 
+/** Set target pixels in the TargetMask to have random nearest neighbors. */
 template <typename TImage>
 class InitializerRandom : public InitializerImage<TImage>
 {
@@ -31,6 +32,8 @@ public:
   InitializerRandom(TImage* const image, const unsigned int patchRadius) :
     InitializerImage<TImage>(image, patchRadius) {}
 
+  /** Set target pixels (in the TargetMask) in 'initialization' to have random nearest neighbors.
+    * Do not modify other pixles in 'initialization'.*/
   virtual void Initialize(itk::Image<Match, 2>* const initialization)
   {
     itk::ImageRegion<2> internalRegion =
@@ -70,12 +73,6 @@ public:
       initialization->SetPixel(targetPixel, randomMatch);
     }
 
-
-//     { // Debug only
-//     CoordinateImageType::Pointer initialOutput = CoordinateImageType::New();
-//     GetPatchCentersImage(this->Output, initialOutput);
-//     ITKHelpers::WriteImage(initialOutput.GetPointer(), "RandomInit.mha");
-//     }
     //std::cout << "Finished RandomInit." << internalRegion << std::endl;
   }
 };

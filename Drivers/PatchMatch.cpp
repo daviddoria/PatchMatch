@@ -97,13 +97,17 @@ int main(int argc, char*argv[])
   patchMatch.SetImage(image);
   patchMatch.SetPatchRadius(patchRadius);
 
+  PatchMatchType::MatchImageType::Pointer initialNNField = PatchMatchType::MatchImageType::New();
+  initialNNField->SetRegions(image->GetLargestPossibleRegion());
+  initialNNField->Allocate();
+  
   InitializerRandom<ImageType> initializer(image, patchRadius);
   initializer.SetTargetMask(targetMask);
   initializer.SetSourceMask(sourceMask);
   initializer.SetPatchDistanceFunctor(patchDistanceFunctor);
-  
-  patchMatch.SetInitializer(&initializer);
-  patchMatch.Initialize();
+  initializer.Initialize(initialNNField);
+
+  patchMatch.SetInitialNNField(initialNNField);
 
   patchMatch.SetPatchDistanceFunctor(patchDistanceFunctor);
 
@@ -111,7 +115,7 @@ int main(int argc, char*argv[])
   patchMatch.SetSourceMask(sourceMask);
   patchMatch.SetIterations(5);
   patchMatch.SetRandom(false); // for repeatable testing
-  patchMatch.Compute(NULL);
+  patchMatch.Compute();
 
   PatchMatchType::CoordinateImageType::Pointer output = PatchMatchType::CoordinateImageType::New();
 
