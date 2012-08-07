@@ -179,6 +179,8 @@ protected:
   HSVImageType::Pointer HSVImage;
 
   AcceptanceTest* AcceptanceTestFunctor;
+
+  unsigned int CountInvalidPixels();
 }; // end PatchMatch class
 
 #include "PatchMatch.hpp"

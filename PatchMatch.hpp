@@ -100,10 +100,6 @@ void PatchMatch<TImage>::Compute()
     {
       InwardPropagation();
     }
-//     else if(this->PropagationStrategy == FORCE)
-//     {
-//       
-//     }
     else
     {
       throw std::runtime_error("Invalid propagation strategy specified!");
@@ -122,7 +118,9 @@ void PatchMatch<TImage>::Compute()
   } // end iteration loop
 
   // As a final pass, propagate to all pixels which were not set to a valid nearest neighbor
+  std::cout << "Before ForcePropagation() there are " << CountInvalidPixels() << " invalid pixels." << std::endl;
   ForcePropagation();
+  std::cout << "After ForcePropagation() there are " << CountInvalidPixels() << " invalid pixels." << std::endl;
 
   std::cout << "PatchMatch finished." << std::endl;
 }
@@ -226,9 +224,11 @@ void PatchMatch<TImage>::SetPatchDistanceFunctor(PatchDistance<TImage>* const pa
 template <typename TImage>
 void PatchMatch<TImage>::ForcePropagation()
 {
+  std::cout << "ForcePropagation()" << std::endl;
   AcceptanceTestAcceptAll acceptanceTest;
   AllNeighbors neighborFunctor;
 
+  // Process the pixels that are invalid
   auto processInvalid = [this](const itk::Index<2>& queryIndex)
   {
     if(!this->Output->GetPixel(queryIndex).IsValid())
@@ -262,6 +262,7 @@ void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor, TPr
   // Use the acceptance test that is passed in unless it is null, in which case use the internal acceptance test
   if(!acceptanceTest)
   {
+    std::cout << "Using internal acceptance test functor." << std::endl;
     acceptanceTest = this->AcceptanceTestFunctor;
   }
   assert(acceptanceTest);
@@ -270,8 +271,9 @@ void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor, TPr
   assert(this->Image->GetLargestPossibleRegion().GetSize()[0] > 0);
 
   std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
-  std::cout << "Propagation: There are " << targetPixels.size() << " target pixels." << std::endl;
+  std::cout << "Propagation(): There are " << targetPixels.size() << " target pixels." << std::endl;
   unsigned int skippedPixels = 0;
+  unsigned int alreadyExactMatch = 0;
   unsigned int propagatedPixels = 0;
   for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
   {
@@ -285,6 +287,7 @@ void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor, TPr
     // If we don't want to process this pixel, skip it
     if(!processFunctor(targetPixel))
     {
+      skippedPixels++;
       continue;
     }
 
@@ -292,7 +295,7 @@ void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor, TPr
     // We don't have to search anymore once the exact match is found.
     if((this->Output->GetPixel(targetPixel).Score == 0))
     {
-      skippedPixels++;
+      alreadyExactMatch++;
       continue;
     }
 
@@ -301,12 +304,13 @@ void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor, TPr
 
     if(!this->Image->GetLargestPossibleRegion().IsInside(targetRegion))
       {
-        //std::cerr << "Pixel " << potentialPropagationPixel << " is outside of the image." << std::endl;
+        std::cerr << "targetRegion " << targetRegion << " is outside of the image." << std::endl;
         continue;
       }
 
     std::vector<itk::Index<2> > potentialPropagationPixels = neighborFunctor(targetPixel);
 
+    bool propagated = false;
     for(size_t potentialPropagationPixelId = 0; potentialPropagationPixelId < potentialPropagationPixels.size();
         ++potentialPropagationPixelId)
     {
@@ -348,6 +352,7 @@ void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor, TPr
          !this->SourceMask->IsValid(potentialMatchRegion))
       {
         // do nothing - we don't want to propagate information that is not originally valid
+        std::cerr << "Cannot propagate from this source region!" << std::endl;
       }
       else
       {
@@ -363,12 +368,23 @@ void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor, TPr
         if(acceptanceTest->IsBetter(targetRegion, this->Output->GetPixel(targetPixel), potentialMatch))
         {
           this->Output->SetPixel(targetPixel, potentialMatch);
-          propagatedPixels++;
+          propagated = true;
+        }
+        else
+        {
+          std::cerr << "Acceptance test failed!" << std::endl;
         }
 
-      }
+      } // end else source region valid
     } // end loop over potentialPropagationPixels
 
+    if(propagated)
+    {
+      propagatedPixels++;
+    }
+    {
+      std::cerr << "Failed to propagate to " << targetPixel << std::endl;
+    }
 //     { // Debug only
 //     CoordinateImageType::Pointer temp = CoordinateImageType::New();
 //     GetPatchCentersImage(this->Output, temp);
@@ -376,8 +392,9 @@ void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor, TPr
 //     }
   } // end loop over target pixels
 
-  std::cout << "Propagation() skipped " << skippedPixels << " pixels (processed " << targetPixels.size() - skippedPixels << ")." << std::endl;
+  std::cout << "Propagation() skipped " << skippedPixels << " pixels." << std::endl;
   std::cout << "Propagation() propagated " << propagatedPixels << " pixels." << std::endl;
+  std::cout << "Propagation() already exact match " << alreadyExactMatch << " pixels." << std::endl;
 }
 
 template <typename TImage>
@@ -409,7 +426,7 @@ void PatchMatch<TImage>::RandomSearch()
   
   std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
   std::cout << "RandomSearch: There are : " << targetPixels.size() << " target pixels." << std::endl;
-  unsigned int skippedPixels = 0;
+  unsigned int exactMatchPixels = 0;
   for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
   {
 //     if(targetPixelId % 10000 == 0)
@@ -421,10 +438,9 @@ void PatchMatch<TImage>::RandomSearch()
 
     // For inpainting, most of the NN-field will be an exact match. We don't have to search anymore
     // once the exact match is found.
-    if((this->Output->GetPixel(targetPixel).Score == 0) ||
-       !this->Output->GetPixel(targetPixel).IsValid() )
+    if((this->Output->GetPixel(targetPixel).Score == 0))
     {
-      skippedPixels++;
+      exactMatchPixels++;
       continue;
     }
 
@@ -496,7 +512,7 @@ void PatchMatch<TImage>::RandomSearch()
 
   } // end loop over target pixels
 
-  std::cout << "RandomSearch skipped " << skippedPixels << " (processed " << targetPixels.size() - skippedPixels << ") pixels." << std::endl;
+  std::cout << "RandomSearch: already exact match " << exactMatchPixels << std::endl;
 }
 
 template <typename TImage>
@@ -566,6 +582,23 @@ template <typename TImage>
 AcceptanceTest* PatchMatch<TImage>::GetAcceptanceTest()
 {
   return this->AcceptanceTestFunctor;
+}
+
+template <typename TImage>
+unsigned int PatchMatch<TImage>::CountInvalidPixels()
+{
+  std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
+
+  unsigned int invalidPixels = 0;
+  for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
+  {
+    if(!this->Output->GetPixel(targetPixels[targetPixelId]).IsValid())
+    {
+      invalidPixels++;
+    }
+  }
+
+  return invalidPixels;
 }
 
 #endif
