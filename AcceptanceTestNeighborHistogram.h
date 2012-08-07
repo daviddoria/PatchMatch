@@ -35,6 +35,10 @@ public:
                                       // PatchRadius(0) // can't do this here
   {
     this->PatchRadius = 0;
+    this->RangeMin = itk::NumericTraits<typename TypeTraits<typename TImage::PixelType>::ComponentType>::min();
+    this->RangeMax = itk::NumericTraits<typename TypeTraits<typename TImage::PixelType>::ComponentType>::max();
+    std::cout << "AcceptanceTestNeighborHistogram: RangeMin = " << static_cast<float>(this->RangeMin) << std::endl;
+    std::cout << "AcceptanceTestNeighborHistogram: RangeMax = " << static_cast<float>(this->RangeMax) << std::endl;
   }
 
   virtual bool IsBetter(const itk::ImageRegion<2>& queryRegion, const Match& currentMatch,
@@ -46,17 +50,14 @@ public:
 
       const unsigned int numberOfBinsPerDimension = 20;
 
-      typename TypeTraits<typename TImage::PixelType>::ComponentType rangeMin = 0;
-      typename TypeTraits<typename TImage::PixelType>::ComponentType rangeMax = 1;
-
       typedef Histogram<int>::HistogramType HistogramType;
       HistogramType queryHistogram = Histogram<int>::ComputeImageHistogram1D(
-                    this->Image, queryRegion, numberOfBinsPerDimension, rangeMin, rangeMax);
+                    this->Image, queryRegion, numberOfBinsPerDimension, this->RangeMin, this->RangeMax);
 
       HistogramType potentialMatchHistogram =
         Histogram<int>::ComputeImageHistogram1D(this->Image,
                                                 potentialBetterMatch.Region, numberOfBinsPerDimension,
-                                                rangeMin, rangeMax);
+                                                this->RangeMin, this->RangeMax);
 
       itk::Offset<2> randomNeighborOffset = PatchMatchHelpers::RandomNeighborNonZeroOffset();
 
@@ -65,7 +66,7 @@ public:
       itk::ImageRegion<2> neighborRegion =
         ITKHelpers::GetRegionInRadiusAroundPixel(neighbor, this->PatchRadius);
       HistogramType neighborHistogram = Histogram<int>::ComputeImageHistogram1D(
-                    this->Image, neighborRegion, numberOfBinsPerDimension, rangeMin, rangeMax);
+                    this->Image, neighborRegion, numberOfBinsPerDimension, this->RangeMin, this->RangeMax);
 
       float neighborHistogramDifference =
         Histogram<int>::HistogramDifference(neighborHistogram, queryHistogram);
@@ -94,9 +95,25 @@ public:
     return false;
   }
 
+  void SetRangeMin(const typename TypeTraits<typename TImage::PixelType>::ComponentType rangeMin)
+  {
+    this->RangeMin = rangeMin;
+  }
+  
+  void SetRangeMax(const typename TypeTraits<typename TImage::PixelType>::ComponentType rangeMax)
+  {
+    this->RangeMax = rangeMax;
+  }
+
+  void SetNeighborHistogramMultiplier(const float neighborHistogramMultiplier)
+  {
+    this->NeighborHistogramMultiplier = neighborHistogramMultiplier;
+  }
 
 private:
   float NeighborHistogramMultiplier;
-
+  typename TypeTraits<typename TImage::PixelType>::ComponentType RangeMin;
+  typename TypeTraits<typename TImage::PixelType>::ComponentType RangeMax;
 };
+
 #endif

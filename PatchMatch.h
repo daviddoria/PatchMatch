@@ -65,14 +65,18 @@ public:
   /** Propagate good matches from specified offsets. In the traditional algorithm,
     * ForwardPropagation() and BackwardPropagation() call this function with "above and left"
     * and "below and right" offsets, respectively. */
-  template <typename TNeighborFunctor>
-  void Propagation(const TNeighborFunctor neighborFunctor);
+  template <typename TNeighborFunctor, typename TProcessFunctor>
+  void Propagation(const TNeighborFunctor neighborFunctor, TProcessFunctor processFunctor,
+                   AcceptanceTest* acceptanceTest = NULL);
 
   /** Propagate good matches from above and from the left of the current pixel. */
   void ForwardPropagation();
 
   /** Propagate good matches from below and from the right of the current pixel. */
   void BackwardPropagation();
+
+  /** Propagate best valid neighbor match to every invalid pixel. */
+  void ForcePropagation();
 
   /** Propagate good matches from outside in. */
   void InwardPropagation();
@@ -93,10 +97,10 @@ public:
   void SetImage(TImage* const image);
 
   /** Set the acceptance test to use. */
-  void SetAcceptanceTest(AcceptanceTestImage<TImage>* const acceptanceTest);
+  void SetAcceptanceTest(AcceptanceTest* const acceptanceTest);
 
   /** Get the acceptance test to use. */
-  AcceptanceTestImage<TImage>* GetAcceptanceTest();
+  AcceptanceTest* GetAcceptanceTest();
   
   /** Set the mask indicating where to take source patches from. Patches completely inside the valid
     * region of the source mask can be used as nearest neighbors. */
@@ -162,9 +166,6 @@ protected:
   /** The bounding box of the target mask. */
   itk::ImageRegion<2> TargetMaskBoundingBox;
 
-  /** Determine if information can be propagated from a specified pixel. */
-  virtual bool AllowPropagationFrom(const itk::Index<2>& potentialPropagationPixel);
-
   /** Determine if the result should be randomized. This should only be false for testing purposes. */
   bool Random;
 
@@ -177,7 +178,7 @@ protected:
   typedef itk::VectorImage<float, 2> HSVImageType;
   HSVImageType::Pointer HSVImage;
 
-  AcceptanceTestImage<TImage>* AcceptanceTestFunctor;
+  AcceptanceTest* AcceptanceTestFunctor;
 }; // end PatchMatch class
 
 #include "PatchMatch.hpp"

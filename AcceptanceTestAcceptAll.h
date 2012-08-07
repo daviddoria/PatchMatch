@@ -22,8 +22,7 @@
 // Custom
 #include "AcceptanceTest.h"
 
-template <typename TImage>
-class AcceptanceTestAcceptAll : public AcceptanceTestImage<TImage>
+class AcceptanceTestAcceptAll : public AcceptanceTest
 {
   virtual bool IsBetter(const itk::ImageRegion<2>& queryRegion, const Match& oldMatch,
                         const Match& potentialBetterMatch)

@@ -81,5 +81,15 @@ struct BackwardPropagationNeighbors
   }
 };
 
+struct AllNeighbors
+{
+  std::vector<itk::Index<2> > operator() (const itk::Index<2>& queryIndex) const
+  {
+    std::vector<itk::Index<2> > neighbors = ITKHelpers::Get8Neighbors(queryIndex);
+
+    return neighbors;
+  }
+};
+
 
 #endif

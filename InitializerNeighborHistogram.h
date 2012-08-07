@@ -21,11 +21,25 @@
 
 #include "Initializer.h"
 
-class InitializerNeighborHistogram : public Initializer
+#include "PatchMatchHelpers.h"
+
+template <typename TImage>
+class InitializerNeighborHistogram : public InitializerImage<TImage>
 {
 public:
-  virtual void Initialize()
+  InitializerNeighborHistogram() : NeighborHistogramMultiplier(2.0f)
   {
+    this->RangeMin = itk::NumericTraits<typename TypeTraits<typename TImage::PixelType>::ComponentType>::min();
+    this->RangeMax = itk::NumericTraits<typename TypeTraits<typename TImage::PixelType>::ComponentType>::max();
+    std::cout << "InitializerNeighborHistogram: RangeMin = " << static_cast<float>(this->RangeMin) << std::endl;
+    std::cout << "InitializerNeighborHistogram: RangeMax = " << static_cast<float>(this->RangeMax) << std::endl;
+  }
+
+  virtual void Initialize(itk::Image<Match, 2>* const initialization)
+  {
+    assert(initialization->GetLargestPossibleRegion().GetSize()[0] != 0);
+    assert(this->Image->GetLargestPossibleRegion().GetSize()[0] == initialization->GetLargestPossibleRegion().GetSize()[0]);
+
     itk::ImageRegion<2> internalRegion =
              ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
 
@@ -54,20 +68,16 @@ public:
       }
 
       itk::Index<2> targetPixel = targetPixels[targetPixelId];
-      if(this->Output->GetPixel(targetPixel).IsValid())
+      if(initialization->GetPixel(targetPixel).IsValid())
       {
         continue;
       }
 
       unsigned int numberOfBinsPerDimension = 20;
-      typename TypeTraits<typename HSVImageType::PixelType>::ComponentType rangeMin = 0;
-      typename TypeTraits<typename HSVImageType::PixelType>::ComponentType rangeMax = 1;
-  //     std::cout << "Range min: " << rangeMin << std::endl;
-  //     std::cout << "Range max: " << rangeMax << std::endl;
 
       typedef Histogram<int>::HistogramType HistogramType;
-      HistogramType queryHistogram = Histogram<int>::ComputeImageHistogram1D(this->HSVImage.GetPointer(),
-                                                                            targetRegion, numberOfBinsPerDimension, rangeMin, rangeMax);
+      HistogramType queryHistogram = Histogram<int>::ComputeImageHistogram1D(this->Image,
+                                                                            targetRegion, numberOfBinsPerDimension, this->RangeMin, this->RangeMax);
 
       float randomHistogramDifference;
       float neighborHistogramDifference;
@@ -82,16 +92,16 @@ public:
       {
         unsigned int randomSourceRegionId = Helpers::RandomInt(0, validSourceRegions.size() - 1);
         randomValidRegion = validSourceRegions[randomSourceRegionId];
-        randomPatchHistogram = Histogram<int>::ComputeImageHistogram1D(this->HSVImage.GetPointer(),
-                                                                      randomValidRegion, numberOfBinsPerDimension, rangeMin, rangeMax);
+        randomPatchHistogram = Histogram<int>::ComputeImageHistogram1D(this->Image,
+                                                                      randomValidRegion, numberOfBinsPerDimension, this->RangeMin, this->RangeMax);
 
-        itk::Offset<2> randomNeighborOffset = RandomNeighborNonZeroOffset();
+        itk::Offset<2> randomNeighborOffset = PatchMatchHelpers::RandomNeighborNonZeroOffset();
 
         itk::Index<2> neighbor = targetPixel + randomNeighborOffset;
 
         itk::ImageRegion<2> neighborRegion = ITKHelpers::GetRegionInRadiusAroundPixel(neighbor, this->PatchRadius);
-        neighborPatchHistogram = Histogram<int>::ComputeImageHistogram1D(this->HSVImage.GetPointer(),
-                                                                        neighborRegion, numberOfBinsPerDimension, rangeMin, rangeMax);
+        neighborPatchHistogram = Histogram<int>::ComputeImageHistogram1D(this->Image,
+                                                                        neighborRegion, numberOfBinsPerDimension, this->RangeMin, this->RangeMax);
 
         randomHistogramDifference = Histogram<int>::HistogramDifference(queryHistogram, randomPatchHistogram);
 
@@ -111,32 +121,48 @@ public:
 
       //std::cout << "Attempts: " << attempts << std::endl;
       Match randomMatch;
-      randomMatch.Region = randomValidRegion;
 
       if(acceptableMatchFound)
       {
+        randomMatch.Region = randomValidRegion;
         randomMatch.Score = this->PatchDistanceFunctor->Distance(randomValidRegion, targetRegion);
       }
       else
       {
-        //std::cout << "Random initialization failed for " << targetPixel << std::endl;
-        randomMatch.Score = std::numeric_limits<float>::max();
+        randomMatch.MakeInvalid();
         failedMatches++;
       }
 
-      this->Output->SetPixel(targetPixel, randomMatch);
+      initialization->SetPixel(targetPixel, randomMatch);
     } // end loop over target pixels
 
     std::cout << failedMatches << " matches failed (out of " << targetPixels.size() << ")" << std::endl;
 
     { // Debug only
-    CoordinateImageType::Pointer initialOutput = CoordinateImageType::New();
-    GetPatchCentersImage(this->Output, initialOutput);
-    ITKHelpers::WriteImage(initialOutput.GetPointer(), "RandomInit.mha");
+    PatchMatch<TImage>::WriteNNField(initialization, "InitializerNeighborHistogram.mha");
     }
-    //std::cout << "Finished RandomInit." << internalRegion << std::endl;
+    //std::cout << "Finished InitializerNeighborHistogram." << internalRegion << std::endl;
   }
-  
+
+  void SetRangeMin(const typename TypeTraits<typename TImage::PixelType>::ComponentType rangeMin)
+  {
+    this->RangeMin = rangeMin;
+  }
+
+  void SetRangeMax(const typename TypeTraits<typename TImage::PixelType>::ComponentType rangeMax)
+  {
+    this->RangeMax = rangeMax;
+  }
+
+  void SetNeighborHistogramMultiplier(const float neighborHistogramMultiplier)
+  {
+    this->NeighborHistogramMultiplier = neighborHistogramMultiplier;
+  }
+
+private:
+  float NeighborHistogramMultiplier;
+  typename TypeTraits<typename TImage::PixelType>::ComponentType RangeMin;
+  typename TypeTraits<typename TImage::PixelType>::ComponentType RangeMax;
 };
 
 #endif

@@ -22,11 +22,14 @@
 #include "PatchMatch.h"
 
 // Submodules
-#include <Mask/ITKHelpers/ITKHelpers.h>
-#include <Mask/MaskOperations.h>
-#include <PatchComparison/SSD.h>
-#include <Histogram/Histogram.h>
+#include <ITKHelpers/ITKHelpers.h>
 #include <ITKHelpers/ITKTypeTraits.h>
+
+#include <Mask/MaskOperations.h>
+
+#include <PatchComparison/SSD.h>
+
+#include <Histogram/Histogram.h>
 
 // ITK
 #include "itkImageRegionReverseIterator.h"
@@ -36,6 +39,7 @@
 
 // Custom
 #include "Neighbors.h"
+#include "AcceptanceTestAcceptAll.h"
 
 template <typename TImage>
 PatchMatch<TImage>::PatchMatch() : PatchRadius(0), PatchDistanceFunctor(NULL),
@@ -96,6 +100,10 @@ void PatchMatch<TImage>::Compute()
     {
       InwardPropagation();
     }
+//     else if(this->PropagationStrategy == FORCE)
+//     {
+//       
+//     }
     else
     {
       throw std::runtime_error("Invalid propagation strategy specified!");
@@ -111,7 +119,10 @@ void PatchMatch<TImage>::Compute()
     GetPatchCentersImage(this->Output, temp);
     ITKHelpers::WriteSequentialImage(temp.GetPointer(), "PatchMatch", iteration, 2, "mha");
     }
-  }
+  } // end iteration loop
+
+  // As a final pass, propagate to all pixels which were not set to a valid nearest neighbor
+  ForcePropagation();
 
   std::cout << "PatchMatch finished." << std::endl;
 }
@@ -160,14 +171,6 @@ void PatchMatch<TImage>::SetTargetMask(Mask* const mask)
 {
   this->TargetMask->DeepCopyFrom(mask);
   this->TargetMaskBoundingBox = MaskOperations::ComputeValidBoundingBox(this->TargetMask);
-  //std::cout << "TargetMaskBoundingBox: " << this->TargetMaskBoundingBox << std::endl;
-
-  // By default, we want to allow propagation from the source region
-  if(!this->AllowedPropagationMask)
-  {
-    this->AllowedPropagationMask = Mask::New();
-    this->AllowedPropagationMask->DeepCopyFrom(mask);
-  }
 }
 
 template <typename TImage>
@@ -221,23 +224,55 @@ void PatchMatch<TImage>::SetPatchDistanceFunctor(PatchDistance<TImage>* const pa
 }
 
 template <typename TImage>
-void PatchMatch<TImage>::InwardPropagation()
+void PatchMatch<TImage>::ForcePropagation()
 {
-  AllowedPropagationNeighbors neighborFunctor(this->AllowedPropagationMask, this->TargetMask);
-  Propagation(neighborFunctor);
+  AcceptanceTestAcceptAll acceptanceTest;
+  AllNeighbors neighborFunctor;
+
+  auto processInvalid = [this](const itk::Index<2>& queryIndex)
+  {
+    if(!this->Output->GetPixel(queryIndex).IsValid())
+    {
+      return true;
+    }
+    return false;
+  };
+
+  Propagation(neighborFunctor, processInvalid, &acceptanceTest);
 }
 
 template <typename TImage>
-template <typename TNeighborFunctor>
-void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor)
+void PatchMatch<TImage>::InwardPropagation()
+{
+  AllowedPropagationNeighbors neighborFunctor(this->AllowedPropagationMask, this->TargetMask);
+
+  auto processAll = [](const itk::Index<2>& queryIndex) {
+      return true;
+  };
+  Propagation(neighborFunctor, processAll);
+}
+
+template <typename TImage>
+template <typename TNeighborFunctor, typename TProcessFunctor>
+void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor, TProcessFunctor processFunctor,
+                                     AcceptanceTest* acceptanceTest)
 {
   assert(this->AllowedPropagationMask);
-  assert(this->AcceptanceTestFunctor);
+
+  // Use the acceptance test that is passed in unless it is null, in which case use the internal acceptance test
+  if(!acceptanceTest)
+  {
+    acceptanceTest = this->AcceptanceTestFunctor;
+  }
+  assert(acceptanceTest);
+
   assert(this->Output->GetLargestPossibleRegion().GetSize()[0] > 0); // An initialization must be provided
+  assert(this->Image->GetLargestPossibleRegion().GetSize()[0] > 0);
 
   std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
   std::cout << "Propagation: There are " << targetPixels.size() << " target pixels." << std::endl;
   unsigned int skippedPixels = 0;
+  unsigned int propagatedPixels = 0;
   for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
   {
 //     if(targetPixelId % 10000 == 0)
@@ -246,10 +281,16 @@ void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor)
 //     }
 
     itk::Index<2> targetPixel = targetPixels[targetPixelId];
+
+    // If we don't want to process this pixel, skip it
+    if(!processFunctor(targetPixel))
+    {
+      continue;
+    }
+
     // When using PatchMatch for inpainting, most of the NN-field will be an exact match.
     // We don't have to search anymore once the exact match is found.
-    if((this->Output->GetPixel(targetPixel).Score == 0) ||
-       !this->Output->GetPixel(targetPixel).IsValid() )
+    if((this->Output->GetPixel(targetPixel).Score == 0))
     {
       skippedPixels++;
       continue;
@@ -280,10 +321,16 @@ void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor)
         continue;
       }
 
-      if(!AllowPropagationFrom(potentialPropagationPixel))
+      if(!this->AllowedPropagationMask->GetPixel(potentialPropagationPixel))
       {
         continue;
       }
+
+      if(!this->Output->GetPixel(potentialPropagationPixel).IsValid())
+      {
+        continue;
+      }
+
       // The potential match is the opposite (hence the " - offset" in the following line)
       // of the offset of the neighbor. Consider the following case:
       // - We are at (4,4) and potentially propagating from (3,4)
@@ -313,9 +360,10 @@ void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor)
         //float oldScore = this->Output->GetPixel(targetRegionCenter).Score; // For debugging only
         //bool better = AddIfBetter(targetRegionCenter, potentialMatch);
 
-        if(this->AcceptanceTestFunctor->IsBetter(targetRegion, this->Output->GetPixel(targetPixel), potentialMatch))
+        if(acceptanceTest->IsBetter(targetRegion, this->Output->GetPixel(targetPixel), potentialMatch))
         {
           this->Output->SetPixel(targetPixel, potentialMatch);
+          propagatedPixels++;
         }
 
       }
@@ -328,7 +376,8 @@ void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor)
 //     }
   } // end loop over target pixels
 
-  std::cout << "Propagation skipped " << skippedPixels << " pixels (processed " << targetPixels.size() - skippedPixels << ")." << std::endl;
+  std::cout << "Propagation() skipped " << skippedPixels << " pixels (processed " << targetPixels.size() - skippedPixels << ")." << std::endl;
+  std::cout << "Propagation() propagated " << propagatedPixels << " pixels." << std::endl;
 }
 
 template <typename TImage>
@@ -336,7 +385,10 @@ void PatchMatch<TImage>::ForwardPropagation()
 {
   ForwardPropagationNeighbors neighborFunctor;
 
-  Propagation(neighborFunctor);
+  auto processAll = [](const itk::Index<2>& queryIndex) {
+      return true;
+  };
+  Propagation(neighborFunctor, processAll);
 }
 
 template <typename TImage>
@@ -344,7 +396,10 @@ void PatchMatch<TImage>::BackwardPropagation()
 {
   BackwardPropagationNeighbors neighborFunctor;
 
-  Propagation(neighborFunctor);
+  auto processAll = [](const itk::Index<2>& queryIndex) {
+      return true;
+  };
+  Propagation(neighborFunctor, processAll);
 }
 
 template <typename TImage>
@@ -445,30 +500,13 @@ void PatchMatch<TImage>::RandomSearch()
 }
 
 template <typename TImage>
-bool PatchMatch<TImage>::AllowPropagationFrom(const itk::Index<2>& potentialPropagationPixel)
-{
-  if(!this->Output->GetPixel(potentialPropagationPixel).IsValid())
-  {
-    return false;
-  }
-
-  if(this->AllowedPropagationMask->IsValid(potentialPropagationPixel) ||
-     this->TargetMask->IsValid(potentialPropagationPixel))
-  {
-    return true;
-  }
-
-  return false;
-}
-
-template <typename TImage>
 void PatchMatch<TImage>::SetInitialNNField(MatchImageType* const initialMatchImage)
 {
   ITKHelpers::DeepCopy(initialMatchImage, this->Output.GetPointer());
 }
 
 template <typename TImage>
-void PatchMatch<TImage>::SetAcceptanceTest(AcceptanceTestImage<TImage>* const acceptanceTest)
+void PatchMatch<TImage>::SetAcceptanceTest(AcceptanceTest* const acceptanceTest)
 {
   this->AcceptanceTestFunctor = acceptanceTest;
 }
@@ -525,7 +563,7 @@ void PatchMatch<TImage>::WriteNNField(const MatchImageType* const nnField, const
 }
 
 template <typename TImage>
-AcceptanceTestImage<TImage>* PatchMatch<TImage>::GetAcceptanceTest()
+AcceptanceTest* PatchMatch<TImage>::GetAcceptanceTest()
 {
   return this->AcceptanceTestFunctor;
 }

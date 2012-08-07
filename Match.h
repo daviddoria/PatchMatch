@@ -49,6 +49,17 @@ struct Match
 
     return true;
   }
+
+  void MakeInvalid()
+  {
+    this->Score = InvalidScore;
+
+    itk::Index<2> invalidIndex = {{0,0}};
+    itk::Size<2> invalidSize = {{0,0}};
+    itk::ImageRegion<2> invalidRegion(invalidIndex, invalidSize);
+
+    this->Region = invalidRegion;
+  }
 };
 
 #endif
