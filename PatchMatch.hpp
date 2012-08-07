@@ -41,7 +41,7 @@ template <typename TImage>
 PatchMatch<TImage>::PatchMatch() : PatchRadius(0), PatchDistanceFunctor(NULL),
                                    Random(true),
                                    AllowedPropagationMask(NULL),
-                                   PropagationStrategy(UNIFORM),
+                                   PropagationStrategy(RASTER),
                                    AcceptanceTestFunctor(NULL)
 {
   this->Output = MatchImageType::New();
@@ -62,6 +62,10 @@ void PatchMatch<TImage>::Compute()
     srand(0);
   }
 
+  assert(this->SourceMask);
+  assert(this->TargetMask);
+  assert(this->SourceMask->GetLargestPossibleRegion().GetSize()[0] > 0);
+  assert(this->TargetMask->GetLargestPossibleRegion().GetSize()[0] > 0);
   { // Debug only
   ITKHelpers::WriteImage(this->TargetMask.GetPointer(), "PatchMatch_TargetMask.png");
   ITKHelpers::WriteImage(this->SourceMask.GetPointer(), "PatchMatch_SourceMask.png");
@@ -77,7 +81,7 @@ void PatchMatch<TImage>::Compute()
   {
     std::cout << "PatchMatch iteration " << iteration << std::endl;
 
-    if(this->PropagationStrategy == UNIFORM)
+    if(this->PropagationStrategy == RASTER)
     {
       if(forwardPropagation)
       {
@@ -229,6 +233,7 @@ void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor)
 {
   assert(this->AllowedPropagationMask);
   assert(this->AcceptanceTestFunctor);
+  assert(this->Output->GetLargestPossibleRegion().GetSize()[0] > 0); // An initialization must be provided
 
   std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
   std::cout << "Propagation: There are " << targetPixels.size() << " target pixels." << std::endl;
@@ -345,6 +350,8 @@ void PatchMatch<TImage>::BackwardPropagation()
 template <typename TImage>
 void PatchMatch<TImage>::RandomSearch()
 {
+  assert(this->Output->GetLargestPossibleRegion().GetSize()[0] > 0);
+  
   std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
   std::cout << "RandomSearch: There are : " << targetPixels.size() << " target pixels." << std::endl;
   unsigned int skippedPixels = 0;
@@ -461,7 +468,7 @@ void PatchMatch<TImage>::SetInitialNNField(MatchImageType* const initialMatchIma
 }
 
 template <typename TImage>
-void PatchMatch<TImage>::SetAcceptanceTest(AcceptanceTest* const acceptanceTest)
+void PatchMatch<TImage>::SetAcceptanceTest(AcceptanceTestImage<TImage>* const acceptanceTest)
 {
   this->AcceptanceTestFunctor = acceptanceTest;
 }
@@ -515,6 +522,12 @@ void PatchMatch<TImage>::WriteNNField(const MatchImageType* const nnField, const
   CoordinateImageType::Pointer coordinateImage = CoordinateImageType::New();
   GetPatchCentersImage(nnField, coordinateImage.GetPointer());
   ITKHelpers::WriteImage(coordinateImage.GetPointer(), fileName);
+}
+
+template <typename TImage>
+AcceptanceTestImage<TImage>* PatchMatch<TImage>::GetAcceptanceTest()
+{
+  return this->AcceptanceTestFunctor;
 }
 
 #endif

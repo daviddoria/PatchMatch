@@ -39,8 +39,10 @@ class PatchMatch
 {
 public:
 
-  /** Choices for propagation. */
-  enum PropagationStrategyEnum {UNIFORM, INWARD};
+  /** Choices for propagation. RASTER means that the top/left and bottom/right pixels will be
+    * used in successive passes. INWARD means that all available ValidPropagation pixels will be used.
+    * FORCE means that no acceptance test will be used and the region will be forcefully propagated. */
+  enum PropagationStrategyEnum {RASTER, INWARD, FORCE};
 
   /** Constructor. */
   PatchMatch();
@@ -91,7 +93,10 @@ public:
   void SetImage(TImage* const image);
 
   /** Set the acceptance test to use. */
-  void SetAcceptanceTest(AcceptanceTest* const acceptanceTest);
+  void SetAcceptanceTest(AcceptanceTestImage<TImage>* const acceptanceTest);
+
+  /** Get the acceptance test to use. */
+  AcceptanceTestImage<TImage>* GetAcceptanceTest();
   
   /** Set the mask indicating where to take source patches from. Patches completely inside the valid
     * region of the source mask can be used as nearest neighbors. */
@@ -172,7 +177,7 @@ protected:
   typedef itk::VectorImage<float, 2> HSVImageType;
   HSVImageType::Pointer HSVImage;
 
-  AcceptanceTest* AcceptanceTestFunctor;
+  AcceptanceTestImage<TImage>* AcceptanceTestFunctor;
 }; // end PatchMatch class
 
 #include "PatchMatch.hpp"
