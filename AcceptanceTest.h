@@ -35,6 +35,8 @@
 class AcceptanceTest
 {
 public:
+  AcceptanceTest() {}
+
   virtual bool IsBetter(const itk::ImageRegion<2>& queryRegion, const Match& oldMatch,
                         const Match& potentialBetterMatch) = 0;
 };
@@ -44,6 +46,8 @@ template <typename TImage>
 class AcceptanceTestImage : public AcceptanceTest
 {
 public:
+  AcceptanceTestImage() : AcceptanceTest(), Image(NULL), PatchRadius(0){}
+
   void SetPatchRadius(const unsigned int patchRadius)
   {
     this->PatchRadius = patchRadius;

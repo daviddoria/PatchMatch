@@ -112,15 +112,18 @@ void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::Compute()
       throw std::runtime_error("Invalid propagation strategy specified!");
     }
 
+    PatchMatchHelpers::WriteNNField(this->GetOutput(), "AfterPropagation.mha");
+
     // Switch the propagation direction for the next iteration
     forwardPropagation = !forwardPropagation;
 
     RandomSearch();
 
+    PatchMatchHelpers::WriteNNField(this->GetOutput(), "AfterRandomSearch.mha");
+
     { // Debug only
-    PatchMatchHelpers::CoordinateImageType::Pointer temp = PatchMatchHelpers::CoordinateImageType::New();
-    PatchMatchHelpers::GetPatchCentersImage(this->Output.GetPointer(), temp.GetPointer());
-    ITKHelpers::WriteSequentialImage(temp.GetPointer(), "PatchMatch", iteration, 2, "mha");
+    std::string sequentialFileName = Helpers::GetSequentialFileName("PatchMatch", iteration, "mha", 2);
+    PatchMatchHelpers::WriteNNField(this->GetOutput(), sequentialFileName);
     }
   } // end iteration loop
 
@@ -333,14 +336,22 @@ void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::Propagation(const TNeig
         //float oldScore = this->Output->GetPixel(targetRegionCenter).Score; // For debugging only
         //bool better = AddIfBetter(targetRegionCenter, potentialMatch);
 
-        if(acceptanceTest->IsBetter(targetRegion, this->Output->GetPixel(targetPixel), potentialMatch))
+        Match currentMatch = this->Output->GetPixel(targetPixel);
+        if(potentialMatch.Score < currentMatch.Score)
         {
-          this->Output->SetPixel(targetPixel, potentialMatch);
-          propagated = true;
+          if(acceptanceTest->IsBetter(targetRegion, this->Output->GetPixel(targetPixel), potentialMatch))
+          {
+            this->Output->SetPixel(targetPixel, potentialMatch);
+            propagated = true;
+          }
+          else
+          {
+            //std::cerr << "Acceptance test failed!" << std::endl;
+          }
         }
         else
         {
-          //std::cerr << "Acceptance test failed!" << std::endl;
+          // std::cerr << "SSD is not lower."
         }
 
       } // end else source region valid
@@ -353,10 +364,10 @@ void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::Propagation(const TNeig
     {
       //std::cerr << "Failed to propagate to " << targetPixel << std::endl;
     }
+
 //     { // Debug only
-//     CoordinateImageType::Pointer temp = CoordinateImageType::New();
-//     GetPatchCentersImage(this->Output, temp);
-//     ITKHelpers::WriteSequentialImage(temp.GetPointer(), "PatchMatch_Propagation", targetPixelId, 6, "mha");
+//     std::string sequentialFileName = Helpers::GetSequentialFileName("PatchMatch_Propagation", targetPixelId, "mha");
+//     PatchMatchHelpers::WriteNNField(temp.GetPointer(), sequentialFileName);
 //     }
   } // end loop over target pixels
 
@@ -469,12 +480,13 @@ void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::RandomSearch()
       // In this class, the criteria is simply that it is
       // better than the current best patch. In subclasses (i.e. GeneralizedPatchMatch),
       // it must be better than the worst patch currently stored.
-//       float oldScore = this->Output->GetPixel(targetRegionCenter).Score; // For debugging only
-//       bool better = AddIfBetter(targetRegionCenter, potentialMatch);
-
-      if(this->AcceptanceTestFunctor->IsBetter(targetRegion, this->Output->GetPixel(targetPixel), potentialMatch))
+      Match currentMatch = this->Output->GetPixel(targetPixel);
+      if(potentialMatch.Score < currentMatch.Score)
       {
-        this->Output->SetPixel(targetPixel, potentialMatch);
+        if(this->AcceptanceTestFunctor->IsBetter(targetRegion, this->Output->GetPixel(targetPixel), potentialMatch))
+        {
+          this->Output->SetPixel(targetPixel, potentialMatch);
+        }
       }
 
       radius *= alpha;

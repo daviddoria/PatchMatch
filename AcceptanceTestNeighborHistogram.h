@@ -31,19 +31,21 @@ template <typename TImage>
 class AcceptanceTestNeighborHistogram : public AcceptanceTestImage<TImage>
 {
 public:
-  AcceptanceTestNeighborHistogram() : NeighborHistogramMultiplier(2.0f)
-                                      // PatchRadius(0) // can't do this here
+  AcceptanceTestNeighborHistogram() : AcceptanceTestImage<TImage>(), NeighborHistogramMultiplier(2.0f)
   {
-    this->PatchRadius = 0;
     this->RangeMin = itk::NumericTraits<typename TypeTraits<typename TImage::PixelType>::ComponentType>::min();
     this->RangeMax = itk::NumericTraits<typename TypeTraits<typename TImage::PixelType>::ComponentType>::max();
-    std::cout << "AcceptanceTestNeighborHistogram: RangeMin = " << static_cast<float>(this->RangeMin) << std::endl;
-    std::cout << "AcceptanceTestNeighborHistogram: RangeMax = " << static_cast<float>(this->RangeMax) << std::endl;
   }
 
   virtual bool IsBetter(const itk::ImageRegion<2>& queryRegion, const Match& currentMatch,
                         const Match& potentialBetterMatch)
   {
+//     std::cout << "AcceptanceTestNeighborHistogram: RangeMin = " << static_cast<float>(this->RangeMin) << std::endl;
+//     std::cout << "AcceptanceTestNeighborHistogram: RangeMax = " << static_cast<float>(this->RangeMax) << std::endl;
+    assert(this->PatchRadius > 0);
+    assert(this->Image);
+    assert(this->RangeMax > this->RangeMin);
+
     if(potentialBetterMatch.Score < currentMatch.Score)
     {
       itk::Index<2> queryIndex = ITKHelpers::GetRegionCenter(queryRegion);
