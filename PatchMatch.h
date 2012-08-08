@@ -33,8 +33,10 @@
 #include "Match.h"
 #include "AcceptanceTest.h"
 
-/** This class computes a nearest neighbor field using the PatchMatch algorithm. */
-template<typename TImage>
+/** This class computes a nearest neighbor field using the PatchMatch algorithm.
+  * Note that this class does not actually need the image, as the acceptance test
+  * and the patch distance functor already have the images that they need.*/
+template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
 class PatchMatch
 {
 public:
@@ -48,16 +50,13 @@ public:
   PatchMatch();
 
   /** Set the functor to use to compare patches. */
-  void SetPatchDistanceFunctor(PatchDistance<TImage>* const patchDistanceFunctor);
+  void SetPatchDistanceFunctor(TPatchDistanceFunctor* const patchDistanceFunctor);
 
   /** Get the functor to use to compare patches. */
-  PatchDistance<TImage>* GetPatchDistanceFunctor();
+  TPatchDistanceFunctor* GetPatchDistanceFunctor();
 
   /** The type that is used to store the nearest neighbor field. */
   typedef itk::Image<Match, 2> MatchImageType;
-
-  /** The type that is used to output the (X,Y,Score) image for inspection. */
-  typedef itk::Image<itk::CovariantVector<float, 3>, 2> CoordinateImageType;
 
   /** Perform multiple iterations of propagation and random search.*/
   virtual void Compute();
@@ -93,15 +92,12 @@ public:
   /** Set the radius of the patches to use. */
   void SetPatchRadius(const unsigned int patchRadius);
 
-  /** Set the image to operate on. */
-  void SetImage(TImage* const image);
-
   /** Set the acceptance test to use. */
-  void SetAcceptanceTest(AcceptanceTest* const acceptanceTest);
+  void SetAcceptanceTest(TAcceptanceTest* const acceptanceTest);
 
   /** Get the acceptance test to use. */
-  AcceptanceTest* GetAcceptanceTest();
-  
+  TAcceptanceTest* GetAcceptanceTest();
+
   /** Set the mask indicating where to take source patches from. Patches completely inside the valid
     * region of the source mask can be used as nearest neighbors. */
   void SetSourceMask(Mask* const mask);
@@ -116,10 +112,6 @@ public:
   /** Get the mask indicating which pixels (only valid pixels) can be propagated. */
   Mask* GetAllowedPropagationMask();
 
-  /** Get an image where the channels are (x component, y component, score) from the nearest
-    * neighbor field struct. */
-  static void GetPatchCentersImage(const MatchImageType* const pmImage, CoordinateImageType* const output);
-
   /** Set the choice of propagation strategy. */
   void SetPropagationStrategy(const PropagationStrategyEnum propagationStrategy);
 
@@ -128,9 +120,6 @@ public:
 
   /** Write the valid pixels. */
   void WriteValidPixels(const std::string& fileName);
-
-  /** Write a NNField. */
-  static void WriteNNField(const MatchImageType* const nnField, const std::string& fileName);
 
   /** Initialize the NNField. */
   void SetInitialNNField(MatchImageType* const initialization);
@@ -146,9 +135,6 @@ protected:
   /** The intermediate and final output. */
   MatchImageType::Pointer Output;
 
-  /** The image to operate on. */
-  typename TImage::Pointer Image;
-
   /** This mask indicates where to take source patches from. Patches completely inside the valid
     * region of the source mask can be used as nearest neighbors. */
   Mask::Pointer SourceMask;
@@ -158,7 +144,7 @@ protected:
   Mask::Pointer TargetMask;
 
   /** The functor used to compare two patches. */
-  PatchDistance<TImage>* PatchDistanceFunctor;
+  TPatchDistanceFunctor* PatchDistanceFunctor;
 
   /** The bounding box of the source mask. */
   itk::ImageRegion<2> SourceMaskBoundingBox;
@@ -175,7 +161,7 @@ protected:
   /** The choice of propagation strategy. */
   PropagationStrategyEnum PropagationStrategy;
 
-  AcceptanceTest* AcceptanceTestFunctor;
+  TAcceptanceTest* AcceptanceTestFunctor;
 
   unsigned int CountInvalidPixels();
 }; // end PatchMatch class

@@ -33,8 +33,6 @@ public:
   {
     this->RangeMin = itk::NumericTraits<typename TypeTraits<typename TImage::PixelType>::ComponentType>::min();
     this->RangeMax = itk::NumericTraits<typename TypeTraits<typename TImage::PixelType>::ComponentType>::max();
-    std::cout << "InitializerNeighborHistogram: RangeMin = " << static_cast<float>(this->RangeMin) << std::endl;
-    std::cout << "InitializerNeighborHistogram: RangeMax = " << static_cast<float>(this->RangeMax) << std::endl;
   }
 
   virtual void Initialize(itk::Image<Match, 2>* const initialization)
@@ -43,6 +41,9 @@ public:
     assert(initialization->GetLargestPossibleRegion().GetSize()[0] != 0);
     assert(this->Image);
     assert(this->Image->GetLargestPossibleRegion().GetSize()[0] == initialization->GetLargestPossibleRegion().GetSize()[0]);
+
+    std::cout << "InitializerNeighborHistogram: RangeMin = " << static_cast<float>(this->RangeMin) << std::endl;
+    std::cout << "InitializerNeighborHistogram: RangeMax = " << static_cast<float>(this->RangeMax) << std::endl;
 
     itk::ImageRegion<2> internalRegion =
              ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
@@ -142,7 +143,7 @@ public:
     std::cout << failedMatches << " matches failed (out of " << targetPixels.size() << ")" << std::endl;
 
     { // Debug only
-    PatchMatch<TImage>::WriteNNField(initialization, "InitializerNeighborHistogram.mha");
+    PatchMatchHelpers::WriteNNField(initialization, "InitializerNeighborHistogram.mha");
     }
     //std::cout << "Finished InitializerNeighborHistogram." << internalRegion << std::endl;
   }

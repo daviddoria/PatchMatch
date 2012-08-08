@@ -41,9 +41,10 @@ public:
   {
     assert(initialization);
 
-    assert(initialization->GetLargestPossibleRegion().GetSize() ==
-           this->Region.GetSize());
+    assert(initialization->GetLargestPossibleRegion().GetSize()[0] > 0);
 
+    itk::ImageRegion<2> region = initialization->GetLargestPossibleRegion();
+    
     // Create a zero region
     itk::Index<2> zeroIndex = {{0,0}};
     itk::Size<2> zeroSize = {{0,0}};
@@ -59,8 +60,8 @@ public:
 
     // Get all of the regions that are entirely inside the image
     itk::ImageRegion<2> internalRegion =
-              ITKHelpers::GetInternalRegion(this->Region, this->PatchRadius);
-    std::cout << "Internal region of " << this->Region
+              ITKHelpers::GetInternalRegion(region, this->PatchRadius);
+    std::cout << "Internal region of " << region
               << " is " << internalRegion << std::endl;
     // Set all of the patches that are entirely inside the source region to exactly
     // themselves as their nearest neighbor

@@ -40,22 +40,23 @@
 // Custom
 #include "Neighbors.h"
 #include "AcceptanceTestAcceptAll.h"
+#include "PatchMatchHelpers.h"
 
-template <typename TImage>
-PatchMatch<TImage>::PatchMatch() : PatchRadius(0), PatchDistanceFunctor(NULL),
+template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
+PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::PatchMatch() : PatchRadius(0), PatchDistanceFunctor(NULL),
                                    Random(true),
                                    AllowedPropagationMask(NULL),
                                    PropagationStrategy(RASTER),
                                    AcceptanceTestFunctor(NULL)
 {
   this->Output = MatchImageType::New();
-  this->Image = TImage::New();
+
   this->SourceMask = Mask::New();
   this->TargetMask = Mask::New();
 }
 
-template <typename TImage>
-void PatchMatch<TImage>::Compute()
+template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
+void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::Compute()
 {
   if(this->Random)
   {
@@ -70,11 +71,17 @@ void PatchMatch<TImage>::Compute()
   assert(this->TargetMask);
   assert(this->SourceMask->GetLargestPossibleRegion().GetSize()[0] > 0);
   assert(this->TargetMask->GetLargestPossibleRegion().GetSize()[0] > 0);
+  assert(this->SourceMask->GetLargestPossibleRegion().GetSize() ==
+         this->TargetMask->GetLargestPossibleRegion().GetSize());
+
   { // Debug only
   ITKHelpers::WriteImage(this->TargetMask.GetPointer(), "PatchMatch_TargetMask.png");
   ITKHelpers::WriteImage(this->SourceMask.GetPointer(), "PatchMatch_SourceMask.png");
   ITKHelpers::WriteImage(this->AllowedPropagationMask.GetPointer(), "PatchMatch_PropagationMask.png");
   }
+
+  this->Output->SetRegions(this->SourceMask->GetLargestPossibleRegion());
+  this->Output->Allocate();
 
   // Initialize this so that we propagate forward first
   // (the propagation direction toggles at each iteration)
@@ -111,8 +118,8 @@ void PatchMatch<TImage>::Compute()
     RandomSearch();
 
     { // Debug only
-    CoordinateImageType::Pointer temp = CoordinateImageType::New();
-    GetPatchCentersImage(this->Output, temp);
+    PatchMatchHelpers::CoordinateImageType::Pointer temp = PatchMatchHelpers::CoordinateImageType::New();
+    PatchMatchHelpers::GetPatchCentersImage(this->Output.GetPointer(), temp.GetPointer());
     ITKHelpers::WriteSequentialImage(temp.GetPointer(), "PatchMatch", iteration, 2, "mha");
     }
   } // end iteration loop
@@ -125,50 +132,41 @@ void PatchMatch<TImage>::Compute()
   std::cout << "PatchMatch finished." << std::endl;
 }
 
-template <typename TImage>
-typename PatchMatch<TImage>::MatchImageType* PatchMatch<TImage>::GetOutput()
+template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
+typename PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::MatchImageType* PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::GetOutput()
 {
   return this->Output;
 }
 
-template <typename TImage>
-void PatchMatch<TImage>::SetIterations(const unsigned int iterations)
+template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
+void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::SetIterations(const unsigned int iterations)
 {
   this->Iterations = iterations;
 }
 
-template <typename TImage>
-void PatchMatch<TImage>::SetPatchRadius(const unsigned int patchRadius)
+template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
+void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::SetPatchRadius(const unsigned int patchRadius)
 {
   this->PatchRadius = patchRadius;
 }
 
-template <typename TImage>
-void PatchMatch<TImage>::SetImage(TImage* const image)
-{
-  ITKHelpers::DeepCopy(image, this->Image.GetPointer());
-
-  this->Output->SetRegions(this->Image->GetLargestPossibleRegion());
-  this->Output->Allocate();
-}
-
-template <typename TImage>
-void PatchMatch<TImage>::SetSourceMask(Mask* const mask)
+template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
+void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::SetSourceMask(Mask* const mask)
 {
   this->SourceMask->DeepCopyFrom(mask);
   this->SourceMaskBoundingBox = MaskOperations::ComputeValidBoundingBox(this->SourceMask);
   //std::cout << "SourceMaskBoundingBox: " << this->SourceMaskBoundingBox << std::endl;
 }
 
-template <typename TImage>
-void PatchMatch<TImage>::SetTargetMask(Mask* const mask)
+template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
+void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::SetTargetMask(Mask* const mask)
 {
   this->TargetMask->DeepCopyFrom(mask);
   this->TargetMaskBoundingBox = MaskOperations::ComputeValidBoundingBox(this->TargetMask);
 }
 
-template <typename TImage>
-void PatchMatch<TImage>::SetAllowedPropagationMask(Mask* const mask)
+template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
+void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::SetAllowedPropagationMask(Mask* const mask)
 {
   if(!this->AllowedPropagationMask)
   {
@@ -178,47 +176,20 @@ void PatchMatch<TImage>::SetAllowedPropagationMask(Mask* const mask)
   this->AllowedPropagationMask->DeepCopyFrom(mask);
 }
 
-template <typename TImage>
-void PatchMatch<TImage>::GetPatchCentersImage(const MatchImageType* const matchImage,
-                                              CoordinateImageType* const output)
-{
-  output->SetRegions(matchImage->GetLargestPossibleRegion());
-  output->Allocate();
-
-  itk::ImageRegionConstIterator<MatchImageType> imageIterator(matchImage,
-                                                              matchImage->GetLargestPossibleRegion());
-
-  while(!imageIterator.IsAtEnd())
-    {
-    CoordinateImageType::PixelType pixel;
-
-    Match match = imageIterator.Get();
-    itk::Index<2> center = ITKHelpers::GetRegionCenter(match.Region);
-
-    pixel[0] = center[0];
-    pixel[1] = center[1];
-    pixel[2] = match.Score;
-
-    output->SetPixel(imageIterator.GetIndex(), pixel);
-
-    ++imageIterator;
-    }
-}
-
-template <typename TImage>
-PatchDistance<TImage>* PatchMatch<TImage>::GetPatchDistanceFunctor()
+template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
+TPatchDistanceFunctor* PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::GetPatchDistanceFunctor()
 {
   return this->PatchDistanceFunctor;
 }
 
-template <typename TImage>
-void PatchMatch<TImage>::SetPatchDistanceFunctor(PatchDistance<TImage>* const patchDistanceFunctor)
+template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
+void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::SetPatchDistanceFunctor(TPatchDistanceFunctor* const patchDistanceFunctor)
 {
   this->PatchDistanceFunctor = patchDistanceFunctor;
 }
 
-template <typename TImage>
-void PatchMatch<TImage>::ForcePropagation()
+template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
+void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::ForcePropagation()
 {
   std::cout << "ForcePropagation()" << std::endl;
   AcceptanceTestAcceptAll acceptanceTest;
@@ -237,8 +208,8 @@ void PatchMatch<TImage>::ForcePropagation()
   Propagation(neighborFunctor, processInvalid, &acceptanceTest);
 }
 
-template <typename TImage>
-void PatchMatch<TImage>::InwardPropagation()
+template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
+void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::InwardPropagation()
 {
   AllowedPropagationNeighbors neighborFunctor(this->AllowedPropagationMask, this->TargetMask);
 
@@ -248,12 +219,14 @@ void PatchMatch<TImage>::InwardPropagation()
   Propagation(neighborFunctor, processAll);
 }
 
-template <typename TImage>
+template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
 template <typename TNeighborFunctor, typename TProcessFunctor>
-void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor, TProcessFunctor processFunctor,
+void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::Propagation(const TNeighborFunctor neighborFunctor, TProcessFunctor processFunctor,
                                      AcceptanceTest* acceptanceTest)
 {
   assert(this->AllowedPropagationMask);
+
+  itk::ImageRegion<2> region = this->Output->GetLargestPossibleRegion();
 
   // Use the acceptance test that is passed in unless it is null, in which case use the internal acceptance test
   if(!acceptanceTest)
@@ -264,7 +237,6 @@ void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor, TPr
   assert(acceptanceTest);
 
   assert(this->Output->GetLargestPossibleRegion().GetSize()[0] > 0); // An initialization must be provided
-  assert(this->Image->GetLargestPossibleRegion().GetSize()[0] > 0);
 
   std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
   std::cout << "Propagation(): There are " << targetPixels.size() << " target pixels." << std::endl;
@@ -298,7 +270,7 @@ void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor, TPr
     itk::ImageRegion<2> targetRegion =
           ITKHelpers::GetRegionInRadiusAroundPixel(targetPixel, this->PatchRadius);
 
-    if(!this->Image->GetLargestPossibleRegion().IsInside(targetRegion))
+    if(!region.IsInside(targetRegion))
       {
         std::cerr << "targetRegion " << targetRegion << " is outside of the image." << std::endl;
         continue;
@@ -315,7 +287,7 @@ void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor, TPr
       itk::Offset<2> potentialPropagationPixelOffset = potentialPropagationPixel - targetPixel;
 
       //assert(this->Image->GetLargestPossibleRegion().IsInside(potentialPropagationPixel));
-      if(!this->Image->GetLargestPossibleRegion().IsInside(potentialPropagationPixel))
+      if(!region.IsInside(potentialPropagationPixel))
       {
         //std::cerr << "Pixel " << potentialPropagationPixel << " is outside of the image." << std::endl;
         continue;
@@ -344,7 +316,7 @@ void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor, TPr
       itk::ImageRegion<2> potentialMatchRegion =
             ITKHelpers::GetRegionInRadiusAroundPixel(potentialMatchPixel, this->PatchRadius);
 
-      if(!this->SourceMask->GetLargestPossibleRegion().IsInside(potentialMatchRegion) ||
+      if(!region.IsInside(potentialMatchRegion) ||
          !this->SourceMask->IsValid(potentialMatchRegion))
       {
         // do nothing - we don't want to propagate information that is not originally valid
@@ -393,8 +365,8 @@ void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor, TPr
   std::cout << "Propagation() already exact match " << alreadyExactMatch << " pixels." << std::endl;
 }
 
-template <typename TImage>
-void PatchMatch<TImage>::ForwardPropagation()
+template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
+void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::ForwardPropagation()
 {
   ForwardPropagationNeighbors neighborFunctor;
 
@@ -404,8 +376,8 @@ void PatchMatch<TImage>::ForwardPropagation()
   Propagation(neighborFunctor, processAll);
 }
 
-template <typename TImage>
-void PatchMatch<TImage>::BackwardPropagation()
+template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
+void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::BackwardPropagation()
 {
   BackwardPropagationNeighbors neighborFunctor;
 
@@ -415,11 +387,13 @@ void PatchMatch<TImage>::BackwardPropagation()
   Propagation(neighborFunctor, processAll);
 }
 
-template <typename TImage>
-void PatchMatch<TImage>::RandomSearch()
+template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
+void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::RandomSearch()
 {
   assert(this->Output->GetLargestPossibleRegion().GetSize()[0] > 0);
-  
+
+  itk::ImageRegion<2> region = this->Output->GetLargestPossibleRegion();
+
   std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
   std::cout << "RandomSearch: There are : " << targetPixels.size() << " target pixels." << std::endl;
   unsigned int exactMatchPixels = 0;
@@ -442,14 +416,14 @@ void PatchMatch<TImage>::RandomSearch()
 
     itk::ImageRegion<2> targetRegion = ITKHelpers::GetRegionInRadiusAroundPixel(targetPixel, this->PatchRadius);
 
-    if(!this->Image->GetLargestPossibleRegion().IsInside(targetRegion))
+    if(!region.IsInside(targetRegion))
       {
         //std::cerr << "Pixel " << potentialPropagationPixel << " is outside of the image." << std::endl;
         continue;
       }
 
-    unsigned int width = this->Image->GetLargestPossibleRegion().GetSize()[0];
-    unsigned int height = this->Image->GetLargestPossibleRegion().GetSize()[1];
+    unsigned int width = region.GetSize()[0];
+    unsigned int height = region.GetSize()[1];
 
     // The maximum (first) search radius, as prescribed in PatchMatch paper section 3.2
     unsigned int radius = std::max(width, height);
@@ -463,7 +437,7 @@ void PatchMatch<TImage>::RandomSearch()
     while (radius > this->PatchRadius) // while there is more than just the current patch to search
     {
       itk::ImageRegion<2> searchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(targetPixel, radius);
-      searchRegion.Crop(this->Image->GetLargestPossibleRegion());
+      searchRegion.Crop(region);
 
       unsigned int maxNumberOfAttempts = 5; // How many random patches to test for validity before giving up
 
@@ -511,32 +485,32 @@ void PatchMatch<TImage>::RandomSearch()
   std::cout << "RandomSearch: already exact match " << exactMatchPixels << std::endl;
 }
 
-template <typename TImage>
-void PatchMatch<TImage>::SetInitialNNField(MatchImageType* const initialMatchImage)
+template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
+void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::SetInitialNNField(MatchImageType* const initialMatchImage)
 {
   ITKHelpers::DeepCopy(initialMatchImage, this->Output.GetPointer());
 }
 
-template <typename TImage>
-void PatchMatch<TImage>::SetAcceptanceTest(AcceptanceTest* const acceptanceTest)
+template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
+void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::SetAcceptanceTest(TAcceptanceTest* const acceptanceTest)
 {
   this->AcceptanceTestFunctor = acceptanceTest;
 }
 
-template <typename TImage>
-void PatchMatch<TImage>::SetRandom(const bool random)
+template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
+void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::SetRandom(const bool random)
 {
   this->Random = random;
 }
 
-template <typename TImage>
-Mask* PatchMatch<TImage>::GetAllowedPropagationMask()
+template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
+Mask* PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::GetAllowedPropagationMask()
 {
   return this->AllowedPropagationMask;
 }
 
-template <typename TImage>
-void PatchMatch<TImage>::WriteValidPixels(const std::string& fileName)
+template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
+void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::WriteValidPixels(const std::string& fileName)
 {
   typedef itk::Image<unsigned char> ImageType;
   ImageType::Pointer image = ImageType::New();
@@ -560,28 +534,20 @@ void PatchMatch<TImage>::WriteValidPixels(const std::string& fileName)
   ITKHelpers::WriteImage(image.GetPointer(), fileName);
 }
 
-template <typename TImage>
-void PatchMatch<TImage>::SetPropagationStrategy(const PropagationStrategyEnum propagationStrategy)
+template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
+void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::SetPropagationStrategy(const PropagationStrategyEnum propagationStrategy)
 {
   this->PropagationStrategy = propagationStrategy;
 }
 
-template <typename TImage>
-void PatchMatch<TImage>::WriteNNField(const MatchImageType* const nnField, const std::string& fileName)
-{
-  CoordinateImageType::Pointer coordinateImage = CoordinateImageType::New();
-  GetPatchCentersImage(nnField, coordinateImage.GetPointer());
-  ITKHelpers::WriteImage(coordinateImage.GetPointer(), fileName);
-}
-
-template <typename TImage>
-AcceptanceTest* PatchMatch<TImage>::GetAcceptanceTest()
+template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
+TAcceptanceTest* PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::GetAcceptanceTest()
 {
   return this->AcceptanceTestFunctor;
 }
 
-template <typename TImage>
-unsigned int PatchMatch<TImage>::CountInvalidPixels()
+template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
+unsigned int PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::CountInvalidPixels()
 {
   std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
 

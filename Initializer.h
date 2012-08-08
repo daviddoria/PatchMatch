@@ -71,9 +71,6 @@ protected:
 
   Mask* SourceMask;
   Mask* TargetMask;
-
-  itk::ImageRegion<2> Region;
-
 };
 
 // template <typename TImage, typename TPatchDistanceFunctor>

@@ -19,9 +19,14 @@
 #ifndef PatchMatchHelpers_H
 #define PatchMatchHelpers_H
 
+// ITK
+#include "itkImageRegionConstIterator.h"
+#include "itkImage.h"
+#include "itkCovariantVector.h"
+
 namespace PatchMatchHelpers
 {
-  
+
 itk::Offset<2> RandomNeighborNonZeroOffset()
 {
   int randomOffsetX = 0;
@@ -36,6 +41,45 @@ itk::Offset<2> RandomNeighborNonZeroOffset()
   itk::Offset<2> randomNeighborNonZeroOffset = {{randomOffsetX, randomOffsetY}};
 
   return randomNeighborNonZeroOffset;
+}
+
+typedef itk::Image<itk::CovariantVector<float, 3>, 2> CoordinateImageType;
+
+template <typename MatchImageType, typename CoordinateImageType>
+void GetPatchCentersImage(const MatchImageType* const matchImage, CoordinateImageType* const output)
+{
+  output->SetRegions(matchImage->GetLargestPossibleRegion());
+  output->Allocate();
+
+  itk::ImageRegionConstIterator<MatchImageType> imageIterator(matchImage,
+                                                              matchImage->GetLargestPossibleRegion());
+
+  while(!imageIterator.IsAtEnd())
+    {
+    typename CoordinateImageType::PixelType pixel;
+
+    Match match = imageIterator.Get();
+    itk::Index<2> center = ITKHelpers::GetRegionCenter(match.Region);
+
+    pixel[0] = center[0];
+    pixel[1] = center[1];
+    pixel[2] = match.Score;
+
+    output->SetPixel(imageIterator.GetIndex(), pixel);
+
+    ++imageIterator;
+    }
+}
+
+
+/** Get an image where the channels are (x component, y component, score) from the nearest
+  * neighbor field struct. */
+template <typename MatchImageType>
+void WriteNNField(const MatchImageType* const nnField, const std::string& fileName)
+{
+  PatchMatchHelpers::CoordinateImageType::Pointer coordinateImage = PatchMatchHelpers::CoordinateImageType::New();
+  PatchMatchHelpers::GetPatchCentersImage(nnField, coordinateImage.GetPointer());
+  ITKHelpers::WriteImage(coordinateImage.GetPointer(), fileName);
 }
 
 } // end PatchMatchHelpers namespace
