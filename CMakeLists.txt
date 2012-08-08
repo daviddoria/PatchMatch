@@ -7,9 +7,12 @@ SET(CMAKE_INCLUDE_CURRENT_DIR ON)
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=gnu++0x")
 
 # ITK
-FIND_PACKAGE(ITK REQUIRED ITKCommon ITKIOImageBase ITKIOPNG ITKIOMeta ITKDistanceMap
-ITKImageIntensity ITKImageFeature ITKMathematicalMorphology ITKBinaryMathematicalMorphology)
-INCLUDE(${USE_ITK_FILE})
+if(NOT ITK_FOUND)
+  FIND_PACKAGE(ITK REQUIRED ITKCommon ITKIOImageBase ITKIOPNG ITKIOMeta ITKDistanceMap
+                            ITKImageIntensity ITKImageFeature ITKMathematicalMorphology
+                            ITKBinaryMathematicalMorphology)
+  INCLUDE(${USE_ITK_FILE})
+endif()
 
 # Submodules
 if(NOT TARGET PatchComparison)
