@@ -19,11 +19,17 @@
 #ifndef InitializerNeighborHistogram_H
 #define InitializerNeighborHistogram_H
 
+// Custom
 #include "Initializer.h"
-
 #include "PatchMatchHelpers.h"
 
-/** Assign random nearest neighbors, as long as the difference between the histogram of the neighbor and the histogram of the query
+// ITK
+#include "itkNumericTraits.h"
+
+// STL
+#include <algorithm> // for remove_if
+
+/** Assign random nearest neighbors to invalid pixels in the target region, as long as the difference between the histogram of the neighbor and the histogram of the query
   * is less than a multiplier times the difference between the histogram of the query and the histogram of the random patch.*/
 template <typename TImage, typename TPatchDistanceFunctor>
 class InitializerNeighborHistogram : public InitializerPatch
@@ -42,8 +48,8 @@ public:
     assert(this->Image);
     assert(this->Image->GetLargestPossibleRegion().GetSize()[0] == initialization->GetLargestPossibleRegion().GetSize()[0]);
 
-    std::cout << "InitializerNeighborHistogram: RangeMin = " << static_cast<float>(this->RangeMin) << std::endl;
-    std::cout << "InitializerNeighborHistogram: RangeMax = " << static_cast<float>(this->RangeMax) << std::endl;
+//     std::cout << "InitializerNeighborHistogram: RangeMin = " << static_cast<float>(this->RangeMin) << std::endl;
+//     std::cout << "InitializerNeighborHistogram: RangeMax = " << static_cast<float>(this->RangeMax) << std::endl;
 
     itk::ImageRegion<2> internalRegion =
              ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
@@ -57,15 +63,19 @@ public:
     }
 
     std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
-    std::cout << "InitializerNeighborHistogram: There are : " << targetPixels.size() << " target pixels." << std::endl;
+
+    // Remove the valid pixels from this list, because we only want to initialize invalid pixels
+    targetPixels.erase(std::remove_if(targetPixels.begin(), targetPixels.end(),
+                      [initialization](const itk::Index<2>& queryPixel)
+                      {
+                        return initialization->GetPixel(queryPixel).IsValid();
+                      }),
+                      targetPixels.end());
+    std::cout << "InitializerNeighborHistogram: There are : " << targetPixels.size() << " pixels to initialize." << std::endl;
 
     unsigned int failedMatches = 0;
     for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
     {
-      if(targetPixelId % 10000 == 0)
-      {
-        std::cout << "InitializerNeighborHistogram() processing " << targetPixelId << " of " << targetPixels.size() << std::endl;
-      }
       itk::ImageRegion<2> targetRegion = ITKHelpers::GetRegionInRadiusAroundPixel(targetPixels[targetPixelId], this->PatchRadius);
       if(!this->Image->GetLargestPossibleRegion().IsInside(targetRegion))
       {
@@ -73,10 +83,6 @@ public:
       }
 
       itk::Index<2> targetPixel = targetPixels[targetPixelId];
-      if(initialization->GetPixel(targetPixel).IsValid())
-      {
-        continue;
-      }
 
       unsigned int numberOfBinsPerDimension = 20;
 

@@ -163,7 +163,6 @@ protected:
 
   TAcceptanceTest* AcceptanceTestFunctor;
 
-  unsigned int CountInvalidPixels();
 }; // end PatchMatch class
 
 #include "PatchMatch.hpp"

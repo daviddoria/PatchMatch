@@ -35,7 +35,8 @@ struct Match
   float Score;
 
   static constexpr float InvalidScore = std::numeric_limits< float >::quiet_NaN();
-  bool IsValid()
+
+  bool IsValid() const
   {
     if(Helpers::IsNaN(this->Score))
     {

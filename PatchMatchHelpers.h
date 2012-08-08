@@ -82,6 +82,23 @@ void WriteNNField(const MatchImageType* const nnField, const std::string& fileNa
   ITKHelpers::WriteImage(coordinateImage.GetPointer(), fileName);
 }
 
+template <typename MatchImageType>
+unsigned int CountInvalidPixels(const MatchImageType* const nnField, const Mask* const mask)
+{
+  std::vector<itk::Index<2> > regionPixels = mask->GetValidPixels();
+
+  unsigned int numberOfInvalidPixels = 0;
+  for(size_t pixelId = 0; pixelId < regionPixels.size(); ++pixelId)
+  {
+    if(!nnField->GetPixel(regionPixels[pixelId]).IsValid())
+    {
+      numberOfInvalidPixels++;
+    }
+  }
+
+  return numberOfInvalidPixels;
+}
+
 } // end PatchMatchHelpers namespace
 
 #endif

@@ -19,6 +19,45 @@
 #ifndef Neighbors_H
 #define Neighbors_H
 
+// Custom
+#include "Match.h"
+
+// Submodules
+#include <Mask/Mask.h>
+
+struct ValidTargetNeighbors
+{
+  typedef itk::Image<Match, 2> MatchImageType;
+
+  ValidTargetNeighbors(MatchImageType* const matchImage, Mask* const targetMask)
+  {
+    this->MatchImage = matchImage;
+    this->TargetMask = targetMask;
+  }
+
+  std::vector<itk::Index<2> > operator() (const itk::Index<2>& queryIndex) const
+  {
+    std::vector<itk::Index<2> > potentialPropagationNeighbors =
+        ITKHelpers::Get8NeighborsInRegion(this->TargetMask->GetLargestPossibleRegion(),
+                                          queryIndex);
+
+    std::vector<itk::Index<2> > allowedPropagationNeighbors;
+    for(size_t i = 0; i < potentialPropagationNeighbors.size(); ++i)
+    {
+      if(this->MatchImage->GetPixel(potentialPropagationNeighbors[i]).IsValid() &&
+         this->TargetMask->IsValid(potentialPropagationNeighbors[i]) )
+      {
+        allowedPropagationNeighbors.push_back(potentialPropagationNeighbors[i]);
+      }
+    }
+    return allowedPropagationNeighbors;
+  }
+
+private:
+  MatchImageType* MatchImage;
+  Mask* TargetMask;
+};
+
 struct AllowedPropagationNeighbors
 {
   AllowedPropagationNeighbors(Mask* const allowedPropagationMask, Mask* const targetMask)

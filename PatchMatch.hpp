@@ -35,6 +35,7 @@
 #include "itkImageRegionReverseIterator.h"
 
 // STL
+#include <algorithm>
 #include <ctime>
 
 // Custom
@@ -128,9 +129,11 @@ void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::Compute()
   } // end iteration loop
 
   // As a final pass, propagate to all pixels which were not set to a valid nearest neighbor
-  std::cout << "Before ForcePropagation() there are " << CountInvalidPixels() << " invalid pixels." << std::endl;
+//   std::cout << "Before ForcePropagation() there are " << PatchMatchHelpers::CountInvalidPixels(this->Output.GetPointer(), this->TargetMask)
+//             << " invalid pixels." << std::endl;
   ForcePropagation();
-  std::cout << "After ForcePropagation() there are " << CountInvalidPixels() << " invalid pixels." << std::endl;
+//   std::cout << "After ForcePropagation() there are " << PatchMatchHelpers::CountInvalidPixels(this->Output.GetPointer(), this->TargetMask)
+//             << " invalid pixels." << std::endl;
 
   std::cout << "PatchMatch finished." << std::endl;
 }
@@ -196,7 +199,9 @@ void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::ForcePropagation()
 {
   std::cout << "ForcePropagation()" << std::endl;
   AcceptanceTestAcceptAll acceptanceTest;
-  AllNeighbors neighborFunctor;
+
+  //AllNeighbors neighborFunctor;
+  ValidTargetNeighbors neighborFunctor(this->Output, this->TargetMask);
 
   // Process the pixels that are invalid
   auto processInvalid = [this](const itk::Index<2>& queryIndex)
@@ -242,33 +247,32 @@ void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::Propagation(const TNeig
   assert(this->Output->GetLargestPossibleRegion().GetSize()[0] > 0); // An initialization must be provided
 
   std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
-  std::cout << "Propagation(): There are " << targetPixels.size() << " target pixels." << std::endl;
-  unsigned int skippedPixels = 0;
-  unsigned int alreadyExactMatch = 0;
+
   unsigned int propagatedPixels = 0;
+
+  // Don't process the pixels we don't want to process
+  targetPixels.erase(std::remove_if(targetPixels.begin(), targetPixels.end(),
+                  [processFunctor](const itk::Index<2>& queryPixel)
+                  {
+                    return !processFunctor(queryPixel);
+                  }),
+                  targetPixels.end());
+
+  // Don't process the pixels that already have an exact match.
+  // When using PatchMatch for inpainting, most of the NN-field will be an exact match.
+  // We don't have to search anymore once the exact match is found.
+  targetPixels.erase(std::remove_if(targetPixels.begin(), targetPixels.end(),
+                  [Output](const itk::Index<2>& queryPixel)
+                  {
+                    return Output->GetPixel(queryPixel).Score == 0;
+                  }),
+                  targetPixels.end());
+
+  std::cout << "Propagation(): There are " << targetPixels.size() << " pixels that would like to be propagated to." << std::endl;
+  
   for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
   {
-//     if(targetPixelId % 10000 == 0)
-//     {
-//       std::cout << "Propagation() processing " << targetPixelId << " of " << targetPixels.size() << std::endl;
-//     }
-
     itk::Index<2> targetPixel = targetPixels[targetPixelId];
-
-    // If we don't want to process this pixel, skip it
-    if(!processFunctor(targetPixel))
-    {
-      skippedPixels++;
-      continue;
-    }
-
-    // When using PatchMatch for inpainting, most of the NN-field will be an exact match.
-    // We don't have to search anymore once the exact match is found.
-    if((this->Output->GetPixel(targetPixel).Score == 0))
-    {
-      alreadyExactMatch++;
-      continue;
-    }
 
     itk::ImageRegion<2> targetRegion =
           ITKHelpers::GetRegionInRadiusAroundPixel(targetPixel, this->PatchRadius);
@@ -312,9 +316,8 @@ void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::Propagation(const TNeig
       // - The best match to (3,4) is (10,10)
       // - potentialMatch should be (11,10), because since the current pixel is 1 to the right
       // of the neighbor, we need to consider the patch one to the right of the neighbors best match
-      itk::Index<2> potentialMatchPixel =
-            ITKHelpers::GetRegionCenter(this->Output->GetPixel(potentialPropagationPixel).Region) -
-                                        potentialPropagationPixelOffset;
+      itk::Index<2> currentNearestNeighbor = ITKHelpers::GetRegionCenter(this->Output->GetPixel(potentialPropagationPixel).Region);
+      itk::Index<2> potentialMatchPixel = currentNearestNeighbor - potentialPropagationPixelOffset;
 
       itk::ImageRegion<2> potentialMatchRegion =
             ITKHelpers::GetRegionInRadiusAroundPixel(potentialMatchPixel, this->PatchRadius);
@@ -337,21 +340,15 @@ void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::Propagation(const TNeig
         //bool better = AddIfBetter(targetRegionCenter, potentialMatch);
 
         Match currentMatch = this->Output->GetPixel(targetPixel);
-        if(potentialMatch.Score < currentMatch.Score)
+
+        if(acceptanceTest->IsBetter(targetRegion, this->Output->GetPixel(targetPixel), potentialMatch))
         {
-          if(acceptanceTest->IsBetter(targetRegion, this->Output->GetPixel(targetPixel), potentialMatch))
-          {
-            this->Output->SetPixel(targetPixel, potentialMatch);
-            propagated = true;
-          }
-          else
-          {
-            //std::cerr << "Acceptance test failed!" << std::endl;
-          }
+          this->Output->SetPixel(targetPixel, potentialMatch);
+          propagated = true;
         }
         else
         {
-          // std::cerr << "SSD is not lower."
+          //std::cerr << "Acceptance test failed!" << std::endl;
         }
 
       } // end else source region valid
@@ -371,9 +368,7 @@ void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::Propagation(const TNeig
 //     }
   } // end loop over target pixels
 
-  std::cout << "Propagation() skipped " << skippedPixels << " pixels." << std::endl;
   std::cout << "Propagation() propagated " << propagatedPixels << " pixels." << std::endl;
-  std::cout << "Propagation() already exact match " << alreadyExactMatch << " pixels." << std::endl;
 }
 
 template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
@@ -410,11 +405,6 @@ void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::RandomSearch()
   unsigned int exactMatchPixels = 0;
   for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
   {
-//     if(targetPixelId % 10000 == 0)
-//     {
-//       std::cout << "RandomSearch() processing " << targetPixelId << " of " << targetPixels.size() << std::endl;
-//     }
-
     itk::Index<2> targetPixel = targetPixels[targetPixelId];
 
     // For inpainting, most of the NN-field will be an exact match. We don't have to search anymore
@@ -481,12 +471,9 @@ void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::RandomSearch()
       // better than the current best patch. In subclasses (i.e. GeneralizedPatchMatch),
       // it must be better than the worst patch currently stored.
       Match currentMatch = this->Output->GetPixel(targetPixel);
-      if(potentialMatch.Score < currentMatch.Score)
+      if(this->AcceptanceTestFunctor->IsBetter(targetRegion, this->Output->GetPixel(targetPixel), potentialMatch))
       {
-        if(this->AcceptanceTestFunctor->IsBetter(targetRegion, this->Output->GetPixel(targetPixel), potentialMatch))
-        {
-          this->Output->SetPixel(targetPixel, potentialMatch);
-        }
+        this->Output->SetPixel(targetPixel, potentialMatch);
       }
 
       radius *= alpha;
@@ -494,7 +481,7 @@ void PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::RandomSearch()
 
   } // end loop over target pixels
 
-  std::cout << "RandomSearch: already exact match " << exactMatchPixels << std::endl;
+  //std::cout << "RandomSearch: already exact match " << exactMatchPixels << std::endl;
 }
 
 template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
@@ -556,23 +543,6 @@ template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
 TAcceptanceTest* PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::GetAcceptanceTest()
 {
   return this->AcceptanceTestFunctor;
-}
-
-template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
-unsigned int PatchMatch<TPatchDistanceFunctor, TAcceptanceTest>::CountInvalidPixels()
-{
-  std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
-
-  unsigned int invalidPixels = 0;
-  for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
-  {
-    if(!this->Output->GetPixel(targetPixels[targetPixelId]).IsValid())
-    {
-      invalidPixels++;
-    }
-  }
-
-  return invalidPixels;
 }
 
 #endif
