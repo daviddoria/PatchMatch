@@ -150,10 +150,6 @@ void PatchMatch<TImage>::SetImage(TImage* const image)
 
   this->Output->SetRegions(this->Image->GetLargestPossibleRegion());
   this->Output->Allocate();
-
-  this->HSVImage = HSVImageType::New();
-  ITKHelpers::ITKImageToHSVImage(image, this->HSVImage.GetPointer());
-  ITKHelpers::WriteImage(this->HSVImage.GetPointer(), "HSV.mha");
 }
 
 template <typename TImage>
@@ -352,7 +348,7 @@ void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor, TPr
          !this->SourceMask->IsValid(potentialMatchRegion))
       {
         // do nothing - we don't want to propagate information that is not originally valid
-        std::cerr << "Cannot propagate from this source region!" << std::endl;
+        //std::cerr << "Cannot propagate from this source region!" << std::endl;
       }
       else
       {
@@ -372,7 +368,7 @@ void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor, TPr
         }
         else
         {
-          std::cerr << "Acceptance test failed!" << std::endl;
+          //std::cerr << "Acceptance test failed!" << std::endl;
         }
 
       } // end else source region valid
@@ -383,7 +379,7 @@ void PatchMatch<TImage>::Propagation(const TNeighborFunctor neighborFunctor, TPr
       propagatedPixels++;
     }
     {
-      std::cerr << "Failed to propagate to " << targetPixel << std::endl;
+      //std::cerr << "Failed to propagate to " << targetPixel << std::endl;
     }
 //     { // Debug only
 //     CoordinateImageType::Pointer temp = CoordinateImageType::New();

@@ -175,9 +175,6 @@ protected:
   /** The choice of propagation strategy. */
   PropagationStrategyEnum PropagationStrategy;
 
-  typedef itk::VectorImage<float, 2> HSVImageType;
-  HSVImageType::Pointer HSVImage;
-
   AcceptanceTest* AcceptanceTestFunctor;
 
   unsigned int CountInvalidPixels();

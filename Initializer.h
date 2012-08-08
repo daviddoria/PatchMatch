@@ -36,26 +36,19 @@ public:
   virtual void Initialize(itk::Image<Match, 2>* const initialization) = 0;
 };
 
-template <typename TImage>
-class InitializerImage : public Initializer
+class InitializerPatch : public Initializer
 {
-public:
-  InitializerImage() : Image(NULL), PatchRadius(0), SourceMask(NULL),
-                       TargetMask(NULL), PatchDistanceFunctor(NULL) {}
+  public:
+  InitializerPatch() : PatchRadius(0), SourceMask(NULL),
+                       TargetMask(NULL) {}
 
-  InitializerImage(TImage* const image, const unsigned int patchRadius)
+  InitializerPatch(const unsigned int patchRadius)
   {
-    this->Image = image;
     this->PatchRadius = patchRadius;
   }
 
   /** Create the 'initialization' image. */
   virtual void Initialize(itk::Image<Match, 2>* const initialization) = 0;
-
-  void SetImage(TImage* const image)
-  {
-    this->Image = image;
-  }
 
   void SetPatchRadius(const unsigned int patchRadius)
   {
@@ -72,20 +65,44 @@ public:
     this->TargetMask = targetMask;
   }
 
-  void SetPatchDistanceFunctor(PatchDistance<TImage>* const patchDistanceFunctor)
-  {
-    this->PatchDistanceFunctor = patchDistanceFunctor;
-  }
-
 protected:
-  TImage* Image;
 
   unsigned int PatchRadius;
 
   Mask* SourceMask;
   Mask* TargetMask;
 
-  PatchDistance<TImage>* PatchDistanceFunctor;
+  itk::ImageRegion<2> Region;
+
 };
+
+// template <typename TImage, typename TPatchDistanceFunctor>
+// class InitializerImage : public InitializerPatch
+// {
+//   public:
+//   InitializerImage() : Image(NULL), PatchDistanceFunctor(NULL) {}
+// 
+//   InitializerImage(TImage* const image, const unsigned int patchRadius) : InitializerPatch(patchRadius)
+//   {
+//     this->Image = image;
+//   }
+// 
+//   virtual void Initialize(itk::Image<Match, 2>* const initialization) = 0;
+// 
+//   void SetImage(TImage* const image)
+//   {
+//     this->Image = image;
+//   }
+// 
+//   void SetPatchDistanceFunctor(TPatchDistanceFunctor* const patchDistanceFunctor)
+//   {
+//     this->PatchDistanceFunctor = patchDistanceFunctor;
+//   }
+// 
+// protected:
+//   TImage* Image;
+// 
+//   TPatchDistanceFunctor* PatchDistanceFunctor;
+// };
 
 #endif

@@ -22,22 +22,24 @@
 #include "Initializer.h"
 
 /** Set target pixels in the TargetMask to have random nearest neighbors. */
-template <typename TImage>
-class InitializerRandom : public InitializerImage<TImage>
+template <typename TPatchDistanceFunctor>
+class InitializerRandom : public InitializerPatch
 {
 public:
 
-  InitializerRandom(){}
-
-  InitializerRandom(TImage* const image, const unsigned int patchRadius) :
-    InitializerImage<TImage>(image, patchRadius) {}
+  InitializerRandom() : PatchDistanceFunctor(NULL) {}
 
   /** Set target pixels (in the TargetMask) in 'initialization' to have random nearest neighbors.
     * Do not modify other pixles in 'initialization'.*/
   virtual void Initialize(itk::Image<Match, 2>* const initialization)
   {
+    assert(this->PatchDistanceFunctor);
+    assert(initialization);
+
+    itk::ImageRegion<2> region = initialization->GetLargestPossibleRegion();
+
     itk::ImageRegion<2> internalRegion =
-              ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
+              ITKHelpers::GetInternalRegion(region, this->PatchRadius);
 
     std::vector<itk::ImageRegion<2> > validSourceRegions =
           MaskOperations::GetAllFullyValidRegions(this->SourceMask, internalRegion, this->PatchRadius);
@@ -53,7 +55,7 @@ public:
     {
       itk::ImageRegion<2> targetRegion =
         ITKHelpers::GetRegionInRadiusAroundPixel(targetPixels[targetPixelId], this->PatchRadius);
-      if(!this->Image->GetLargestPossibleRegion().IsInside(targetRegion))
+      if(!region.IsInside(targetRegion))
       {
         continue;
       }
@@ -75,6 +77,15 @@ public:
 
     //std::cout << "Finished RandomInit." << internalRegion << std::endl;
   }
+  
+  void SetPatchDistanceFunctor(TPatchDistanceFunctor* const patchDistanceFunctor)
+  {
+    this->PatchDistanceFunctor = patchDistanceFunctor;
+  }
+
+protected:
+
+  TPatchDistanceFunctor* PatchDistanceFunctor;
 };
 
 #endif

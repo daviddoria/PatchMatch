@@ -23,11 +23,13 @@
 
 #include "PatchMatchHelpers.h"
 
-template <typename TImage>
-class InitializerNeighborHistogram : public InitializerImage<TImage>
+/** Assign random nearest neighbors, as long as the difference between the histogram of the neighbor and the histogram of the query
+  * is less than a multiplier times the difference between the histogram of the query and the histogram of the random patch.*/
+template <typename TImage, typename TPatchDistanceFunctor>
+class InitializerNeighborHistogram : public InitializerPatch
 {
 public:
-  InitializerNeighborHistogram() : NeighborHistogramMultiplier(2.0f)
+  InitializerNeighborHistogram() : Image(NULL), NeighborHistogramMultiplier(2.0f), MaxAttempts(10), PatchDistanceFunctor(NULL)
   {
     this->RangeMin = itk::NumericTraits<typename TypeTraits<typename TImage::PixelType>::ComponentType>::min();
     this->RangeMax = itk::NumericTraits<typename TypeTraits<typename TImage::PixelType>::ComponentType>::max();
@@ -37,7 +39,9 @@ public:
 
   virtual void Initialize(itk::Image<Match, 2>* const initialization)
   {
+    assert(initialization);
     assert(initialization->GetLargestPossibleRegion().GetSize()[0] != 0);
+    assert(this->Image);
     assert(this->Image->GetLargestPossibleRegion().GetSize()[0] == initialization->GetLargestPossibleRegion().GetSize()[0]);
 
     itk::ImageRegion<2> internalRegion =
@@ -48,18 +52,18 @@ public:
 
     if(validSourceRegions.size() == 0)
     {
-      throw std::runtime_error("PatchMatch::RandomInitWithHistogramTest() No valid source regions!");
+      throw std::runtime_error("InitializerNeighborHistogram::Initialize() No valid source regions!");
     }
 
     std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
-    std::cout << "RandomInitWithHistogramTest: There are : " << targetPixels.size() << " target pixels." << std::endl;
+    std::cout << "InitializerNeighborHistogram: There are : " << targetPixels.size() << " target pixels." << std::endl;
 
     unsigned int failedMatches = 0;
     for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
     {
       if(targetPixelId % 10000 == 0)
       {
-        std::cout << "RandomInitWithHistogramNeighborTest() processing " << targetPixelId << " of " << targetPixels.size() << std::endl;
+        std::cout << "InitializerNeighborHistogram() processing " << targetPixelId << " of " << targetPixels.size() << std::endl;
       }
       itk::ImageRegion<2> targetRegion = ITKHelpers::GetRegionInRadiusAroundPixel(targetPixels[targetPixelId], this->PatchRadius);
       if(!this->Image->GetLargestPossibleRegion().IsInside(targetRegion))
@@ -87,7 +91,6 @@ public:
       unsigned int attempts = 0;
       bool acceptableMatchFound = true;
 
-      unsigned int maxAttempts = 10;
       do
       {
         unsigned int randomSourceRegionId = Helpers::RandomInt(0, validSourceRegions.size() - 1);
@@ -108,7 +111,7 @@ public:
         neighborHistogramDifference = Histogram<int>::HistogramDifference(queryHistogram, neighborPatchHistogram);
         //std::cout << "histogramDifference: " << histogramDifference << std::endl;
         attempts++;
-        if(attempts > maxAttempts)
+        if(attempts > this->MaxAttempts)
         {
   //         std::stringstream ss;
   //         ss << "Too many attempts to find a good random match for " << targetPixel;
@@ -159,10 +162,29 @@ public:
     this->NeighborHistogramMultiplier = neighborHistogramMultiplier;
   }
 
+  void SetMaxAttempts(const unsigned int maxAttempts)
+  {
+    this->MaxAttempts = maxAttempts;
+  }
+
+  void SetPatchDistanceFunctor(TPatchDistanceFunctor* const patchDistanceFunctor)
+  {
+    this->PatchDistanceFunctor = patchDistanceFunctor;
+  }
+
+  void SetImage(TImage* const image)
+  {
+    this->Image = image;
+  }
 private:
+  TImage* Image;
+
   float NeighborHistogramMultiplier;
   typename TypeTraits<typename TImage::PixelType>::ComponentType RangeMin;
   typename TypeTraits<typename TImage::PixelType>::ComponentType RangeMax;
+
+  unsigned int MaxAttempts;
+  TPatchDistanceFunctor* PatchDistanceFunctor;
 };
 
 #endif

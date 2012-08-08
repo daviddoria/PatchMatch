@@ -21,10 +21,12 @@
 
 #include "Initializer.h"
 
+/** Assign random nearest neighbors, as long as the difference between the histogram of the random patch and the histogram of the query
+  * is less than a specified threshold.*/
 class InitializerHistogram : public Initializer
 {
 public:
-  virtual void Initialize()
+  virtual void Initialize(itk::Image<Match, 2>* const initialization)
   {
     itk::ImageRegion<2> internalRegion =
              ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
@@ -48,19 +50,15 @@ public:
       }
 
       itk::Index<2> targetPixel = targetPixels[targetPixelId];
-      if(this->Output->GetPixel(targetPixel).IsValid())
+      if(initialization->GetPixel(targetPixel).IsValid())
       {
         continue;
       }
 
       unsigned int numberOfBinsPerDimension = 20;
-      typename TypeTraits<typename HSVImageType::PixelType>::ComponentType rangeMin = 0;
-      typename TypeTraits<typename HSVImageType::PixelType>::ComponentType rangeMax = 1;
-  //     std::cout << "Range min: " << rangeMin << std::endl;
-  //     std::cout << "Range max: " << rangeMax << std::endl;
 
       Histogram<int>::HistogramType queryHistogram = Histogram<int>::ComputeImageHistogram1D(this->HSVImage.GetPointer(),
-                                                                                            targetRegion, numberOfBinsPerDimension, rangeMin, rangeMax);
+                                                                                            targetRegion, numberOfBinsPerDimension, this->RangeMin, this->RangeMax);
 
       float histogramDifference;
       itk::ImageRegion<2> randomValidRegion;
@@ -72,8 +70,8 @@ public:
       {
         unsigned int randomSourceRegionId = Helpers::RandomInt(0, validSourceRegions.size() - 1);
         randomValidRegion = validSourceRegions[randomSourceRegionId];
-        randomPatchHistogram = Histogram<int>::ComputeImageHistogram1D(this->HSVImage.GetPointer(),
-                                                                      randomValidRegion, numberOfBinsPerDimension, rangeMin, rangeMax);
+        randomPatchHistogram = Histogram<int>::ComputeImageHistogram1D(this->Image.GetPointer(),
+                                                                      randomValidRegion, numberOfBinsPerDimension, this->RangeMin, this->RangeMax);
         histogramDifference = Histogram<int>::HistogramDifference(queryHistogram, randomPatchHistogram);
         //std::cout << "histogramDifference: " << histogramDifference << std::endl;
         attempts++;
@@ -102,7 +100,7 @@ public:
         randomMatch.Score = std::numeric_limits<float>::max();
       }
 
-      this->Output->SetPixel(targetPixel, randomMatch);
+      initialization->SetPixel(targetPixel, randomMatch);
     }
 
 
@@ -113,7 +111,20 @@ public:
     }
     //std::cout << "Finished RandomInit." << internalRegion << std::endl;
   }
-  
+
+  void SetRangeMin(const typename TypeTraits<typename TImage::PixelType>::ComponentType rangeMin)
+  {
+    this->RangeMin = rangeMin;
+  }
+
+  void SetRangeMax(const typename TypeTraits<typename TImage::PixelType>::ComponentType rangeMax)
+  {
+    this->RangeMax = rangeMax;
+  }
+
+protected:
+  typename TypeTraits<typename TImage::PixelType>::ComponentType RangeMin;
+  typename TypeTraits<typename TImage::PixelType>::ComponentType RangeMax;
 };
 
 #endif

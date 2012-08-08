@@ -26,24 +26,23 @@
 
 /** Set every pixel whose surrounding patch is entirely in the source region
   * to have its nearest neighbor as exactly itself. */
-template <typename TImage>
-class InitializerKnownRegion : public InitializerImage<TImage>
+class InitializerKnownRegion : public InitializerPatch
 {
 public:
 
   InitializerKnownRegion() {}
 
-  InitializerKnownRegion(TImage* const image, const unsigned int patchRadius) :
-    InitializerImage<TImage>(image, patchRadius) {}
+  InitializerKnownRegion(const unsigned int patchRadius) :
+    InitializerPatch(patchRadius) {}
 
   /** Set every pixel whose surrounding patch is entirely in the source region
     * to have its nearest neighbor as exactly itself. Do not modify other pixles in 'initialization'.*/
   virtual void Initialize(itk::Image<Match, 2>* const initialization)
   {
     assert(initialization);
-    assert(this->Image);
+
     assert(initialization->GetLargestPossibleRegion().GetSize() ==
-           this->Image->GetLargestPossibleRegion().GetSize());
+           this->Region.GetSize());
 
     // Create a zero region
     itk::Index<2> zeroIndex = {{0,0}};
@@ -60,13 +59,13 @@ public:
 
     // Get all of the regions that are entirely inside the image
     itk::ImageRegion<2> internalRegion =
-              ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(), this->PatchRadius);
-    std::cout << "Internal region of " << this->Image->GetLargestPossibleRegion()
+              ITKHelpers::GetInternalRegion(this->Region, this->PatchRadius);
+    std::cout << "Internal region of " << this->Region
               << " is " << internalRegion << std::endl;
     // Set all of the patches that are entirely inside the source region to exactly
     // themselves as their nearest neighbor
-    typedef itk::Image<Match, 2> PMImageType;
-    itk::ImageRegionIteratorWithIndex<PMImageType> outputIterator(initialization, internalRegion);
+    typedef itk::Image<Match, 2> MatchImageType;
+    itk::ImageRegionIteratorWithIndex<MatchImageType> outputIterator(initialization, internalRegion);
 
     while(!outputIterator.IsAtEnd())
     {
@@ -87,6 +86,7 @@ public:
     }
 
   }
+
 };
 
 #endif

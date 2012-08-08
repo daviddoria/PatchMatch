@@ -25,6 +25,16 @@
 template <typename TImage>
 class AcceptanceTestHistogram : public AcceptanceTestImage<TImage>
 {
+public:
+  AcceptanceTestHistogram() : HistogramAcceptanceThreshold(500.0f)
+  {
+    this->PatchRadius = 0;
+    this->RangeMin = itk::NumericTraits<typename TypeTraits<typename TImage::PixelType>::ComponentType>::min();
+    this->RangeMax = itk::NumericTraits<typename TypeTraits<typename TImage::PixelType>::ComponentType>::max();
+    std::cout << "AcceptanceTestHistogram: RangeMin = " << static_cast<float>(this->RangeMin) << std::endl;
+    std::cout << "AcceptanceTestHistogram: RangeMax = " << static_cast<float>(this->RangeMax) << std::endl;
+  }
+  
   virtual bool IsBetter(const itk::ImageRegion<2>& queryRegion, const Match& oldMatch,
                         const Match& potentialBetterMatch)
   {
@@ -39,14 +49,11 @@ class AcceptanceTestHistogram : public AcceptanceTestImage<TImage>
       typedef int BinValueType;
       typedef Histogram<BinValueType>::HistogramType HistogramType;
 
-      typename TypeTraits<typename HSVImageType::PixelType>::ComponentType rangeMin = 0;
-      typename TypeTraits<typename HSVImageType::PixelType>::ComponentType rangeMax = 1;
-
       HistogramType queryHistogram = Histogram<BinValueType>::ComputeImageHistogram1D(
-                    this->HSVImage.GetPointer(), queryRegion, numberOfBinsPerDimension, rangeMin, rangeMax);
+                    this->HSVImage.GetPointer(), queryRegion, numberOfBinsPerDimension, this->RangeMin, this->RangeMax);
 
       HistogramType potentialMatchHistogram = Histogram<BinValueType>::ComputeImageHistogram1D(
-                    this->HSVImage.GetPointer(), potentialMatch.Region, numberOfBinsPerDimension, rangeMin, rangeMax);
+                    this->HSVImage.GetPointer(), potentialMatch.Region, numberOfBinsPerDimension, this->RangeMin, this->RangeMax);
 
       float potentialMatchHistogramDifference = Histogram<BinValueType>::HistogramDifference(queryHistogram, potentialMatchHistogram);
 
@@ -54,7 +61,6 @@ class AcceptanceTestHistogram : public AcceptanceTestImage<TImage>
       {
   //       std::cout << "Match accepted. SSD " << potentialMatch.Score << " (better than " << currentMatch.Score << ", "
   //                 << " Potential Match Histogram score: " << potentialMatchHistogramDifference << std::endl;
-        this->Output->SetPixel(index, potentialMatch);
         return true;
       }
       else
@@ -74,8 +80,19 @@ class AcceptanceTestHistogram : public AcceptanceTestImage<TImage>
     this->HistogramAcceptanceThreshold = histogramAcceptanceThreshold;
   }
 
+  void SetRangeMin(const typename TypeTraits<typename TImage::PixelType>::ComponentType rangeMin)
+  {
+    this->RangeMin = rangeMin;
+  }
+
+  void SetRangeMax(const typename TypeTraits<typename TImage::PixelType>::ComponentType rangeMax)
+  {
+    this->RangeMax = rangeMax;
+  }
+
 private:
   float HistogramAcceptanceThreshold;
-
+  typename TypeTraits<typename TImage::PixelType>::ComponentType RangeMin;
+  typename TypeTraits<typename TImage::PixelType>::ComponentType RangeMax;
 };
 #endif
