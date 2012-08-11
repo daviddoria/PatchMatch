@@ -19,16 +19,16 @@
 #ifndef Propagator_HPP
 #define Propagator_HPP
 
-template <typename TNeighborFunctor, typename TProcessFunctor,
-          typename TAcceptanceTest>
-Propagator<TNeighborFunctor, TProcessFunctor, TAcceptanceTest>::Propagator() :
+template <typename TPatchDistanceFunctor, typename TNeighborFunctor,
+          typename TProcessFunctor, typename TAcceptanceTest>
+Propagator<TPatchDistanceFunctor, TNeighborFunctor, TProcessFunctor, TAcceptanceTest>::Propagator() :
 NeighborFunctor(NULL), ProcessFunctor(NULL), AcceptanceTest(NULL)
 {
 }
 
-template <typename TNeighborFunctor, typename TProcessFunctor,
-          typename TAcceptanceTest>
-void Propagator<TNeighborFunctor, TProcessFunctor, TAcceptanceTest>::
+template <typename TPatchDistanceFunctor, typename TNeighborFunctor,
+          typename TProcessFunctor, typename TAcceptanceTest>
+void Propagator<TPatchDistanceFunctor, TNeighborFunctor, TProcessFunctor, TAcceptanceTest>::
 Propagate(MatchImageType* const nnField)
 {
   assert(this->NeighborFunctor);
@@ -92,11 +92,6 @@ Propagate(MatchImageType* const nnField)
       if(!region.IsInside(potentialPropagationPixel))
       {
         //std::cerr << "Pixel " << potentialPropagationPixel << " is outside of the image." << std::endl;
-        continue;
-      }
-
-      if(!this->AllowedPropagationMask->GetPixel(potentialPropagationPixel))
-      {
         continue;
       }
 

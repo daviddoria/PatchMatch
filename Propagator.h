@@ -23,8 +23,8 @@
 #include "Match.h"
 
 /** A class that traverses a target region and propagates good matches. */
-template <typename TNeighborFunctor, typename TProcessFunctor,
-          typename TAcceptanceTest>
+template <typename TPatchDistanceFunctor, typename TNeighborFunctor,
+          typename TProcessFunctor, typename TAcceptanceTest>
 class Propagator
 {
 public:

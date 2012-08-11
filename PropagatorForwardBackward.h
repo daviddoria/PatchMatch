@@ -23,7 +23,7 @@
 #include "Propagator.h"
 
 /** A class that traverses a target region and propagates good matches. */
-template <typename TNeighborFunctor, typename TProcessFunctor,
+template <typename TPatchDistanceFunctor, typename TProcessFunctor,
           typename TAcceptanceTest>
 class PropagatorForwardBackward
 {
@@ -35,7 +35,8 @@ public:
   /** Propagate good matches from specified offsets. */
   void Propagate(MatchImageType* const nnField)
   {
-    Propagator<TNeighborFunctor, TProcessFunctor, TAcceptanceTest> propagator;
+    Propagator<TPatchDistanceFunctor, TNeighborFunctor, TProcessFunctor, TAcceptanceTest> propagator;
+
     if(this->Forward)
     {
       ForwardPropagationNeighbors neighborFunctor;
@@ -49,6 +50,7 @@ public:
 
     propagator.SetProcessFunctor(this->ProcessFunctor);
     propagator.SetAcceptanceTest(this->AcceptanceTest);
+    propagator.SetPatchDistanceFunctor(this->PatchDistanceFunctor);
 
     this->Forward = !this->Forward;
   }
@@ -63,13 +65,16 @@ public:
     this->AcceptanceTest = acceptanceTest;
   }
 
+  void SetPatchDistanceFunctor(TPatchDistanceFunctor* patchDistanceFunctor)
+  {
+    this->PatchDistanceFunctor = patchDistanceFunctor;
+  }
+
 private:
   TProcessFunctor* ProcessFunctor;
   TAcceptanceTest* AcceptanceTest;
-
+  TPatchDistanceFunctor* PatchDistanceFunctor;
   bool Forward;
 };
-
-#include "PropagatorForwardBackward.hpp"
 
 #endif

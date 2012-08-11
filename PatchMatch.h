@@ -36,54 +36,24 @@
 /** This class computes a nearest neighbor field using the PatchMatch algorithm.
   * Note that this class does not actually need the image, as the acceptance test
   * and the patch distance functor already have the images that they need.*/
-template<typename TPatchDistance, typename TAcceptanceTest,
-         typename TPropagation, typename TRandomSearch>
 class PatchMatch
 {
 public:
   /** Constructor. */
   PatchMatch();
 
-  /** Set the functor to use to compare patches. */
-  void SetPatchDistanceFunctor(TPatchDistance* const patchDistanceFunctor);
-
-  void SetRandomSearchFunctor(TRandomSearch* const randomSearchFunctor);
-  
-  /** Get the functor to use to compare patches. */
-  TPatchDistance* GetPatchDistanceFunctor();
-
   /** The type that is used to store the nearest neighbor field. */
-  typedef itk::Image<Match, 2> MatchImageType;
+  typedef itk::Image<Match, 2> NNFieldType;
 
   /** Perform multiple iterations of propagation and random search.*/
-  virtual void Compute();
-
-  /** Propagate good matches from above and from the left of the current pixel. */
-  void ForwardPropagation();
-
-  /** Propagate good matches from below and from the right of the current pixel. */
-  void BackwardPropagation();
-
-  /** Propagate best valid neighbor match to every invalid pixel. */
-  void ForcePropagation();
-
-  /** Propagate good matches from outside in. */
-  void InwardPropagation();
-
-  /** Get the Output. */
-  MatchImageType* GetOutput();
+  template<typename TPropagation, typename TRandomSearch>
+  void Compute(NNFieldType* nnField, TPropagation propagation, TRandomSearch randomSearch);
 
   /** Set the number of iterations to perform. */
   void SetIterations(const unsigned int iterations);
 
   /** Set the radius of the patches to use. */
   void SetPatchRadius(const unsigned int patchRadius);
-
-  /** Set the acceptance test to use. */
-  void SetAcceptanceTest(TAcceptanceTest* const acceptanceTest);
-
-  /** Get the acceptance test to use. */
-  TAcceptanceTest* GetAcceptanceTest();
 
   /** Set the mask indicating where to take source patches from. Patches completely inside the valid
     * region of the source mask can be used as nearest neighbors. */
@@ -93,23 +63,11 @@ public:
     * the target mask is Valid. */
   void SetTargetMask(Mask* const mask);
 
-  /** Set the mask indicating which pixels (only valid pixels) can be propagated. */
-  void SetAllowedPropagationMask(Mask* const mask);
-
-  /** Get the mask indicating which pixels (only valid pixels) can be propagated. */
-  Mask* GetAllowedPropagationMask();
-
-  /** Set the choice of propagation strategy. */
-  void SetPropagationFunctor(TPropagation* propagator);
-
-  /** Set if the result should be randomized. This should only be false for testing purposes. */
-  void SetRandom(const bool random);
-
   /** Write the valid pixels. */
   void WriteValidPixels(const std::string& fileName);
 
   /** Initialize the NNField. */
-  void SetInitialNNField(MatchImageType* const initialization);
+  void SetInitialNNField(NNFieldType* const initialization);
 
 protected:
 
@@ -119,9 +77,6 @@ protected:
   /** Set the radius of the patches to use. */
   unsigned int PatchRadius;
 
-  /** The intermediate and final output. */
-  MatchImageType::Pointer Output;
-
   /** This mask indicates where to take source patches from. Patches completely inside the valid
     * region of the source mask can be used as nearest neighbors. */
   Mask::Pointer SourceMask;
@@ -130,30 +85,8 @@ protected:
     * target mask is Valid. */
   Mask::Pointer TargetMask;
 
-  /** The functor used to compare two patches. */
-  TPatchDistance* PatchDistanceFunctor;
-
-  /** The bounding box of the source mask. */
-  itk::ImageRegion<2> SourceMaskBoundingBox;
-
-  /** The bounding box of the target mask. */
-  itk::ImageRegion<2> TargetMaskBoundingBox;
-
   /** Determine if the result should be randomized. This should only be false for testing purposes. */
   bool Random;
-
-  /** Only valid pixels in this mask can be propagated. */
-  Mask::Pointer AllowedPropagationMask;
-
-  /** The specified acceptance test functor. */
-  TAcceptanceTest* AcceptanceTest;
-
-  /** The specified propagation functor. */
-  TPropagation* Propagator;
-
-  /** The specified random search functor. */
-  TRandomSearch* RandomSearch;
-
 }; // end PatchMatch class
 
 #include "PatchMatch.hpp"

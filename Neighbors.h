@@ -25,11 +25,11 @@
 // Submodules
 #include <Mask/Mask.h>
 
-struct ValidTargetNeighbors
+struct ValidMaskValidScoreNeighbors
 {
   typedef itk::Image<Match, 2> MatchImageType;
 
-  ValidTargetNeighbors(MatchImageType* const matchImage, Mask* const targetMask)
+  ValidMaskValidScoreNeighbors(MatchImageType* const matchImage, Mask* const targetMask)
   {
     this->MatchImage = matchImage;
     this->TargetMask = targetMask;
@@ -58,24 +58,25 @@ private:
   Mask* TargetMask;
 };
 
-struct AllowedPropagationNeighbors
+struct ValidMaskNeighbors
 {
-  AllowedPropagationNeighbors(Mask* const allowedPropagationMask, Mask* const targetMask)
+  ValidMaskNeighbors(Mask* const mask)
   {
-    this->AllowedPropagationMask = allowedPropagationMask;
-    this->TargetMask = targetMask;
+    this->MaskImage = mask;
   }
 
   std::vector<itk::Index<2> > operator() (const itk::Index<2>& queryIndex) const
   {
-    std::vector<itk::Index<2> > potentialPropagationNeighbors = ITKHelpers::Get8NeighborsInRegion(AllowedPropagationMask->GetLargestPossibleRegion(),
-                                                                                                queryIndex);
+    assert(this->MaskImage);
+
+    std::vector<itk::Index<2> > potentialPropagationNeighbors =
+      ITKHelpers::Get8NeighborsInRegion(this->MaskImage->GetLargestPossibleRegion(),
+                                        queryIndex);
 
     std::vector<itk::Index<2> > allowedPropagationNeighbors;
     for(size_t i = 0; i < potentialPropagationNeighbors.size(); ++i)
     {
-      if(this->AllowedPropagationMask->IsValid(potentialPropagationNeighbors[i]) ||
-          this->TargetMask->IsValid(potentialPropagationNeighbors[i]) )
+      if(this->MaskImage->IsValid(potentialPropagationNeighbors[i]) )
       {
         allowedPropagationNeighbors.push_back(potentialPropagationNeighbors[i]);
       }
@@ -84,8 +85,7 @@ struct AllowedPropagationNeighbors
   }
 
 private:
-  Mask* AllowedPropagationMask;
-  Mask* TargetMask;
+  Mask* MaskImage;
 };
 
 struct ForwardPropagationNeighbors
