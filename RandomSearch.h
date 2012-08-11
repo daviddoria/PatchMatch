@@ -16,20 +16,38 @@
  *
  *=========================================================================*/
 
-#ifndef AcceptanceTestAcceptAll_H
-#define AcceptanceTestAcceptAll_H
+#ifndef RandomSearch_H
+#define RandomSearch_H
+
+// ITK
+#include "itkImage.h"
 
 // Custom
-#include "AcceptanceTest.h"
+#include "Match.h"
 
-class AcceptanceTestAcceptAll : public AcceptanceTest
+// Submodules
+#include <Mask/Mask.h>
+
+template <typename TImage>
+struct RandomSearch
 {
-public:
-  virtual bool IsBetter(const itk::ImageRegion<2>& queryRegion, const Match& oldMatch,
-                        const Match& potentialBetterMatch)
+  RandomSearch();
+
+  typedef itk::Image<Match, 2> MatchImageType;
+
+  void Search(MatchImageType* const nnField, const std::vector<itk::Index<2> >& pixelsToSearch);
+
+  void SetPatchRadius(const unsigned int patchRadius)
   {
-    return true;
+    this->PatchRadius = patchRadius;
   }
 
+private:
+  TImage* Image;
+  unsigned int PatchRadius;
 };
+
+#include "RandomSearch.hpp"
+
 #endif
+  

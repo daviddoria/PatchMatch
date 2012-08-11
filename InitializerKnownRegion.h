@@ -54,6 +54,7 @@ public:
     Match invalidMatch;
     invalidMatch.Region = zeroRegion;
     invalidMatch.Score = Match::InvalidScore;
+    invalidMatch.Verified = true;
 
     // Initialize the entire NNfield to be invalid matches
     ITKHelpers::SetImageToConstant(initialization, invalidMatch);
@@ -61,8 +62,8 @@ public:
     // Get all of the regions that are entirely inside the image
     itk::ImageRegion<2> internalRegion =
               ITKHelpers::GetInternalRegion(region, this->PatchRadius);
-    std::cout << "Internal region of " << region
-              << " is " << internalRegion << std::endl;
+//     std::cout << "Internal region of " << region
+//               << " is " << internalRegion << std::endl;
     // Set all of the patches that are entirely inside the source region to exactly
     // themselves as their nearest neighbor
     typedef itk::Image<Match, 2> MatchImageType;

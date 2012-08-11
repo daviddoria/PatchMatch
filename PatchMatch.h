@@ -36,37 +36,27 @@
 /** This class computes a nearest neighbor field using the PatchMatch algorithm.
   * Note that this class does not actually need the image, as the acceptance test
   * and the patch distance functor already have the images that they need.*/
-template<typename TPatchDistanceFunctor, typename TAcceptanceTest>
+template<typename TPatchDistance, typename TAcceptanceTest,
+         typename TPropagation, typename TRandomSearch>
 class PatchMatch
 {
 public:
-
-  /** Choices for propagation. RASTER means that the top/left and bottom/right pixels will be
-    * used in successive passes. INWARD means that all available ValidPropagation pixels will be used.
-    * FORCE means that no acceptance test will be used and the region will be forcefully propagated. */
-  enum PropagationStrategyEnum {RASTER, INWARD, FORCE};
-
   /** Constructor. */
   PatchMatch();
 
   /** Set the functor to use to compare patches. */
-  void SetPatchDistanceFunctor(TPatchDistanceFunctor* const patchDistanceFunctor);
+  void SetPatchDistanceFunctor(TPatchDistance* const patchDistanceFunctor);
 
+  void SetRandomSearchFunctor(TRandomSearch* const randomSearchFunctor);
+  
   /** Get the functor to use to compare patches. */
-  TPatchDistanceFunctor* GetPatchDistanceFunctor();
+  TPatchDistance* GetPatchDistanceFunctor();
 
   /** The type that is used to store the nearest neighbor field. */
   typedef itk::Image<Match, 2> MatchImageType;
 
   /** Perform multiple iterations of propagation and random search.*/
   virtual void Compute();
-
-  /** Propagate good matches from specified offsets. In the traditional algorithm,
-    * ForwardPropagation() and BackwardPropagation() call this function with "above and left"
-    * and "below and right" offsets, respectively. */
-  template <typename TNeighborFunctor, typename TProcessFunctor>
-  void Propagation(const TNeighborFunctor neighborFunctor, TProcessFunctor processFunctor,
-                   AcceptanceTest* acceptanceTest = NULL);
 
   /** Propagate good matches from above and from the left of the current pixel. */
   void ForwardPropagation();
@@ -79,9 +69,6 @@ public:
 
   /** Propagate good matches from outside in. */
   void InwardPropagation();
-  
-  /** Search for a better match in several radii of the current pixel. */
-  void RandomSearch();
 
   /** Get the Output. */
   MatchImageType* GetOutput();
@@ -113,7 +100,7 @@ public:
   Mask* GetAllowedPropagationMask();
 
   /** Set the choice of propagation strategy. */
-  void SetPropagationStrategy(const PropagationStrategyEnum propagationStrategy);
+  void SetPropagationFunctor(TPropagation* propagator);
 
   /** Set if the result should be randomized. This should only be false for testing purposes. */
   void SetRandom(const bool random);
@@ -144,7 +131,7 @@ protected:
   Mask::Pointer TargetMask;
 
   /** The functor used to compare two patches. */
-  TPatchDistanceFunctor* PatchDistanceFunctor;
+  TPatchDistance* PatchDistanceFunctor;
 
   /** The bounding box of the source mask. */
   itk::ImageRegion<2> SourceMaskBoundingBox;
@@ -158,10 +145,14 @@ protected:
   /** Only valid pixels in this mask can be propagated. */
   Mask::Pointer AllowedPropagationMask;
 
-  /** The choice of propagation strategy. */
-  PropagationStrategyEnum PropagationStrategy;
+  /** The specified acceptance test functor. */
+  TAcceptanceTest* AcceptanceTest;
 
-  TAcceptanceTest* AcceptanceTestFunctor;
+  /** The specified propagation functor. */
+  TPropagation* Propagator;
+
+  /** The specified random search functor. */
+  TRandomSearch* RandomSearch;
 
 }; // end PatchMatch class
 

@@ -31,11 +31,27 @@
 /** A simple container to pair a region with its patch difference value/score. */
 struct Match
 {
+  Match() : Score(InvalidScore), Verified(false)
+  {
+    itk::Index<2> index = {{0,0}};
+    itk::Size<2> size = {{0,0}};
+    this->Region.SetIndex(index);
+    this->Region.SetSize(size);
+  }
+
+  /** The region/patch that describes the 'source' of the match. */
   itk::ImageRegion<2> Region;
+
+  /** The score according to which ever PatchDistanceFunctor is being used. */
   float Score;
 
+  /** A constant making it easier to define an invalid score.*/
   static constexpr float InvalidScore = std::numeric_limits< float >::quiet_NaN();
 
+  /** A flag to determine if the Match has passed some sort of test (histogram, etc). */
+  bool Verified;
+
+  /** Determine if the score is valid. */
   bool IsValid() const
   {
     if(Helpers::IsNaN(this->Score))
@@ -51,6 +67,7 @@ struct Match
     return true;
   }
 
+  /** Set the Match to be invalid. */
   void MakeInvalid()
   {
     this->Score = InvalidScore;

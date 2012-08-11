@@ -34,7 +34,11 @@
 
 // Custom
 #include "PatchMatch.h"
+#include "Propagator.h"
+#include "Process.h"
 #include "InitializerRandom.h"
+#include "AcceptanceTestAcceptAll.h"
+#include "RandomSearch.h"
 
 int main(int argc, char*argv[])
 {
@@ -89,20 +93,36 @@ int main(int argc, char*argv[])
   targetMask->Read(maskFilename);
   targetMask->InvertData();
 
-  SSD<ImageType>* patchDistanceFunctor = new SSD<ImageType>;
+  typedef SSD<ImageType> PatchDistanceFunctorType;
+  PatchDistanceFunctorType* patchDistanceFunctor = new PatchDistanceFunctorType;
   patchDistanceFunctor->SetImage(image);
 
-  typedef PatchMatch<ImageType> PatchMatchType;
+  typedef AcceptanceTestAcceptAll AcceptanceTestType;
+  AcceptanceTestType acceptanceTest;
+
+  typedef AllowedPropagationNeighbors NeighborFunctorType;
+  typedef ProcessInvalid ProcessFunctorType;
+
+  typedef Propagator<NeighborFunctorType, ProcessFunctorType, AcceptanceTestType> PropagatorType;
+  PropagatorType propagator;
+
+  typedef RandomSearch<ImageType> RandomSearchType;
+
+  typedef PatchMatch<PatchDistanceFunctorType, AcceptanceTestType,
+                     PropagatorType, RandomSearchType> PatchMatchType;
   PatchMatchType patchMatch;
-  patchMatch.SetImage(image);
   patchMatch.SetPatchRadius(patchRadius);
+  patchMatch.SetPropagationFunctor(&propagator);
+  patchMatch.SetPatchDistanceFunctor(patchDistanceFunctor);
+  patchMatch.SetAcceptanceTest(&acceptanceTest);
 
   PatchMatchType::MatchImageType::Pointer initialNNField = PatchMatchType::MatchImageType::New();
   initialNNField->SetRegions(image->GetLargestPossibleRegion());
   initialNNField->Allocate();
-  
-  InitializerRandom<ImageType> initializer(image, patchRadius);
+
+  InitializerRandom<PatchDistanceFunctorType> initializer;
   initializer.SetTargetMask(targetMask);
+  initializer.SetPatchRadius(patchRadius);
   initializer.SetSourceMask(sourceMask);
   initializer.SetPatchDistanceFunctor(patchDistanceFunctor);
   initializer.Initialize(initialNNField);
@@ -117,15 +137,7 @@ int main(int argc, char*argv[])
   patchMatch.SetRandom(false); // for repeatable testing
   patchMatch.Compute();
 
-  PatchMatchType::CoordinateImageType::Pointer output = PatchMatchType::CoordinateImageType::New();
-
-  patchMatch.GetPatchCentersImage(patchMatch.GetOutput(), output.GetPointer());
-
-  typedef itk::ImageFileWriter<PatchMatchType::CoordinateImageType> WriterType;
-  WriterType::Pointer writer = WriterType::New();
-  writer->SetFileName(outputFilename);
-  writer->SetInput(output);
-  writer->Update();
+  PatchMatchHelpers::WriteNNField(patchMatch.GetOutput(), outputFilename);
 
   return EXIT_SUCCESS;
 }

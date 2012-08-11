@@ -43,12 +43,15 @@ itk::Offset<2> RandomNeighborNonZeroOffset()
   return randomNeighborNonZeroOffset;
 }
 
-typedef itk::Image<itk::CovariantVector<float, 3>, 2> CoordinateImageType;
+//typedef itk::Image<itk::CovariantVector<float, 3>, 2> CoordinateImageType;
+typedef itk::VectorImage<float, 2> CoordinateImageType;
 
 template <typename MatchImageType, typename CoordinateImageType>
 void GetPatchCentersImage(const MatchImageType* const matchImage, CoordinateImageType* const output)
 {
   output->SetRegions(matchImage->GetLargestPossibleRegion());
+  unsigned int numberOfComponents = 4;
+  output->SetNumberOfComponentsPerPixel(numberOfComponents); // Currently we write (X,Y,Score,Verified)
   output->Allocate();
 
   itk::ImageRegionConstIterator<MatchImageType> imageIterator(matchImage,
@@ -57,6 +60,7 @@ void GetPatchCentersImage(const MatchImageType* const matchImage, CoordinateImag
   while(!imageIterator.IsAtEnd())
     {
     typename CoordinateImageType::PixelType pixel;
+    pixel.SetSize(numberOfComponents);
 
     Match match = imageIterator.Get();
     itk::Index<2> center = ITKHelpers::GetRegionCenter(match.Region);
@@ -64,6 +68,11 @@ void GetPatchCentersImage(const MatchImageType* const matchImage, CoordinateImag
     pixel[0] = center[0];
     pixel[1] = center[1];
     pixel[2] = match.Score;
+    pixel[3] = match.Verified;
+//     if(match.Verified)
+//     {
+//       pixel[3] = match.Verified;
+//     }
 
     output->SetPixel(imageIterator.GetIndex(), pixel);
 
@@ -80,6 +89,24 @@ void WriteNNField(const MatchImageType* const nnField, const std::string& fileNa
   PatchMatchHelpers::CoordinateImageType::Pointer coordinateImage = PatchMatchHelpers::CoordinateImageType::New();
   PatchMatchHelpers::GetPatchCentersImage(nnField, coordinateImage.GetPointer());
   ITKHelpers::WriteImage(coordinateImage.GetPointer(), fileName);
+}
+
+/** Count how many pixels in the 'nnField' which are Valid in the 'mask' pass (return true) the testFunctor. */
+template <typename MatchImageType, typename TTestFunctor>
+unsigned int CountTestedPixels(const MatchImageType* const nnField, const Mask* const mask, TTestFunctor testFunctor)
+{
+  std::vector<itk::Index<2> > pixelsToTest = mask->GetValidPixels();
+
+  unsigned int numberOfPassPixels = 0;
+  for(size_t pixelId = 0; pixelId < pixelsToTest.size(); ++pixelId)
+  {
+    if(testFunctor(nnField->GetPixel(pixelsToTest[pixelId])))
+    {
+      numberOfPassPixels++;
+    }
+  }
+
+  return numberOfPassPixels;
 }
 
 template <typename MatchImageType>
