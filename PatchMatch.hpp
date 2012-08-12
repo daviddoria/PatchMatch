@@ -84,13 +84,13 @@ void PatchMatch::Compute(NNFieldType* nnField,
   {
     std::cout << "PatchMatch iteration " << iteration << std::endl;
 
-    ProcessTargetPixels processTargetPixelsFunctor;
+    ProcessValidMaskPixels processValidMaskPixelsFunctor(this->TargetMask);
     std::vector<itk::Index<2> > pixelsToProcess =
-      processTargetPixelsFunctor.GetPixelsToProcess(this->TargetMask);
+      processValidMaskPixelsFunctor.GetPixelsToProcess();
 
     PatchMatchHelpers::WriteNNField(nnField, "AfterPropagation.mha");
 
-    randomSearch->Search(nnField, pixelsToProcess);
+    randomSearch.Search(nnField, pixelsToProcess);
 
     PatchMatchHelpers::WriteNNField(nnField, "AfterRandomSearch.mha");
 

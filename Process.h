@@ -32,32 +32,45 @@ struct Process
 {
   Process(){}
 
-  typedef itk::Image<Match, 2> MatchImageType;
+  typedef itk::Image<Match, 2> NNFieldType;
 
-  void SetNNField(MatchImageType* const nnField)
+  void SetNNField(NNFieldType* const nnField)
   {
-    this->MatchImage = nnField;
+    this->NNField = nnField;
   }
 
   virtual bool ShouldProcess(const itk::Index<2>& queryIndex) = 0;
 
   virtual std::vector<itk::Index<2> > GetPixelsToProcess(const Mask* mask) = 0;
 
-  MatchImageType* MatchImage;
+  NNFieldType* NNField;
 };
 
-struct ProcessTargetPixels : public Process
+struct ProcessValidMaskPixels : public Process
 {
+  ProcessValidMaskPixels(Mask* const mask)
+  {
+    this->MaskImage = mask;
+  }
+  
   bool ShouldProcess(const itk::Index<2>& queryIndex)
   {
     return true;
   }
 
-  std::vector<itk::Index<2> > GetPixelsToProcess(const Mask* mask)
+  std::vector<itk::Index<2> > GetPixelsToProcess()
+  {
+    return GetPixelsToProcess(this->MaskImage);
+  }
+  
+  std::vector<itk::Index<2> > GetPixelsToProcess(const Mask* const mask)
   {
     std::vector<itk::Index<2> > validPixels = mask->GetValidPixels();
     return validPixels;
   }
+
+private:
+  Mask* MaskImage;
 };
 
 struct ProcessInvalid : public Process

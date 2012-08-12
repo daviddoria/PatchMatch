@@ -23,57 +23,44 @@
 #include "Propagator.h"
 
 /** A class that traverses a target region and propagates good matches. */
-template <typename TPatchDistanceFunctor, typename TProcessFunctor,
-          typename TAcceptanceTest>
+
 class PropagatorForwardBackward
 {
 public:
   PropagatorForwardBackward() : Forward(true){}
 
-  typedef itk::Image<Match, 2> MatchImageType;
+  typedef itk::Image<Match, 2> NNFieldType;
 
   /** Propagate good matches from specified offsets. */
-  void Propagate(MatchImageType* const nnField)
+  template <typename TPatchDistanceFunctor, typename TProcessFunctor,
+          typename TAcceptanceTest>
+  void Propagate(NNFieldType* const nnField, TPatchDistanceFunctor* patchDistanceFunctor,
+                 TProcessFunctor* processFunctor, TAcceptanceTest* acceptanceTest)
   {
-    Propagator<TPatchDistanceFunctor, TNeighborFunctor, TProcessFunctor, TAcceptanceTest> propagator;
+    Propagator propagator;
 
     if(this->Forward)
     {
       ForwardPropagationNeighbors neighborFunctor;
-      propagator.SetNeighborFunctor(neighborFunctor);
+      propagator.Propagate(nnField, patchDistanceFunctor, &neighborFunctor, processFunctor, acceptanceTest);
     }
     else
     {
       BackwardPropagationNeighbors neighborFunctor;
-      propagator.SetNeighborFunctor(neighborFunctor);
+      propagator.Propagate(nnField, patchDistanceFunctor, &neighborFunctor, processFunctor, acceptanceTest);
     }
-
-    propagator.SetProcessFunctor(this->ProcessFunctor);
-    propagator.SetAcceptanceTest(this->AcceptanceTest);
-    propagator.SetPatchDistanceFunctor(this->PatchDistanceFunctor);
 
     this->Forward = !this->Forward;
   }
 
-  void SetProcessFunctor(TProcessFunctor* processFunctor)
+  void SetPatchRadius(const unsigned int patchRadius)
   {
-    this->ProcessFunctor = processFunctor;
+    this->PatchRadius = patchRadius;
   }
 
-  void SetAcceptanceTest(TAcceptanceTest* acceptanceTest)
-  {
-    this->AcceptanceTest = acceptanceTest;
-  }
+protected:
+  unsigned int PatchRadius;
 
-  void SetPatchDistanceFunctor(TPatchDistanceFunctor* patchDistanceFunctor)
-  {
-    this->PatchDistanceFunctor = patchDistanceFunctor;
-  }
-
-private:
-  TProcessFunctor* ProcessFunctor;
-  TAcceptanceTest* AcceptanceTest;
-  TPatchDistanceFunctor* PatchDistanceFunctor;
   bool Forward;
 };
 

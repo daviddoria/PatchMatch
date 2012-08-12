@@ -66,9 +66,6 @@ public:
   /** Write the valid pixels. */
   void WriteValidPixels(const std::string& fileName);
 
-  /** Initialize the NNField. */
-  void SetInitialNNField(NNFieldType* const initialization);
-
 protected:
 
   /** Set the number of iterations to perform. */

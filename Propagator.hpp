@@ -19,35 +19,34 @@
 #ifndef Propagator_HPP
 #define Propagator_HPP
 
-template <typename TPatchDistanceFunctor, typename TNeighborFunctor,
-          typename TProcessFunctor, typename TAcceptanceTest>
-Propagator<TPatchDistanceFunctor, TNeighborFunctor, TProcessFunctor, TAcceptanceTest>::Propagator() :
-NeighborFunctor(NULL), ProcessFunctor(NULL), AcceptanceTest(NULL)
+Propagator::Propagator() : PatchRadius(0)
 {
 }
 
 template <typename TPatchDistanceFunctor, typename TNeighborFunctor,
           typename TProcessFunctor, typename TAcceptanceTest>
-void Propagator<TPatchDistanceFunctor, TNeighborFunctor, TProcessFunctor, TAcceptanceTest>::
-Propagate(MatchImageType* const nnField)
+void Propagator::
+Propagate(NNFieldType* const nnField, TPatchDistanceFunctor* patchDistanceFunctor,
+          TNeighborFunctor* neighborFunctor,
+          TProcessFunctor* processFunctor, TAcceptanceTest* acceptanceTest)
 {
-  assert(this->NeighborFunctor);
-  assert(this->ProcessFunctor);
-  assert(this->AcceptanceTest);
+  assert(neighborFunctor);
+  assert(processFunctor);
+  assert(acceptanceTest);
   
   itk::ImageRegion<2> region = nnField->GetLargestPossibleRegion();
 
   assert(nnField->GetLargestPossibleRegion().GetSize()[0] > 0); // An initialization must be provided
 
-  std::vector<itk::Index<2> > targetPixels = this->TargetMask->GetValidPixels();
+  std::vector<itk::Index<2> > targetPixels = processFunctor->GetPixelsToProcess();
 
   unsigned int propagatedPixels = 0;
 
   // Don't process the pixels we don't want to process
   targetPixels.erase(std::remove_if(targetPixels.begin(), targetPixels.end(),
-                  [ProcessFunctor](const itk::Index<2>& queryPixel)
+                  [processFunctor](const itk::Index<2>& queryPixel)
                   {
-                    return !ProcessFunctor(queryPixel);
+                    return !processFunctor(queryPixel);
                   }),
                   targetPixels.end());
 
@@ -77,7 +76,7 @@ Propagate(MatchImageType* const nnField)
         continue;
       }
 
-    std::vector<itk::Index<2> > potentialPropagationPixels = this->NeighborFunctor(targetPixel);
+    std::vector<itk::Index<2> > potentialPropagationPixels = neighborFunctor->GetNeighbors(targetPixel);
 
     bool propagated = false;
     for(size_t potentialPropagationPixelId = 0;
@@ -95,7 +94,7 @@ Propagate(MatchImageType* const nnField)
         continue;
       }
 
-      if(!this->Output->GetPixel(potentialPropagationPixel).IsValid())
+      if(!nnField->GetPixel(potentialPropagationPixel).IsValid())
       {
         continue;
       }
@@ -107,21 +106,21 @@ Propagate(MatchImageType* const nnField)
       // - potentialMatch should be (11,10), because since the current pixel is 1 to the right
       // of the neighbor, we need to consider the patch one to the right of the neighbors best match
       itk::Index<2> currentNearestNeighbor =
-        ITKHelpers::GetRegionCenter(this->Output->GetPixel(potentialPropagationPixel).Region);
+        ITKHelpers::GetRegionCenter(nnField->GetPixel(potentialPropagationPixel).Region);
       itk::Index<2> potentialMatchPixel = currentNearestNeighbor - potentialPropagationPixelOffset;
 
       itk::ImageRegion<2> potentialMatchRegion =
             ITKHelpers::GetRegionInRadiusAroundPixel(potentialMatchPixel, this->PatchRadius);
 
-      if(!region.IsInside(potentialMatchRegion) ||
-         !this->SourceMask->IsValid(potentialMatchRegion))
+      if(!region.IsInside(potentialMatchRegion))
       {
         // do nothing - we don't want to propagate information that is not originally valid
-        //std::cerr << "Cannot propagate from this source region!" << std::endl;
+        //std::cerr << "Cannot propagate from this source region " << potentialMatchRegion
+        //          << " - it is outside of the image!" << std::endl;
       }
       else
       {
-        float distance = this->PatchDistanceFunctor->Distance(potentialMatchRegion, targetRegion);
+        float distance = patchDistanceFunctor->Distance(potentialMatchRegion, targetRegion);
 
         Match potentialMatch;
         potentialMatch.Region = potentialMatchRegion;
@@ -131,11 +130,11 @@ Propagate(MatchImageType* const nnField)
         //float oldScore = this->Output->GetPixel(targetRegionCenter).Score; // For debugging only
         //bool better = AddIfBetter(targetRegionCenter, potentialMatch);
 
-        Match currentMatch = this->Output->GetPixel(targetPixel);
+        Match currentMatch = nnField->GetPixel(targetPixel);
 
-        if(this->AcceptanceTest->IsBetter(targetRegion, this->Output->GetPixel(targetPixel), potentialMatch))
+        if(acceptanceTest->IsBetter(targetRegion, nnField->GetPixel(targetPixel), potentialMatch))
         {
-          this->Output->SetPixel(targetPixel, potentialMatch);
+          nnField->SetPixel(targetPixel, potentialMatch);
           propagated = true;
         }
         else

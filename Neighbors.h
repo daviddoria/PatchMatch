@@ -35,7 +35,7 @@ struct ValidMaskValidScoreNeighbors
     this->TargetMask = targetMask;
   }
 
-  std::vector<itk::Index<2> > operator() (const itk::Index<2>& queryIndex) const
+  std::vector<itk::Index<2> > GetNeighbors(const itk::Index<2>& queryIndex) const
   {
     std::vector<itk::Index<2> > potentialPropagationNeighbors =
         ITKHelpers::Get8NeighborsInRegion(this->TargetMask->GetLargestPossibleRegion(),
@@ -65,7 +65,7 @@ struct ValidMaskNeighbors
     this->MaskImage = mask;
   }
 
-  std::vector<itk::Index<2> > operator() (const itk::Index<2>& queryIndex) const
+  std::vector<itk::Index<2> > GetNeighbors(const itk::Index<2>& queryIndex) const
   {
     assert(this->MaskImage);
 
@@ -90,7 +90,7 @@ private:
 
 struct ForwardPropagationNeighbors
 {
-  std::vector<itk::Index<2> > operator() (const itk::Index<2>& queryIndex) const
+  std::vector<itk::Index<2> > GetNeighbors(const itk::Index<2>& queryIndex) const
   {
     std::vector<itk::Index<2> > allowedPropagationNeighbors;
 
@@ -106,7 +106,7 @@ struct ForwardPropagationNeighbors
 
 struct BackwardPropagationNeighbors
 {
-  std::vector<itk::Index<2> > operator() (const itk::Index<2>& queryIndex) const
+  std::vector<itk::Index<2> > GetNeighbors(const itk::Index<2>& queryIndex) const
   {
     std::vector<itk::Index<2> > allowedPropagationNeighbors;
 
@@ -122,7 +122,7 @@ struct BackwardPropagationNeighbors
 
 struct AllNeighbors
 {
-  std::vector<itk::Index<2> > operator() (const itk::Index<2>& queryIndex) const
+  std::vector<itk::Index<2> > GetNeighbors(const itk::Index<2>& queryIndex) const
   {
     std::vector<itk::Index<2> > neighbors = ITKHelpers::Get8Neighbors(queryIndex);
 
