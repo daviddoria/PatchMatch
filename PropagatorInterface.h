@@ -16,67 +16,53 @@
  *
  *=========================================================================*/
 
-#ifndef RandomSearch_H
-#define RandomSearch_H
-
-// ITK
-#include "itkImage.h"
+#ifndef Propagator_H
+#define Propagator_H
 
 // Custom
 #include "Match.h"
 
-// Submodules
-#include <Mask/Mask.h>
-
-template <typename TImage, typename TProcessFunctor, typename TPatchDistanceFunctor,
-          typename TAcceptanceTest>
-struct RandomSearch
+/** A class that traverses a target region and propagates good matches. */
+template <typename TPatchDistanceFunctor, typename TNeighborFunctor,
+          typename TProcessFunctor, typename TAcceptanceTest>
+class Propagator
 {
-  RandomSearch();
+public:
 
   typedef itk::Image<Match, 2> NNFieldType;
 
-  void Search(NNFieldType* const nnField);
+  /** Propagate good matches from specified offsets. */
+  virtual void Propagate(NNFieldType* const nnField) = 0;
 
   void SetPatchRadius(const unsigned int patchRadius)
   {
     this->PatchRadius = patchRadius;
   }
 
-  void SetImage(TImage* const image)
+  void SetNeighborFunctor(TNeighborFunctor* neigborFunctor)
   {
-    this->Image = image;
+    this->NeighborFunctor = neigborFunctor;
   }
 
-  void SetSourceMask(Mask* const mask)
-  {
-    this->SourceMask = mask;
-  }
-
-  void SetProcessFunctor(TProcessFunctor* const processFunctor)
+  void SetProcessFunctor(TProcessFunctor* processFunctor)
   {
     this->ProcessFunctor = processFunctor;
   }
 
-  void SetPatchDistanceFunctor(TPatchDistanceFunctor* const patchDistanceFunctor)
-  {
-    this->PatchDistanceFunctor = patchDistanceFunctor;
-  }
-
-  void SetAcceptanceTest(TAcceptanceTest* const acceptanceTest)
+  void SetAcceptanceTest(TAcceptanceTest* acceptanceTest)
   {
     this->AcceptanceTest = acceptanceTest;
   }
 
-private:
-  TImage* Image;
-  Mask* SourceMask;
+  void SetAcceptanceTest(TPatchDistanceFunctor* patchDistanceFunctor)
+  {
+    this->PatchDistanceFunctor = patchDistanceFunctor;
+  }
+
+protected:
   unsigned int PatchRadius;
-  TPatchDistanceFunctor* PatchDistanceFunctor;
-  TProcessFunctor* ProcessFunctor;
-  TAcceptanceTest* AcceptanceTest;
 };
 
-#include "RandomSearch.hpp"
+#include "Propagator.hpp"
 
 #endif

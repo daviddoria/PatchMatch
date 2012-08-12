@@ -16,27 +16,37 @@
  *
  *=========================================================================*/
 
-#ifndef AcceptanceTestSSD_H
-#define AcceptanceTestSSD_H
+#ifndef AcceptanceTestComposite_H
+#define AcceptanceTestComposite_H
 
 // Custom
 #include "AcceptanceTest.h"
 
-class AcceptanceTestSSD : public AcceptanceTest
+class AcceptanceTestComposite : public AcceptanceTest
 {
 public:
-  virtual bool IsBetter(const itk::ImageRegion<2>& queryRegion, const Match& currentMatch,
+  virtual bool IsBetter(const itk::ImageRegion<2>& queryRegion, const Match& oldMatch,
                         const Match& potentialBetterMatch)
   {
-    if(potentialBetterMatch.Score < currentMatch.Score)
+    // Run the tests in a way that if one fails the rest are not run at all.
+    for(size_t i = 0; i < this->AcceptanceTests.size(); ++i)
     {
-      return true;
+      AcceptanceTest* acceptanceTest = this->AcceptanceTests[i];
+      if(!acceptanceTest->IsBetter(queryRegion, oldMatch, potentialBetterMatch))
+      {
+        return false;
+      }
     }
-    else
-    {
-      return false;
-    }
-  }
-};
 
+    return true;
+  }
+
+  void AddAcceptanceTest(AcceptanceTest* const acceptanceTest)
+  {
+    this->AcceptanceTests.push_back(acceptanceTest);
+  }
+
+private:
+  std::vector<AcceptanceTest*> AcceptanceTests;
+};
 #endif

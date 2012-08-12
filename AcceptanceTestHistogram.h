@@ -26,53 +26,53 @@ template <typename TImage>
 class AcceptanceTestHistogram : public AcceptanceTestImage<TImage>
 {
 public:
-  AcceptanceTestHistogram() : HistogramAcceptanceThreshold(500.0f)
+  AcceptanceTestHistogram() : HistogramAcceptanceThreshold(500.0f), PatchRadius(0)
   {
-    this->PatchRadius = 0;
     this->RangeMin = itk::NumericTraits<typename TypeTraits<typename TImage::PixelType>::ComponentType>::min();
     this->RangeMax = itk::NumericTraits<typename TypeTraits<typename TImage::PixelType>::ComponentType>::max();
     std::cout << "AcceptanceTestHistogram: RangeMin = " << static_cast<float>(this->RangeMin) << std::endl;
     std::cout << "AcceptanceTestHistogram: RangeMax = " << static_cast<float>(this->RangeMax) << std::endl;
   }
-  
+
   virtual bool IsBetter(const itk::ImageRegion<2>& queryRegion, const Match& oldMatch,
                         const Match& potentialBetterMatch)
   {
     Match currentMatch = this->Output->GetPixel(index);
-    if(potentialMatch.Score < currentMatch.Score)
+
+    const unsigned int numberOfBinsPerDimension = 20;
+
+    itk::ImageRegion<2> queryRegion = ITKHelpers::GetRegionInRadiusAroundPixel(index, this->PatchRadius);
+
+    //typedef float BinValueType;
+    typedef int BinValueType;
+    typedef Histogram<BinValueType>::HistogramType HistogramType;
+
+    HistogramType queryHistogram =
+      Histogram<BinValueType>::ComputeImageHistogram1D(
+                  this->HSVImage.GetPointer(), queryRegion, numberOfBinsPerDimension,
+                  this->RangeMin, this->RangeMax);
+
+    HistogramType potentialMatchHistogram =
+      Histogram<BinValueType>::ComputeImageHistogram1D(
+                  this->HSVImage.GetPointer(), potentialMatch.Region, numberOfBinsPerDimension,
+                  this->RangeMin, this->RangeMax);
+
+    float potentialMatchHistogramDifference = Histogram<BinValueType>::HistogramDifference(queryHistogram, potentialMatchHistogram);
+
+    if(potentialMatchHistogramDifference < this->HistogramAcceptanceThreshold)
     {
-      const unsigned int numberOfBinsPerDimension = 20;
-
-      itk::ImageRegion<2> queryRegion = ITKHelpers::GetRegionInRadiusAroundPixel(index, this->PatchRadius);
-
-      //typedef float BinValueType;
-      typedef int BinValueType;
-      typedef Histogram<BinValueType>::HistogramType HistogramType;
-
-      HistogramType queryHistogram = Histogram<BinValueType>::ComputeImageHistogram1D(
-                    this->HSVImage.GetPointer(), queryRegion, numberOfBinsPerDimension, this->RangeMin, this->RangeMax);
-
-      HistogramType potentialMatchHistogram = Histogram<BinValueType>::ComputeImageHistogram1D(
-                    this->HSVImage.GetPointer(), potentialMatch.Region, numberOfBinsPerDimension, this->RangeMin, this->RangeMax);
-
-      float potentialMatchHistogramDifference = Histogram<BinValueType>::HistogramDifference(queryHistogram, potentialMatchHistogram);
-
-      if(potentialMatchHistogramDifference < this->HistogramAcceptanceThreshold)
-      {
-  //       std::cout << "Match accepted. SSD " << potentialMatch.Score << " (better than " << currentMatch.Score << ", "
-  //                 << " Potential Match Histogram score: " << potentialMatchHistogramDifference << std::endl;
-        return true;
-      }
-      else
-      {
-  //       std::cout << "Rejected better SSD match: " << potentialMatch.Score << " (better than " << currentMatch.Score << std::endl
-  //                 << " Potential Match Histogram score: " << potentialMatchHistogramDifference << std::endl;
-        return false;
-      }
-
+//       std::cout << "Match accepted. SSD " << potentialMatch.Score
+//                   << " (better than " << currentMatch.Score << ", "
+//                 << " Potential Match Histogram score: " << potentialMatchHistogramDifference << std::endl;
+      return true;
     }
-
-    return false;
+    else
+    {
+//       std::cout << "Rejected better SSD match: " << potentialMatch.Score
+//                  << " (better than " << currentMatch.Score << std::endl
+//                 << " Potential Match Histogram score: " << potentialMatchHistogramDifference << std::endl;
+      return false;
+    }
   }
 
   void SetHistogramAcceptanceThreshold(const float histogramAcceptanceThreshold)

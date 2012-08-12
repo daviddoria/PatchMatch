@@ -58,4 +58,6 @@ void WriteValidPixels(const NNFieldType* const nnField, const std::string& fileN
 
 } // end PatchMatchHelpers namespace
 
+#include "PatchMatchHelpers.hpp"
+
 #endif

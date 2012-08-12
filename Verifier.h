@@ -19,6 +19,9 @@
 #ifndef Verifier_H
 #define Verifier_H
 
+// STL
+#include <iostream>
+
 // ITK
 #include "itkImage.h"
 
@@ -56,16 +59,23 @@ public:
 
     std::vector<itk::Index<2> > processPixels = this->ProcessMask->GetValidPixels();
 
+    unsigned int numberVerified = 0;
     for(size_t pixelId = 0; pixelId < processPixels.size(); ++pixelId)
     {
       if(!nnField->GetPixel(processPixels[pixelId]).Verified)
       {
         if(this->VerifyFunctor->Verify(processPixels[pixelId]))
         {
-          nnField->GetPixel(processPixels[pixelId]).Verified = true;
+          //nnField->GetPixel(processPixels[pixelId]).Verified = true;
+          Match match = nnField->GetPixel(processPixels[pixelId]);
+          match.Verified = true;
+          nnField->SetPixel(processPixels[pixelId], match);
+          numberVerified++;
         }
       }
     }
+
+    std::cout << "Verified " << numberVerified << " new pixels." << std::endl;
   }
 
 protected:
@@ -93,7 +103,7 @@ protected:
 
   typename TypeTraits<typename TImage::PixelType>::ComponentType RangeMin;
   typename TypeTraits<typename TImage::PixelType>::ComponentType RangeMax;
-  
+
 public:
   VerifierNeighborHistogram() :Image(NULL), MatchImage(NULL), PatchRadius(0), NeighborHistogramMultiplier(2.0f)
   {
@@ -157,9 +167,9 @@ public:
 
     if(matchHistogramDifference < (this->NeighborHistogramMultiplier * neighborHistogramDifference))
     {
-      std::cout << "VerifierNeighborHistogram::Verify()"
-                << " Match Histogram score: " << matchHistogramDifference
-                << " vs neighbor histogram score " << neighborHistogramDifference << std::endl;
+//       std::cout << "VerifierNeighborHistogram::Verify()"
+//                 << " Match Histogram score: " << matchHistogramDifference
+//                 << " vs neighbor histogram score " << neighborHistogramDifference << std::endl;
       return true; // Verified
     }
 

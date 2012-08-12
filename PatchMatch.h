@@ -39,51 +39,32 @@
 class PatchMatch
 {
 public:
-  /** Constructor. */
-  PatchMatch();
 
   /** The type that is used to store the nearest neighbor field. */
   typedef itk::Image<Match, 2> NNFieldType;
 
   /** Perform multiple iterations of propagation and random search.*/
-  template<typename TPropagation, typename TRandomSearch>
-  void Compute(NNFieldType* nnField, TPropagation* const propagation, TRandomSearch* const randomSearch);
+  template<typename TPropagation, typename TRandomSearch, typename TProcessFunctor>
+  void Compute(NNFieldType* nnField, TPropagation* const propagation,
+               TRandomSearch* const randomSearch, TProcessFunctor* const processFunctor);
 
   /** Set the number of iterations to perform. */
-  void SetIterations(const unsigned int iterations);
-
-  /** Set the radius of the patches to use. */
-  void SetPatchRadius(const unsigned int patchRadius);
-
-  /** Set the mask indicating where to take source patches from. Patches completely inside the valid
-    * region of the source mask can be used as nearest neighbors. */
-  void SetSourceMask(Mask* const mask);
-
-  /** Set the mask indicating where to compute the NNField. Only compute the NN where
-    * the target mask is Valid. */
-  void SetTargetMask(Mask* const mask);
-
-  /** Write the valid pixels. */
-  void WriteValidPixels(const std::string& fileName);
+  void SetIterations(const unsigned int iterations)
+  {
+    this->Iterations = iterations;
+  }
 
 protected:
 
   /** Set the number of iterations to perform. */
   unsigned int Iterations;
 
-  /** Set the radius of the patches to use. */
-  unsigned int PatchRadius;
-
-  /** This mask indicates where to take source patches from. Patches completely inside the valid
-    * region of the source mask can be used as nearest neighbors. */
-  Mask::Pointer SourceMask;
-
-  /** This mask indicates where to compute the NN field. Only compute the NN where the
-    * target mask is Valid. */
-  Mask::Pointer TargetMask;
-
   /** Determine if the result should be randomized. This should only be false for testing purposes. */
   bool Random;
+
+  /** Seed the random number generator if we are supposed to. */
+  void InitRandom();
+
 }; // end PatchMatch class
 
 #include "PatchMatch.hpp"

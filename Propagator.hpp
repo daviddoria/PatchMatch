@@ -19,36 +19,35 @@
 #ifndef Propagator_HPP
 #define Propagator_HPP
 
-Propagator::Propagator() : PatchRadius(0)
+template <typename TPatchDistanceFunctor, typename TNeighborFunctor,
+          typename TProcessFunctor, typename TAcceptanceTest>
+Propagator<TPatchDistanceFunctor, TNeighborFunctor, TProcessFunctor, TAcceptanceTest>::Propagator() :
+PatchRadius(0), PatchDistanceFunctor(NULL), NeighborFunctor(NULL), ProcessFunctor(NULL),
+AcceptanceTest(NULL)
 {
 }
 
 template <typename TPatchDistanceFunctor, typename TNeighborFunctor,
           typename TProcessFunctor, typename TAcceptanceTest>
-void Propagator::
-Propagate(NNFieldType* const nnField, TPatchDistanceFunctor* patchDistanceFunctor,
-          TNeighborFunctor* neighborFunctor,
-          TProcessFunctor* processFunctor, TAcceptanceTest* acceptanceTest)
+void Propagator<TPatchDistanceFunctor, TNeighborFunctor, TProcessFunctor, TAcceptanceTest>::
+Propagate(NNFieldType* const nnField)
 {
-  assert(neighborFunctor);
-  assert(processFunctor);
-  assert(acceptanceTest);
+  assert(this->NeighborFunctor);
+  assert(this->ProcessFunctor);
+  assert(this->AcceptanceTest);
+  assert(this->PatchDistanceFunctor);
 
   itk::ImageRegion<2> region = nnField->GetLargestPossibleRegion();
 
   assert(nnField->GetLargestPossibleRegion().GetSize()[0] > 0); // An initialization must be provided
 
-  std::vector<itk::Index<2> > targetPixels = processFunctor->GetPixelsToProcess();
+  std::vector<itk::Index<2> > targetPixels = this->ProcessFunctor->GetPixelsToProcess();
+
+//   std::cout << "Propagation(): There are " << targetPixels.size()
+//             << " pixels that would like to be processed before pruning." << std::endl;
 
   unsigned int propagatedPixels = 0;
-
-  // Don't process the pixels we don't want to process
-  targetPixels.erase(std::remove_if(targetPixels.begin(), targetPixels.end(),
-                  [processFunctor](const itk::Index<2>& queryPixel)
-                  {
-                    return !processFunctor->ShouldProcess(queryPixel);
-                  }),
-                  targetPixels.end());
+  unsigned int acceptanceTestFailed = 0;
 
   // Don't process the pixels that already have an exact match.
   // When using PatchMatch for inpainting, most of the NN-field will be an exact match.
@@ -60,8 +59,8 @@ Propagate(NNFieldType* const nnField, TPatchDistanceFunctor* patchDistanceFuncto
                   }),
                   targetPixels.end());
 
-  std::cout << "Propagation(): There are " << targetPixels.size()
-            << " pixels that would like to be propagated to." << std::endl;
+//   std::cout << "Propagation(): There are " << targetPixels.size()
+//             << " pixels that would like to be propagated to." << std::endl;
 
   for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
   {
@@ -76,7 +75,7 @@ Propagate(NNFieldType* const nnField, TPatchDistanceFunctor* patchDistanceFuncto
         continue;
       }
 
-    std::vector<itk::Index<2> > potentialPropagationPixels = neighborFunctor->GetNeighbors(targetPixel);
+    std::vector<itk::Index<2> > potentialPropagationPixels = this->NeighborFunctor->GetNeighbors(targetPixel);
 
     bool propagated = false;
     for(size_t potentialPropagationPixelId = 0;
@@ -91,11 +90,6 @@ Propagate(NNFieldType* const nnField, TPatchDistanceFunctor* patchDistanceFuncto
       if(!region.IsInside(potentialPropagationPixel))
       {
         //std::cerr << "Pixel " << potentialPropagationPixel << " is outside of the image." << std::endl;
-        continue;
-      }
-
-      if(!nnField->GetPixel(potentialPropagationPixel).IsValid())
-      {
         continue;
       }
 
@@ -120,25 +114,22 @@ Propagate(NNFieldType* const nnField, TPatchDistanceFunctor* patchDistanceFuncto
       }
       else
       {
-        float distance = patchDistanceFunctor->Distance(potentialMatchRegion, targetRegion);
+        float distance = this->PatchDistanceFunctor->Distance(potentialMatchRegion, targetRegion);
 
         Match potentialMatch;
         potentialMatch.Region = potentialMatchRegion;
         potentialMatch.Score = distance;
-        potentialMatch.Verified = true;
-
-        //float oldScore = this->Output->GetPixel(targetRegionCenter).Score; // For debugging only
-        //bool better = AddIfBetter(targetRegionCenter, potentialMatch);
 
         Match currentMatch = nnField->GetPixel(targetPixel);
 
-        if(acceptanceTest->IsBetter(targetRegion, nnField->GetPixel(targetPixel), potentialMatch))
+        if(this->AcceptanceTest->IsBetter(targetRegion, nnField->GetPixel(targetPixel), potentialMatch))
         {
           nnField->SetPixel(targetPixel, potentialMatch);
           propagated = true;
         }
         else
         {
+          acceptanceTestFailed++;
           //std::cerr << "Acceptance test failed!" << std::endl;
         }
 
@@ -160,6 +151,7 @@ Propagate(NNFieldType* const nnField, TPatchDistanceFunctor* patchDistanceFuncto
   } // end loop over target pixels
 
   std::cout << "Propagation() propagated " << propagatedPixels << " pixels." << std::endl;
+  std::cout << "AcceptanceTest failed " << acceptanceTestFailed << std::endl;
 }
 
 #endif

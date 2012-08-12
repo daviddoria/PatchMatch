@@ -23,31 +23,52 @@
 #include "Propagator.h"
 
 /** A class that traverses a target region and propagates good matches. */
-
+template <typename TPatchDistanceFunctor, typename TProcessFunctor,
+          typename TAcceptanceTest>
 class PropagatorForwardBackward
 {
 public:
-  PropagatorForwardBackward() : Forward(true){}
+  PropagatorForwardBackward() : PatchRadius(0), Forward(true), PatchDistanceFunctor(NULL),
+                                ProcessFunctor(NULL), AcceptanceTest(NULL){}
 
   typedef itk::Image<Match, 2> NNFieldType;
 
   /** Propagate good matches from specified offsets. */
-  template <typename TPatchDistanceFunctor, typename TProcessFunctor,
-          typename TAcceptanceTest>
-  void Propagate(NNFieldType* const nnField, TPatchDistanceFunctor* patchDistanceFunctor,
-                 TProcessFunctor* processFunctor, TAcceptanceTest* acceptanceTest)
+
+  void Propagate(NNFieldType* const nnField)
   {
-    Propagator propagator;
+    assert(nnField);
+    assert(this->PatchRadius > 0);
+    assert(this->ProcessFunctor);
+    assert(this->AcceptanceTest);
+    assert(this->PatchDistanceFunctor);
 
     if(this->Forward)
     {
+      std::cout << "Propagating forward." << std::endl;
       ForwardPropagationNeighbors neighborFunctor;
-      propagator.Propagate(nnField, patchDistanceFunctor, &neighborFunctor, processFunctor, acceptanceTest);
+
+      Propagator<TPatchDistanceFunctor, ForwardPropagationNeighbors,
+                 TProcessFunctor, TAcceptanceTest> propagator;
+      propagator.SetPatchRadius(this->PatchRadius);
+      propagator.SetNeighborFunctor(&neighborFunctor);
+      propagator.SetAcceptanceTest(this->AcceptanceTest);
+      propagator.SetPatchDistanceFunctor(this->PatchDistanceFunctor);
+      propagator.SetProcessFunctor(this->ProcessFunctor);
+      propagator.Propagate(nnField);
     }
     else
     {
+      std::cout << "Propagating backward." << std::endl;
       BackwardPropagationNeighbors neighborFunctor;
-      propagator.Propagate(nnField, patchDistanceFunctor, &neighborFunctor, processFunctor, acceptanceTest);
+      Propagator<TPatchDistanceFunctor, BackwardPropagationNeighbors,
+                 TProcessFunctor, TAcceptanceTest> propagator;
+      propagator.SetPatchRadius(this->PatchRadius);
+      propagator.SetNeighborFunctor(&neighborFunctor);
+      propagator.SetAcceptanceTest(this->AcceptanceTest);
+      propagator.SetPatchDistanceFunctor(this->PatchDistanceFunctor);
+      propagator.SetProcessFunctor(this->ProcessFunctor);
+      propagator.Propagate(nnField);
     }
 
     this->Forward = !this->Forward;
@@ -58,10 +79,29 @@ public:
     this->PatchRadius = patchRadius;
   }
 
+  void SetProcessFunctor(TProcessFunctor* processFunctor)
+  {
+    this->ProcessFunctor = processFunctor;
+  }
+
+  void SetAcceptanceTest(TAcceptanceTest* acceptanceTest)
+  {
+    this->AcceptanceTest = acceptanceTest;
+  }
+
+  void SetPatchDistanceFunctor(TPatchDistanceFunctor* patchDistanceFunctor)
+  {
+    this->PatchDistanceFunctor = patchDistanceFunctor;
+  }
+
 protected:
   unsigned int PatchRadius;
 
   bool Forward;
+
+  TPatchDistanceFunctor* PatchDistanceFunctor;
+  TProcessFunctor* ProcessFunctor;
+  TAcceptanceTest* AcceptanceTest;
 };
 
 #endif

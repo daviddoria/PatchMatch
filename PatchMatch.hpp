@@ -45,9 +45,47 @@
 #include "Process.h"
 #include "RandomSearch.h"
 
-template<typename TPropagation, typename TRandomSearch>
+template<typename TPropagation, typename TRandomSearch, typename TProcessFunctor>
 void PatchMatch::Compute(NNFieldType* nnField,
-                         TPropagation* const propagationFunctor, TRandomSearch* const randomSearch)
+                         TPropagation* const propagationFunctor,
+                         TRandomSearch* const randomSearch,
+                         TProcessFunctor* const processFunctor)
+{
+  assert(nnField);
+  assert(propagationFunctor);
+  assert(randomSearch);
+  assert(processFunctor);
+
+  InitRandom();
+
+  // For the number of iterations specified, perform the appropriate propagation and then a random search
+  for(unsigned int iteration = 0; iteration < this->Iterations; ++iteration)
+  {
+    //std::cout << "PatchMatch iteration " << iteration << std::endl;
+
+    propagationFunctor->SetProcessFunctor(processFunctor);
+    propagationFunctor->Propagate(nnField);
+
+    PatchMatchHelpers::WriteNNField(nnField,
+                                    Helpers::GetSequentialFileName("AfterPropagation", iteration, "mha"));
+
+    randomSearch->SetProcessFunctor(processFunctor);
+    randomSearch->Search(nnField);
+
+    PatchMatchHelpers::WriteNNField(nnField,
+                                    Helpers::GetSequentialFileName("AfterRandomSearch", iteration, "mha"));
+
+    { // Debug only
+    std::string sequentialFileName = Helpers::GetSequentialFileName("PatchMatch", iteration, "mha", 2);
+    PatchMatchHelpers::WriteNNField(nnField, sequentialFileName);
+    }
+  } // end iteration loop
+
+  std::cout << "PatchMatch finished." << std::endl;
+}
+
+
+void PatchMatch::InitRandom()
 {
   if(this->Random)
   {
@@ -57,51 +95,6 @@ void PatchMatch::Compute(NNFieldType* nnField,
   {
     srand(0);
   }
-
-  assert(nnField);
-  assert(this->SourceMask);
-  assert(this->TargetMask);
-
-  // These simply test that all of the image data are the same size.
-  assert(this->SourceMask->GetLargestPossibleRegion().GetSize() ==
-         this->TargetMask->GetLargestPossibleRegion().GetSize());
-  assert(nnField->GetLargestPossibleRegion().GetSize() ==
-         this->TargetMask->GetLargestPossibleRegion().GetSize());
-
-  itk::ImageRegion<2> sourceMaskBoundingBox;
-  sourceMaskBoundingBox = MaskOperations::ComputeValidBoundingBox(this->SourceMask);
-
-  itk::ImageRegion<2> targetMaskBoundingBox;
-  targetMaskBoundingBox = MaskOperations::ComputeValidBoundingBox(this->TargetMask);
-
-  { // Debug only
-  ITKHelpers::WriteImage(this->TargetMask.GetPointer(), "PatchMatch_TargetMask.png");
-  ITKHelpers::WriteImage(this->SourceMask.GetPointer(), "PatchMatch_SourceMask.png");
-  }
-
-  // For the number of iterations specified, perform the appropriate propagation and then a random search
-  for(unsigned int iteration = 0; iteration < this->Iterations; ++iteration)
-  {
-    std::cout << "PatchMatch iteration " << iteration << std::endl;
-
-    ProcessValidMaskPixels processValidMaskPixelsFunctor(this->TargetMask);
-    std::vector<itk::Index<2> > pixelsToProcess =
-      processValidMaskPixelsFunctor.GetPixelsToProcess();
-
-
-    PatchMatchHelpers::WriteNNField(nnField, "AfterPropagation.mha");
-
-    randomSearch->Search(nnField, pixelsToProcess);
-
-    PatchMatchHelpers::WriteNNField(nnField, "AfterRandomSearch.mha");
-
-    { // Debug only
-    std::string sequentialFileName = Helpers::GetSequentialFileName("PatchMatch", iteration, "mha", 2);
-    PatchMatchHelpers::WriteNNField(nnField, sequentialFileName);
-    }
-  } // end iteration loop
-
-  std::cout << "PatchMatch finished." << std::endl;
 }
 
 #endif

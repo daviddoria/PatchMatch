@@ -25,7 +25,12 @@
 // Submodules
 #include <Mask/Mask.h>
 
-struct ValidMaskValidScoreNeighbors
+struct NeighborParent
+{
+  virtual std::vector<itk::Index<2> > GetNeighbors(const itk::Index<2>& queryIndex) const = 0;
+};
+
+struct ValidMaskValidScoreNeighbors : public NeighborParent
 {
   typedef itk::Image<Match, 2> MatchImageType;
 
@@ -58,7 +63,7 @@ private:
   Mask* TargetMask;
 };
 
-struct ValidMaskNeighbors
+struct ValidMaskNeighbors : public NeighborParent
 {
   ValidMaskNeighbors(Mask* const mask)
   {
@@ -88,7 +93,7 @@ private:
   Mask* MaskImage;
 };
 
-struct ForwardPropagationNeighbors
+struct ForwardPropagationNeighbors : public NeighborParent
 {
   std::vector<itk::Index<2> > GetNeighbors(const itk::Index<2>& queryIndex) const
   {
@@ -104,7 +109,7 @@ struct ForwardPropagationNeighbors
   }
 };
 
-struct BackwardPropagationNeighbors
+struct BackwardPropagationNeighbors : public NeighborParent
 {
   std::vector<itk::Index<2> > GetNeighbors(const itk::Index<2>& queryIndex) const
   {
@@ -120,7 +125,7 @@ struct BackwardPropagationNeighbors
   }
 };
 
-struct AllNeighbors
+struct AllNeighbors : public NeighborParent
 {
   std::vector<itk::Index<2> > GetNeighbors(const itk::Index<2>& queryIndex) const
   {

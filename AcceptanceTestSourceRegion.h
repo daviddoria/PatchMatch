@@ -16,27 +16,28 @@
  *
  *=========================================================================*/
 
-#ifndef AcceptanceTestSSD_H
-#define AcceptanceTestSSD_H
+#ifndef AcceptanceTestSourceRegion_H
+#define AcceptanceTestSourceRegion_H
 
 // Custom
 #include "AcceptanceTest.h"
 
-class AcceptanceTestSSD : public AcceptanceTest
+class AcceptanceTestSourceRegion : public AcceptanceTest
 {
 public:
-  virtual bool IsBetter(const itk::ImageRegion<2>& queryRegion, const Match& currentMatch,
+  AcceptanceTestSourceRegion(Mask* const mask)
+  {
+    this->MaskImage = mask;
+  }
+
+  virtual bool IsBetter(const itk::ImageRegion<2>& queryRegion, const Match& oldMatch,
                         const Match& potentialBetterMatch)
   {
-    if(potentialBetterMatch.Score < currentMatch.Score)
-    {
-      return true;
-    }
-    else
-    {
-      return false;
-    }
+    assert(this->MaskImage);
+    return this->MaskImage->IsValid(potentialBetterMatch.Region);
   }
-};
 
+private:
+  Mask* MaskImage;
+};
 #endif

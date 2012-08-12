@@ -71,6 +71,7 @@ public:
       Match randomMatch;
       randomMatch.Region = randomValidRegion;
       randomMatch.Score = this->PatchDistanceFunctor->Distance(randomValidRegion, targetRegion);
+      randomMatch.Verified = false;
 
       initialization->SetPixel(targetPixel, randomMatch);
     }

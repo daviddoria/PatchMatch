@@ -36,7 +36,8 @@ public:
     InitializerPatch(patchRadius) {}
 
   /** Set every pixel whose surrounding patch is entirely in the source region
-    * to have its nearest neighbor as exactly itself. Do not modify other pixles in 'initialization'.*/
+    * to have its nearest neighbor as exactly itself. These pixels are also marked as verified automatically.
+    * Do not modify other pixels in 'initialization'.*/
   virtual void Initialize(itk::Image<Match, 2>* const initialization)
   {
     assert(initialization);
@@ -44,7 +45,7 @@ public:
     assert(initialization->GetLargestPossibleRegion().GetSize()[0] > 0);
 
     itk::ImageRegion<2> region = initialization->GetLargestPossibleRegion();
-    
+
     // Create a zero region
     itk::Index<2> zeroIndex = {{0,0}};
     itk::Size<2> zeroSize = {{0,0}};
@@ -54,7 +55,7 @@ public:
     Match invalidMatch;
     invalidMatch.Region = zeroRegion;
     invalidMatch.Score = Match::InvalidScore;
-    invalidMatch.Verified = true;
+    invalidMatch.Verified = false;
 
     // Initialize the entire NNfield to be invalid matches
     ITKHelpers::SetImageToConstant(initialization, invalidMatch);
@@ -81,6 +82,7 @@ public:
         Match selfMatch;
         selfMatch.Region = currentRegion;
         selfMatch.Score = 0.0f;
+        selfMatch.Verified = true;
         outputIterator.Set(selfMatch);
       }
 

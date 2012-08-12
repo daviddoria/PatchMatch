@@ -87,8 +87,9 @@ void WriteNNField(const MatchImageType* const nnField, const std::string& fileNa
 }
 
 /** Count how many pixels in the 'nnField' which are Valid in the 'mask' pass (return true) the testFunctor. */
-template <typename MatchImageType, typename TTestFunctor>
-unsigned int CountTestedPixels(const MatchImageType* const nnField, const Mask* const mask, TTestFunctor testFunctor)
+template <typename NNFieldType, typename TTestFunctor>
+unsigned int CountTestedPixels(const NNFieldType* const nnField, const Mask* const mask,
+                               TTestFunctor testFunctor)
 {
   std::vector<itk::Index<2> > pixelsToTest = mask->GetValidPixels();
 
@@ -125,7 +126,7 @@ void WriteValidPixels(const NNFieldType* const nnField, const std::string& fileN
 {
   typedef itk::Image<unsigned char> ImageType;
   ImageType::Pointer image = ImageType::New();
-  image->SetRegions(this->Output->GetLargestPossibleRegion());
+  image->SetRegions(nnField->GetLargestPossibleRegion());
   image->Allocate();
   image->FillBuffer(0);
 

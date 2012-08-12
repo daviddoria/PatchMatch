@@ -23,6 +23,8 @@
 #include "Match.h"
 
 /** A class that traverses a target region and propagates good matches. */
+template <typename TPatchDistanceFunctor, typename TNeighborFunctor,
+          typename TProcessFunctor, typename TAcceptanceTest>
 class Propagator
 {
 public:
@@ -31,19 +33,40 @@ public:
   typedef itk::Image<Match, 2> NNFieldType;
 
   /** Propagate good matches from specified offsets. */
-  template <typename TPatchDistanceFunctor, typename TNeighborFunctor,
-          typename TProcessFunctor, typename TAcceptanceTest>
-  void Propagate(NNFieldType* const nnField, TPatchDistanceFunctor* patchDistanceFunctor,
-                 TNeighborFunctor* neighborFunctor,
-                 TProcessFunctor* processFunctor, TAcceptanceTest* acceptanceTest);
+  void Propagate(NNFieldType* const nnField);
 
   void SetPatchRadius(const unsigned int patchRadius)
   {
     this->PatchRadius = patchRadius;
   }
+
+  void SetNeighborFunctor(TNeighborFunctor* neigborFunctor)
+  {
+    this->NeighborFunctor = neigborFunctor;
+  }
+
+  void SetProcessFunctor(TProcessFunctor* processFunctor)
+  {
+    this->ProcessFunctor = processFunctor;
+  }
+
+  void SetAcceptanceTest(TAcceptanceTest* acceptanceTest)
+  {
+    this->AcceptanceTest = acceptanceTest;
+  }
+
+  void SetPatchDistanceFunctor(TPatchDistanceFunctor* patchDistanceFunctor)
+  {
+    this->PatchDistanceFunctor = patchDistanceFunctor;
+  }
   
 protected:
   unsigned int PatchRadius;
+
+  TPatchDistanceFunctor* PatchDistanceFunctor;
+  TNeighborFunctor* NeighborFunctor;
+  TProcessFunctor* ProcessFunctor;
+  TAcceptanceTest* AcceptanceTest;
 };
 
 #include "Propagator.hpp"

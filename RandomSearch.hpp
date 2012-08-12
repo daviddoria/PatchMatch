@@ -19,20 +19,28 @@
 #ifndef RandomSearch_HPP
 #define RandomSearch_HPP
 
-template <typename TImage>
-RandomSearch<TImage>::RandomSearch() : Image(NULL)
+template <typename TImage, typename TPatchDistanceFunctor,
+          typename TProcessFunctor, typename TAcceptanceTest>
+RandomSearch<TImage, TPatchDistanceFunctor, TProcessFunctor, TAcceptanceTest>::RandomSearch() :
+Image(NULL), SourceMask(NULL), PatchRadius(0), PatchDistanceFunctor(NULL),
+ProcessFunctor(NULL), AcceptanceTest(NULL)
 {
 
 }
 
-template <typename TImage>
-template <typename TPatchDistanceFunctor>
-void RandomSearch<TImage>::
-Search(NNFieldType* const nnField, const std::vector<itk::Index<2> >& pixelsToProcess,
-       TPatchDistanceFunctor* const patchDistanceFunctor)
+template <typename TImage, typename TPatchDistanceFunctor,
+          typename TProcessFunctor, typename TAcceptanceTest>
+void RandomSearch<TImage, TPatchDistanceFunctor, TProcessFunctor, TAcceptanceTest>::
+Search(NNFieldType* const nnField)
 {
   assert(nnField);
   assert(this->Image);
+  assert(this->SourceMask);
+  assert(this->PatchRadius >0);
+  assert(this->PatchDistanceFunctor);
+  assert(this->ProcessFunctor);
+  assert(this->AcceptanceTest);
+
   assert(nnField->GetLargestPossibleRegion().GetSize()[0] > 0);
   assert(this->Image->GetLargestPossibleRegion().GetSize()[0] > 0);
   assert(nnField->GetLargestPossibleRegion().GetSize() ==
@@ -42,6 +50,7 @@ Search(NNFieldType* const nnField, const std::vector<itk::Index<2> >& pixelsToPr
   itk::ImageRegion<2> region = nnField->GetLargestPossibleRegion();
 
   unsigned int exactMatchPixels = 0;
+  std::vector<itk::Index<2> > pixelsToProcess = this->ProcessFunctor->GetPixelsToProcess();
   for(size_t pixelId = 0; pixelId < pixelsToProcess.size(); ++pixelId)
   {
     itk::Index<2> queryPixel = pixelsToProcess[pixelId];
