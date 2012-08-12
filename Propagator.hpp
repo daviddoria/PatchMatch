@@ -33,7 +33,7 @@ Propagate(NNFieldType* const nnField, TPatchDistanceFunctor* patchDistanceFuncto
   assert(neighborFunctor);
   assert(processFunctor);
   assert(acceptanceTest);
-  
+
   itk::ImageRegion<2> region = nnField->GetLargestPossibleRegion();
 
   assert(nnField->GetLargestPossibleRegion().GetSize()[0] > 0); // An initialization must be provided
@@ -46,7 +46,7 @@ Propagate(NNFieldType* const nnField, TPatchDistanceFunctor* patchDistanceFuncto
   targetPixels.erase(std::remove_if(targetPixels.begin(), targetPixels.end(),
                   [processFunctor](const itk::Index<2>& queryPixel)
                   {
-                    return !processFunctor(queryPixel);
+                    return !processFunctor->ShouldProcess(queryPixel);
                   }),
                   targetPixels.end());
 

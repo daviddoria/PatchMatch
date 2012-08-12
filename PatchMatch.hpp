@@ -43,11 +43,11 @@
 #include "AcceptanceTestAcceptAll.h"
 #include "PatchMatchHelpers.h"
 #include "Process.h"
-
+#include "RandomSearch.h"
 
 template<typename TPropagation, typename TRandomSearch>
 void PatchMatch::Compute(NNFieldType* nnField,
-                         TPropagation propagationFunctor, TRandomSearch randomSearch)
+                         TPropagation* const propagationFunctor, TRandomSearch* const randomSearch)
 {
   if(this->Random)
   {
@@ -88,9 +88,10 @@ void PatchMatch::Compute(NNFieldType* nnField,
     std::vector<itk::Index<2> > pixelsToProcess =
       processValidMaskPixelsFunctor.GetPixelsToProcess();
 
+
     PatchMatchHelpers::WriteNNField(nnField, "AfterPropagation.mha");
 
-    randomSearch.Search(nnField, pixelsToProcess);
+    randomSearch->Search(nnField, pixelsToProcess);
 
     PatchMatchHelpers::WriteNNField(nnField, "AfterRandomSearch.mha");
 

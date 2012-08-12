@@ -33,21 +33,33 @@ struct RandomSearch
 {
   RandomSearch();
 
-  typedef itk::Image<Match, 2> MatchImageType;
+  typedef itk::Image<Match, 2> NNFieldType;
 
-  void Search(MatchImageType* const nnField, const std::vector<itk::Index<2> >& pixelsToSearch);
+  template <typename TPatchDistanceFunctor>
+  void Search(NNFieldType* const nnField, const std::vector<itk::Index<2> >& pixelsToSearch,
+              TPatchDistanceFunctor* const patchDistanceFunctor);
 
   void SetPatchRadius(const unsigned int patchRadius)
   {
     this->PatchRadius = patchRadius;
   }
 
+  void SetImage(TImage* const image)
+  {
+    this->Image = image;
+  }
+
+  void SetSourceMask(Mask* const mask)
+  {
+    this->SourceMask = mask;
+  }
+
 private:
   TImage* Image;
+  Mask* SourceMask;
   unsigned int PatchRadius;
 };
 
 #include "RandomSearch.hpp"
 
 #endif
-  

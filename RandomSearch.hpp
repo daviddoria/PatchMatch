@@ -26,8 +26,10 @@ RandomSearch<TImage>::RandomSearch() : Image(NULL)
 }
 
 template <typename TImage>
+template <typename TPatchDistanceFunctor>
 void RandomSearch<TImage>::
-Search(MatchImageType* const nnField, const std::vector<itk::Index<2> >& pixelsToProcess)
+Search(NNFieldType* const nnField, const std::vector<itk::Index<2> >& pixelsToProcess,
+       TPatchDistanceFunctor* const patchDistanceFunctor)
 {
   assert(nnField);
   assert(this->Image);
@@ -85,7 +87,7 @@ Search(MatchImageType* const nnField, const std::vector<itk::Index<2> >& pixelsT
       {
       // This function throws an exception if no valid patch was found
       randomValidRegion =
-                MaskOperations::GetRandomValidPatchInRegion(this->SourceMask.GetPointer(),
+                MaskOperations::GetRandomValidPatchInRegion(this->SourceMask,
                                                             searchRegion, this->PatchRadius,
                                                             maxNumberOfAttempts);
       }
@@ -109,11 +111,7 @@ Search(MatchImageType* const nnField, const std::vector<itk::Index<2> >& pixelsT
       // better than the current best patch. In subclasses (i.e. GeneralizedPatchMatch),
       // it must be better than the worst patch currently stored.
       Match currentMatch = nnField->GetPixel(queryPixel);
-      if(this->AcceptanceTestFunctor->IsBetter(queryRegion,
-                                               nnField->GetPixel(queryPixel), potentialMatch))
-      {
-        nnField->SetPixel(queryPixel, potentialMatch);
-      }
+      nnField->SetPixel(queryPixel, potentialMatch);
 
       radius *= alpha;
     } // end decreasing radius loop

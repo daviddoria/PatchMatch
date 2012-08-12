@@ -47,7 +47,7 @@ public:
 
   /** Perform multiple iterations of propagation and random search.*/
   template<typename TPropagation, typename TRandomSearch>
-  void Compute(NNFieldType* nnField, TPropagation propagation, TRandomSearch randomSearch);
+  void Compute(NNFieldType* nnField, TPropagation* const propagation, TRandomSearch* const randomSearch);
 
   /** Set the number of iterations to perform. */
   void SetIterations(const unsigned int iterations);
