@@ -115,11 +115,11 @@ struct BackwardPropagationNeighbors : public NeighborParent
   {
     std::vector<itk::Index<2> > allowedPropagationNeighbors;
 
-    itk::Offset<2> leftPixelOffset = {{1, 0}};
-    allowedPropagationNeighbors.push_back(queryIndex + leftPixelOffset);
+    itk::Offset<2> rightPixelOffset = {{1, 0}};
+    allowedPropagationNeighbors.push_back(queryIndex + rightPixelOffset);
 
-    itk::Offset<2> upPixelOffset = {{0, 1}};
-    allowedPropagationNeighbors.push_back(queryIndex + upPixelOffset);
+    itk::Offset<2> downPixelOffset = {{0, 1}};
+    allowedPropagationNeighbors.push_back(queryIndex + downPixelOffset);
 
     return allowedPropagationNeighbors;
   }

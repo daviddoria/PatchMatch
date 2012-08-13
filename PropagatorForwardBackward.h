@@ -46,10 +46,11 @@ public:
     if(this->Forward)
     {
       std::cout << "Propagating forward." << std::endl;
-      ForwardPropagationNeighbors neighborFunctor;
+      this->ProcessFunctor->SetForward(true);
 
+      ForwardPropagationNeighbors neighborFunctor;
       Propagator<TPatchDistanceFunctor, ForwardPropagationNeighbors,
-                 TProcessFunctor, TAcceptanceTest> propagator;
+                 TAcceptanceTest> propagator;
       propagator.SetPatchRadius(this->PatchRadius);
       propagator.SetNeighborFunctor(&neighborFunctor);
       propagator.SetAcceptanceTest(this->AcceptanceTest);
@@ -60,9 +61,11 @@ public:
     else
     {
       std::cout << "Propagating backward." << std::endl;
+      this->ProcessFunctor->SetForward(false);
+      
       BackwardPropagationNeighbors neighborFunctor;
       Propagator<TPatchDistanceFunctor, BackwardPropagationNeighbors,
-                 TProcessFunctor, TAcceptanceTest> propagator;
+                 TAcceptanceTest> propagator;
       propagator.SetPatchRadius(this->PatchRadius);
       propagator.SetNeighborFunctor(&neighborFunctor);
       propagator.SetAcceptanceTest(this->AcceptanceTest);

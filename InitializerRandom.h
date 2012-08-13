@@ -69,9 +69,9 @@ public:
       itk::ImageRegion<2> randomValidRegion = validSourceRegions[randomSourceRegionId];
 
       Match randomMatch;
-      randomMatch.Region = randomValidRegion;
-      randomMatch.Score = this->PatchDistanceFunctor->Distance(randomValidRegion, targetRegion);
-      randomMatch.Verified = false;
+      randomMatch.SetRegion(randomValidRegion);
+      randomMatch.SetScore(this->PatchDistanceFunctor->Distance(randomValidRegion, targetRegion));
+      randomMatch.SetVerified(false);
 
       initialization->SetPixel(targetPixel, randomMatch);
     }

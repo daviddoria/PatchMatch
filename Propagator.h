@@ -21,10 +21,11 @@
 
 // Custom
 #include "Match.h"
+#include "Process.h"
 
 /** A class that traverses a target region and propagates good matches. */
 template <typename TPatchDistanceFunctor, typename TNeighborFunctor,
-          typename TProcessFunctor, typename TAcceptanceTest>
+          typename TAcceptanceTest>
 class Propagator
 {
 public:
@@ -45,7 +46,7 @@ public:
     this->NeighborFunctor = neigborFunctor;
   }
 
-  void SetProcessFunctor(TProcessFunctor* processFunctor)
+  void SetProcessFunctor(Process* processFunctor)
   {
     this->ProcessFunctor = processFunctor;
   }
@@ -59,13 +60,13 @@ public:
   {
     this->PatchDistanceFunctor = patchDistanceFunctor;
   }
-  
+
 protected:
   unsigned int PatchRadius;
 
   TPatchDistanceFunctor* PatchDistanceFunctor;
   TNeighborFunctor* NeighborFunctor;
-  TProcessFunctor* ProcessFunctor;
+  Process* ProcessFunctor;
   TAcceptanceTest* AcceptanceTest;
 };
 

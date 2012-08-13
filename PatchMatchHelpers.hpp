@@ -58,12 +58,12 @@ void GetPatchCentersImage(const MatchImageType* const matchImage, CoordinateImag
     pixel.SetSize(numberOfComponents);
 
     Match match = imageIterator.Get();
-    itk::Index<2> center = ITKHelpers::GetRegionCenter(match.Region);
+    itk::Index<2> center = ITKHelpers::GetRegionCenter(match.GetRegion());
 
     pixel[0] = center[0];
     pixel[1] = center[1];
-    pixel[2] = match.Score;
-    pixel[3] = match.Verified;
+    pixel[2] = match.GetScore();
+    pixel[3] = match.IsVerified();
 //     if(match.Verified)
 //     {
 //       pixel[3] = match.Verified;

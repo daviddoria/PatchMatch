@@ -19,9 +19,12 @@
 #ifndef RandomSearch_HPP
 #define RandomSearch_HPP
 
+// STL
+#include <iostream>
+
 template <typename TImage, typename TPatchDistanceFunctor,
-          typename TProcessFunctor, typename TAcceptanceTest>
-RandomSearch<TImage, TPatchDistanceFunctor, TProcessFunctor, TAcceptanceTest>::RandomSearch() :
+          typename TAcceptanceTest>
+RandomSearch<TImage, TPatchDistanceFunctor, TAcceptanceTest>::RandomSearch() :
 Image(NULL), SourceMask(NULL), PatchRadius(0), PatchDistanceFunctor(NULL),
 ProcessFunctor(NULL), AcceptanceTest(NULL)
 {
@@ -29,8 +32,8 @@ ProcessFunctor(NULL), AcceptanceTest(NULL)
 }
 
 template <typename TImage, typename TPatchDistanceFunctor,
-          typename TProcessFunctor, typename TAcceptanceTest>
-void RandomSearch<TImage, TPatchDistanceFunctor, TProcessFunctor, TAcceptanceTest>::
+          typename TAcceptanceTest>
+void RandomSearch<TImage, TPatchDistanceFunctor, TAcceptanceTest>::
 Search(NNFieldType* const nnField)
 {
   assert(nnField);
@@ -50,6 +53,8 @@ Search(NNFieldType* const nnField)
   itk::ImageRegion<2> region = nnField->GetLargestPossibleRegion();
 
   unsigned int exactMatchPixels = 0;
+  unsigned int numberOfUpdatedPixels = 0;
+
   std::vector<itk::Index<2> > pixelsToProcess = this->ProcessFunctor->GetPixelsToProcess();
   for(size_t pixelId = 0; pixelId < pixelsToProcess.size(); ++pixelId)
   {
@@ -57,7 +62,7 @@ Search(NNFieldType* const nnField)
 
     // For inpainting, most of the NN-field will be an exact match. We don't have to search anymore
     // once the exact match is found.
-    if((nnField->GetPixel(queryPixel).Score == 0))
+    if((nnField->GetPixel(queryPixel).GetScore() == 0))
     {
       exactMatchPixels++;
       continue;
@@ -112,21 +117,28 @@ Search(NNFieldType* const nnField)
 
       // Construct a match object
       Match potentialMatch;
-      potentialMatch.Region = randomValidRegion;
-      potentialMatch.Score = dist;
+      potentialMatch.SetRegion(randomValidRegion);
+      potentialMatch.SetScore(dist);
 
       // Store this match as the best match if it meets the criteria.
       // In this class, the criteria is simply that it is
       // better than the current best patch. In subclasses (i.e. GeneralizedPatchMatch),
       // it must be better than the worst patch currently stored.
+
       Match currentMatch = nnField->GetPixel(queryPixel);
-      nnField->SetPixel(queryPixel, potentialMatch);
+      if(this->AcceptanceTest->IsBetter(currentMatch.GetRegion(), currentMatch, potentialMatch))
+      {
+        potentialMatch.SetVerified(true);
+        nnField->SetPixel(queryPixel, potentialMatch);
+        numberOfUpdatedPixels++;
+      }
 
       radius *= alpha;
     } // end decreasing radius loop
 
   } // end loop over target pixels
 
+  std::cout << "RandomSearch() updated " << numberOfUpdatedPixels << " pixels." << std::endl;
   //std::cout << "RandomSearch: already exact match " << exactMatchPixels << std::endl;
 }
 

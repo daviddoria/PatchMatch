@@ -53,9 +53,7 @@ public:
 
     // Create an invalid match
     Match invalidMatch;
-    invalidMatch.Region = zeroRegion;
-    invalidMatch.Score = Match::InvalidScore;
-    invalidMatch.Verified = false;
+    invalidMatch.MakeInvalid();
 
     // Initialize the entire NNfield to be invalid matches
     ITKHelpers::SetImageToConstant(initialization, invalidMatch);
@@ -80,9 +78,9 @@ public:
       if(this->SourceMask->IsValid(currentRegion))
       {
         Match selfMatch;
-        selfMatch.Region = currentRegion;
-        selfMatch.Score = 0.0f;
-        selfMatch.Verified = true;
+        selfMatch.SetRegion(currentRegion);
+        selfMatch.SetScore(0.0f);
+        selfMatch.SetVerified(true);
         outputIterator.Set(selfMatch);
       }
 

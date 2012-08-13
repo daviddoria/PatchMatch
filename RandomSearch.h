@@ -24,11 +24,12 @@
 
 // Custom
 #include "Match.h"
+#include "Process.h"
 
 // Submodules
 #include <Mask/Mask.h>
 
-template <typename TImage, typename TProcessFunctor, typename TPatchDistanceFunctor,
+template <typename TImage, typename TPatchDistanceFunctor,
           typename TAcceptanceTest>
 struct RandomSearch
 {
@@ -53,7 +54,7 @@ struct RandomSearch
     this->SourceMask = mask;
   }
 
-  void SetProcessFunctor(TProcessFunctor* const processFunctor)
+  void SetProcessFunctor(Process* const processFunctor)
   {
     this->ProcessFunctor = processFunctor;
   }
@@ -73,7 +74,7 @@ private:
   Mask* SourceMask;
   unsigned int PatchRadius;
   TPatchDistanceFunctor* PatchDistanceFunctor;
-  TProcessFunctor* ProcessFunctor;
+  Process* ProcessFunctor;
   TAcceptanceTest* AcceptanceTest;
 };
 

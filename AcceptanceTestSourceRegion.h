@@ -34,7 +34,7 @@ public:
                         const Match& potentialBetterMatch)
   {
     assert(this->MaskImage);
-    return this->MaskImage->IsValid(potentialBetterMatch.Region);
+    return this->MaskImage->IsValid(potentialBetterMatch.GetRegion());
   }
 
 private:

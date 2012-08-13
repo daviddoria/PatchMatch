@@ -58,7 +58,7 @@ public:
 
     HistogramType potentialMatchHistogram =
       Histogram<int>::ComputeImageHistogram1D(this->Image,
-                                              potentialBetterMatch.Region, numberOfBinsPerDimension,
+                                              potentialBetterMatch.GetRegion(), numberOfBinsPerDimension,
                                               this->RangeMin, this->RangeMax);
 
     itk::Offset<2> randomNeighborOffset = PatchMatchHelpers::RandomNeighborNonZeroOffset();

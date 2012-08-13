@@ -62,13 +62,13 @@ public:
     unsigned int numberVerified = 0;
     for(size_t pixelId = 0; pixelId < processPixels.size(); ++pixelId)
     {
-      if(!nnField->GetPixel(processPixels[pixelId]).Verified)
+      if(!nnField->GetPixel(processPixels[pixelId]).IsVerified())
       {
         if(this->VerifyFunctor->Verify(processPixels[pixelId]))
         {
           //nnField->GetPixel(processPixels[pixelId]).Verified = true;
           Match match = nnField->GetPixel(processPixels[pixelId]);
-          match.Verified = true;
+          match.SetVerified(true);
           nnField->SetPixel(processPixels[pixelId], match);
           numberVerified++;
         }
@@ -137,7 +137,7 @@ public:
     assert(this->NeighborHistogramMultiplier > 1.0f);
 
     itk::ImageRegion<2> queryRegion = ITKHelpers::GetRegionInRadiusAroundPixel(queryCenter, this->PatchRadius);
-    itk::ImageRegion<2> sourceRegion = this->MatchImage->GetPixel(queryCenter).Region;
+    itk::ImageRegion<2> sourceRegion = this->MatchImage->GetPixel(queryCenter).GetRegion();
 
     const unsigned int numberOfBinsPerDimension = 20;
 

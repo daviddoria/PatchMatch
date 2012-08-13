@@ -20,16 +20,16 @@
 #define Propagator_HPP
 
 template <typename TPatchDistanceFunctor, typename TNeighborFunctor,
-          typename TProcessFunctor, typename TAcceptanceTest>
-Propagator<TPatchDistanceFunctor, TNeighborFunctor, TProcessFunctor, TAcceptanceTest>::Propagator() :
+          typename TAcceptanceTest>
+Propagator<TPatchDistanceFunctor, TNeighborFunctor, TAcceptanceTest>::Propagator() :
 PatchRadius(0), PatchDistanceFunctor(NULL), NeighborFunctor(NULL), ProcessFunctor(NULL),
 AcceptanceTest(NULL)
 {
 }
 
 template <typename TPatchDistanceFunctor, typename TNeighborFunctor,
-          typename TProcessFunctor, typename TAcceptanceTest>
-void Propagator<TPatchDistanceFunctor, TNeighborFunctor, TProcessFunctor, TAcceptanceTest>::
+          typename TAcceptanceTest>
+void Propagator<TPatchDistanceFunctor, TNeighborFunctor, TAcceptanceTest>::
 Propagate(NNFieldType* const nnField)
 {
   assert(this->NeighborFunctor);
@@ -55,7 +55,7 @@ Propagate(NNFieldType* const nnField)
   targetPixels.erase(std::remove_if(targetPixels.begin(), targetPixels.end(),
                   [nnField](const itk::Index<2>& queryPixel)
                   {
-                    return nnField->GetPixel(queryPixel).Score == 0;
+                    return nnField->GetPixel(queryPixel).GetScore() == 0;
                   }),
                   targetPixels.end());
 
@@ -100,7 +100,7 @@ Propagate(NNFieldType* const nnField)
       // - potentialMatch should be (11,10), because since the current pixel is 1 to the right
       // of the neighbor, we need to consider the patch one to the right of the neighbors best match
       itk::Index<2> currentNearestNeighbor =
-        ITKHelpers::GetRegionCenter(nnField->GetPixel(potentialPropagationPixel).Region);
+        ITKHelpers::GetRegionCenter(nnField->GetPixel(potentialPropagationPixel).GetRegion());
       itk::Index<2> potentialMatchPixel = currentNearestNeighbor - potentialPropagationPixelOffset;
 
       itk::ImageRegion<2> potentialMatchRegion =
@@ -117,13 +117,14 @@ Propagate(NNFieldType* const nnField)
         float distance = this->PatchDistanceFunctor->Distance(potentialMatchRegion, targetRegion);
 
         Match potentialMatch;
-        potentialMatch.Region = potentialMatchRegion;
-        potentialMatch.Score = distance;
+        potentialMatch.SetRegion(potentialMatchRegion);
+        potentialMatch.SetScore(distance);
 
         Match currentMatch = nnField->GetPixel(targetPixel);
 
         if(this->AcceptanceTest->IsBetter(targetRegion, nnField->GetPixel(targetPixel), potentialMatch))
         {
+          potentialMatch.SetVerified(true);
           nnField->SetPixel(targetPixel, potentialMatch);
           propagated = true;
         }

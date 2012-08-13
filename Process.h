@@ -32,12 +32,13 @@ struct Process
 {
   typedef itk::Image<Match, 2> NNFieldType;
 
-  Process(){}
-
-  Process(Mask* const mask, NNFieldType* const nnField) : NNField(nnField), MaskImage(mask)
+  Process() : NNField(NULL), MaskImage(NULL), Forward(true)
   {}
 
-  Process(Mask* const mask) : NNField(NULL), MaskImage(mask)
+  Process(Mask* const mask, NNFieldType* const nnField) : NNField(nnField), MaskImage(mask), Forward(true)
+  {}
+
+  Process(Mask* const mask) : NNField(NULL), MaskImage(mask), Forward(true)
   {}
 
   void SetNNField(NNFieldType* const nnField)
@@ -54,9 +55,15 @@ struct Process
 
   virtual std::vector<itk::Index<2> > GetPixelsToProcess() = 0;
 
+  void SetForward(const bool forward)
+  {
+    this->Forward = forward;
+  }
+
 protected:
   NNFieldType* NNField;
   Mask* MaskImage;
+  bool Forward;
 };
 
 struct ProcessValidMaskPixels : public Process
@@ -68,7 +75,7 @@ struct ProcessValidMaskPixels : public Process
 
   bool ShouldProcess(const itk::Index<2>& queryIndex)
   {
-    return true;
+    return this->MaskImage->IsValid(queryIndex);
   }
 
   std::vector<itk::Index<2> > GetPixelsToProcess()
@@ -78,7 +85,7 @@ struct ProcessValidMaskPixels : public Process
 
   std::vector<itk::Index<2> > GetPixelsToProcess(const Mask* const mask)
   {
-    std::vector<itk::Index<2> > validPixels = mask->GetValidPixels();
+    std::vector<itk::Index<2> > validPixels = mask->GetValidPixels(this->Forward);
     return validPixels;
   }
 
@@ -86,7 +93,6 @@ struct ProcessValidMaskPixels : public Process
 
 struct ProcessInvalidTarget : public Process
 {
-
   typedef itk::Image<Match, 2> NNFieldType;
 
   ProcessInvalidTarget(Mask* const mask, NNFieldType* const nnField) : Process(mask, nnField)
@@ -112,7 +118,51 @@ struct ProcessInvalidTarget : public Process
     assert(this->NNField);
     assert(this->MaskImage);
 
-    std::vector<itk::Index<2> > validPixels = this->MaskImage->GetValidPixels();
+    std::vector<itk::Index<2> > validPixels = this->MaskImage->GetValidPixels(this->Forward);
+
+    validPixels.erase(std::remove_if(validPixels.begin(), validPixels.end(),
+                       [this](const itk::Index<2>& queryIndex)
+                       {
+                         return !this->ShouldProcess(queryIndex);
+                       }),
+                       validPixels.end());
+
+    return validPixels;
+  }
+
+};
+
+
+struct ProcessUnverifiedTargetPixels : public Process
+{
+  typedef itk::Image<Match, 2> NNFieldType;
+
+  ProcessUnverifiedTargetPixels(Mask* const mask, NNFieldType* const nnField) :
+      Process(mask, nnField)
+  {}
+
+  bool ShouldProcess(const itk::Index<2>& queryIndex)
+  {
+    assert(this->NNField);
+    assert(this->MaskImage);
+
+    if(this->MaskImage->IsValid(queryIndex))
+    {
+      if(!this->NNField->GetPixel(queryIndex).IsVerified())
+      {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  std::vector<itk::Index<2> > GetPixelsToProcess()
+  {
+    assert(this->NNField);
+    assert(this->MaskImage);
+
+    std::vector<itk::Index<2> > validPixels = this->MaskImage->GetValidPixels(this->Forward);
+
     validPixels.erase(std::remove_if(validPixels.begin(), validPixels.end(),
                        [this](const itk::Index<2>& queryIndex)
                        {
