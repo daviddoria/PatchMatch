@@ -48,7 +48,7 @@ void GeneralizedPatchMatch<TImage>::GetPatchCentersImage(GeneralizedPMImageType*
 
     pixel[0] = center[0];
     pixel[1] = center[1];
-    pixel[2] = match.Score;
+    pixel[2] = match.GetScore();
 
     output->SetPixel(imageIterator.GetIndex(), pixel);
 
@@ -75,10 +75,10 @@ void GeneralizedPatchMatch<TImage>::AddIfBetter(const itk::Index<2>& index, cons
 
   // Check if the item is already in the container
   auto result = std::find_if(currentMatches.begin(), currentMatches.end(), [&potentialMatch](const Match& match) {
-        return match.Region==potentialMatch.Region;});
+        return match.GetRegion() == potentialMatch.GetRegion();});
 
   // If the item was not found
-  if(result != currentMatches.end())
+  if(result == currentMatches.end())
   {
     // Add the item to the container
     currentMatches.push_back(potentialMatch);
@@ -86,7 +86,7 @@ void GeneralizedPatchMatch<TImage>::AddIfBetter(const itk::Index<2>& index, cons
     // Sort the container
     std::sort(currentMatches.begin(), currentMatches.end(), [](const Match& match1, const Match& match2 )
     {
-      return match1.Score < match2.Score;
+      return match1.GetScore() < match2.GetScore();
     }
     );
 

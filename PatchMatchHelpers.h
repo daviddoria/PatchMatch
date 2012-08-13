@@ -23,9 +23,11 @@
 #include "itkImageRegionConstIterator.h"
 #include "itkImage.h"
 #include "itkCovariantVector.h"
+#include "itkVectorImage.h"
 
 // Custom
 #include "Match.h"
+#include "MatchSet.h"
 
 namespace PatchMatchHelpers
 {
@@ -35,7 +37,7 @@ itk::Offset<2> RandomNeighborNonZeroOffset();
 //typedef itk::Image<itk::CovariantVector<float, 3>, 2> CoordinateImageType;
 typedef itk::VectorImage<float, 2> CoordinateImageType;
 
-typedef itk::Image<Match, 2> NNFieldType;
+typedef itk::Image<MatchSet, 2> NNFieldType;
 
 template <typename NNFieldType, typename CoordinateImageType>
 void GetPatchCentersImage(const NNFieldType* const matchImage, CoordinateImageType* const output);

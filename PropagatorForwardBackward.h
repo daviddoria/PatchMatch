@@ -31,11 +31,9 @@ public:
   PropagatorForwardBackward() : PatchRadius(0), Forward(true), PatchDistanceFunctor(NULL),
                                 ProcessFunctor(NULL), AcceptanceTest(NULL){}
 
-  typedef itk::Image<Match, 2> NNFieldType;
-
   /** Propagate good matches from specified offsets. */
 
-  void Propagate(NNFieldType* const nnField)
+  void Propagate(PatchMatchHelpers::NNFieldType* const nnField)
   {
     assert(nnField);
     assert(this->PatchRadius > 0);

@@ -30,7 +30,7 @@ AcceptanceTest(NULL)
 template <typename TPatchDistanceFunctor, typename TNeighborFunctor,
           typename TAcceptanceTest>
 void Propagator<TPatchDistanceFunctor, TNeighborFunctor, TAcceptanceTest>::
-Propagate(NNFieldType* const nnField)
+Propagate(PatchMatchHelpers::NNFieldType* const nnField)
 {
   assert(this->NeighborFunctor);
   assert(this->ProcessFunctor);
@@ -48,19 +48,6 @@ Propagate(NNFieldType* const nnField)
 
   unsigned int propagatedPixels = 0;
   unsigned int acceptanceTestFailed = 0;
-
-  // Don't process the pixels that already have an exact match.
-  // When using PatchMatch for inpainting, most of the NN-field will be an exact match.
-  // We don't have to search anymore once the exact match is found.
-  targetPixels.erase(std::remove_if(targetPixels.begin(), targetPixels.end(),
-                  [nnField](const itk::Index<2>& queryPixel)
-                  {
-                    return nnField->GetPixel(queryPixel).GetScore() == 0;
-                  }),
-                  targetPixels.end());
-
-//   std::cout << "Propagation(): There are " << targetPixels.size()
-//             << " pixels that would like to be propagated to." << std::endl;
 
   for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
   {
@@ -100,7 +87,7 @@ Propagate(NNFieldType* const nnField)
       // - potentialMatch should be (11,10), because since the current pixel is 1 to the right
       // of the neighbor, we need to consider the patch one to the right of the neighbors best match
       itk::Index<2> currentNearestNeighbor =
-        ITKHelpers::GetRegionCenter(nnField->GetPixel(potentialPropagationPixel).GetRegion());
+        ITKHelpers::GetRegionCenter(nnField->GetPixel(potentialPropagationPixel).GetMatch(0).GetRegion());
       itk::Index<2> potentialMatchPixel = currentNearestNeighbor - potentialPropagationPixelOffset;
 
       itk::ImageRegion<2> potentialMatchRegion =
@@ -118,14 +105,16 @@ Propagate(NNFieldType* const nnField)
 
         Match potentialMatch;
         potentialMatch.SetRegion(potentialMatchRegion);
-        potentialMatch.SetScore(distance);
+        potentialMatch.SetSSDScore(distance);
 
-        Match currentMatch = nnField->GetPixel(targetPixel);
+        Match currentMatch = nnField->GetPixel(targetPixel).GetMatch(0);
 
-        if(this->AcceptanceTest->IsBetter(targetRegion, nnField->GetPixel(targetPixel), potentialMatch))
+        if(this->AcceptanceTest->IsBetter(targetRegion, nnField->GetPixel(targetPixel).GetMatch(0), potentialMatch))
         {
           potentialMatch.SetVerified(true);
-          nnField->SetPixel(targetPixel, potentialMatch);
+          MatchSet matchSet = nnField->GetPixel(targetPixel);
+          matchSet.AddMatch(potentialMatch);
+          nnField->SetPixel(targetPixel, matchSet);
           propagated = true;
         }
         else

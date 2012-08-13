@@ -16,8 +16,8 @@
  *
  *=========================================================================*/
 
-#ifndef PATCHMATCH_H
-#define PATCHMATCH_H
+#ifndef PatchMatch_H
+#define PatchMatch_H
 
 // ITK
 #include "itkImage.h"
@@ -30,7 +30,8 @@
 #include <PatchComparison/PatchDistance.h>
 
 // Custom
-#include "Match.h"
+#include "PatchMatchHelpers.h"
+#include "MatchSet.h"
 #include "AcceptanceTest.h"
 
 /** This class computes a nearest neighbor field using the PatchMatch algorithm.
@@ -40,12 +41,9 @@ class PatchMatch
 {
 public:
 
-  /** The type that is used to store the nearest neighbor field. */
-  typedef itk::Image<Match, 2> NNFieldType;
-
   /** Perform multiple iterations of propagation and random search.*/
   template<typename TPropagation, typename TRandomSearch, typename TProcessFunctor>
-  void Compute(NNFieldType* nnField, TPropagation* const propagation,
+  void Compute(PatchMatchHelpers::NNFieldType* nnField, TPropagation* const propagation,
                TRandomSearch* const randomSearch, TProcessFunctor* const processFunctor);
 
   /** Set the number of iterations to perform. */

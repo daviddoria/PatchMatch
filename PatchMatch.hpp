@@ -46,7 +46,7 @@
 #include "RandomSearch.h"
 
 template<typename TPropagation, typename TRandomSearch, typename TProcessFunctor>
-void PatchMatch::Compute(NNFieldType* nnField,
+void PatchMatch::Compute(PatchMatchHelpers::NNFieldType* nnField,
                          TPropagation* const propagationFunctor,
                          TRandomSearch* const randomSearch,
                          TProcessFunctor* const processFunctor)

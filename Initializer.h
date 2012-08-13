@@ -24,6 +24,7 @@
 
 // Custom
 #include "Match.h"
+#include "PatchMatchHelpers.h"
 
 // Submodules
 #include <Mask/Mask.h>
@@ -33,7 +34,7 @@ class Initializer
 {
 public:
   /** Create the 'initialization' image. */
-  virtual void Initialize(itk::Image<Match, 2>* const initialization) = 0;
+  virtual void Initialize(PatchMatchHelpers::NNFieldType* const initialization) = 0;
 };
 
 class InitializerPatch : public Initializer
@@ -48,7 +49,7 @@ class InitializerPatch : public Initializer
   }
 
   /** Create the 'initialization' image. */
-  virtual void Initialize(itk::Image<Match, 2>* const initialization) = 0;
+  virtual void Initialize(PatchMatchHelpers::NNFieldType* const initialization) = 0;
 
   void SetPatchRadius(const unsigned int patchRadius)
   {

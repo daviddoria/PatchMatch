@@ -45,7 +45,7 @@ template <typename MatchImageType, typename CoordinateImageType>
 void GetPatchCentersImage(const MatchImageType* const matchImage, CoordinateImageType* const output)
 {
   output->SetRegions(matchImage->GetLargestPossibleRegion());
-  unsigned int numberOfComponents = 4;
+  unsigned int numberOfComponents = 5;
   output->SetNumberOfComponentsPerPixel(numberOfComponents); // Currently we write (X,Y,Score,Verified)
   output->Allocate();
 
@@ -57,17 +57,14 @@ void GetPatchCentersImage(const MatchImageType* const matchImage, CoordinateImag
     typename CoordinateImageType::PixelType pixel;
     pixel.SetSize(numberOfComponents);
 
-    Match match = imageIterator.Get();
+    Match match = imageIterator.Get().GetMatch(0);
     itk::Index<2> center = ITKHelpers::GetRegionCenter(match.GetRegion());
 
     pixel[0] = center[0];
     pixel[1] = center[1];
-    pixel[2] = match.GetScore();
-    pixel[3] = match.IsVerified();
-//     if(match.Verified)
-//     {
-//       pixel[3] = match.Verified;
-//     }
+    pixel[2] = match.GetSSDScore();
+    pixel[3] = match.GetVerificationScore();
+    pixel[4] = match.IsVerified();
 
     output->SetPixel(imageIterator.GetIndex(), pixel);
 
@@ -124,6 +121,9 @@ unsigned int CountInvalidPixels(const MatchImageType* const nnField, const Mask*
 
 void WriteValidPixels(const NNFieldType* const nnField, const std::string& fileName)
 {
+  // This function writes the validity of the first Match in the MatchSet at every pixel
+  // to an image.
+
   typedef itk::Image<unsigned char> ImageType;
   ImageType::Pointer image = ImageType::New();
   image->SetRegions(nnField->GetLargestPossibleRegion());
@@ -135,7 +135,7 @@ void WriteValidPixels(const NNFieldType* const nnField, const std::string& fileN
 
   while(!imageIterator.IsAtEnd())
   {
-    if(imageIterator.Get().IsValid())
+    if(imageIterator.Get().GetMatch(0).IsValid())
     {
       image->SetPixel(imageIterator.GetIndex(), 255);
     }

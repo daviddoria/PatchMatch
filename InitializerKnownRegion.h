@@ -23,6 +23,7 @@
 
 // Custom
 #include "Match.h"
+#include "PatchMatchHelpers.h"
 
 /** Set every pixel whose surrounding patch is entirely in the source region
   * to have its nearest neighbor as exactly itself. */
@@ -38,7 +39,7 @@ public:
   /** Set every pixel whose surrounding patch is entirely in the source region
     * to have its nearest neighbor as exactly itself. These pixels are also marked as verified automatically.
     * Do not modify other pixels in 'initialization'.*/
-  virtual void Initialize(itk::Image<Match, 2>* const initialization)
+  virtual void Initialize(PatchMatchHelpers::NNFieldType* const initialization)
   {
     assert(initialization);
 
@@ -52,11 +53,10 @@ public:
     itk::ImageRegion<2> zeroRegion(zeroIndex, zeroSize);
 
     // Create an invalid match
-    Match invalidMatch;
-    invalidMatch.MakeInvalid();
+    MatchSet emptyMatchSet;
 
     // Initialize the entire NNfield to be invalid matches
-    ITKHelpers::SetImageToConstant(initialization, invalidMatch);
+    ITKHelpers::SetImageToConstant(initialization, emptyMatchSet);
 
     // Get all of the regions that are entirely inside the image
     itk::ImageRegion<2> internalRegion =
@@ -65,8 +65,8 @@ public:
 //               << " is " << internalRegion << std::endl;
     // Set all of the patches that are entirely inside the source region to exactly
     // themselves as their nearest neighbor
-    typedef itk::Image<Match, 2> MatchImageType;
-    itk::ImageRegionIteratorWithIndex<MatchImageType> outputIterator(initialization, internalRegion);
+
+    itk::ImageRegionIteratorWithIndex<PatchMatchHelpers::NNFieldType> outputIterator(initialization, internalRegion);
 
     while(!outputIterator.IsAtEnd())
     {
@@ -79,9 +79,13 @@ public:
       {
         Match selfMatch;
         selfMatch.SetRegion(currentRegion);
-        selfMatch.SetScore(0.0f);
+        selfMatch.SetSSDScore(0.0f);
+        selfMatch.SetVerificationScore(0.0f);
         selfMatch.SetVerified(true);
-        outputIterator.Set(selfMatch);
+
+        MatchSet currentMatches = outputIterator.Get();
+        currentMatches.AddMatch(selfMatch);
+        outputIterator.Set(currentMatches);
       }
 
       ++outputIterator;

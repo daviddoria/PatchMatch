@@ -35,9 +35,7 @@ struct RandomSearch
 {
   RandomSearch();
 
-  typedef itk::Image<Match, 2> NNFieldType;
-
-  void Search(NNFieldType* const nnField);
+  void Search(PatchMatchHelpers::NNFieldType* const nnField);
 
   void SetPatchRadius(const unsigned int patchRadius)
   {

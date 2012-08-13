@@ -29,9 +29,10 @@ public:
 
   InitializerRandom() : PatchDistanceFunctor(NULL) {}
 
-  /** Set target pixels (in the TargetMask) in 'initialization' to have random nearest neighbors.
+  /** Set valid pixels in the 'TargetMask' in 'initialization' to have a random nearest neighbor
+    * if they do not already have any neighbors.
     * Do not modify other pixles in 'initialization'.*/
-  virtual void Initialize(itk::Image<Match, 2>* const initialization)
+  virtual void Initialize(PatchMatchHelpers::NNFieldType* const initialization)
   {
     assert(this->PatchDistanceFunctor);
     assert(initialization);
@@ -61,7 +62,7 @@ public:
       }
 
       itk::Index<2> targetPixel = targetPixels[targetPixelId];
-      if(initialization->GetPixel(targetPixel).IsValid())
+      if(initialization->GetPixel(targetPixel).GetNumberOfMatches() > 0)
       {
         continue;
       }
@@ -70,10 +71,12 @@ public:
 
       Match randomMatch;
       randomMatch.SetRegion(randomValidRegion);
-      randomMatch.SetScore(this->PatchDistanceFunctor->Distance(randomValidRegion, targetRegion));
+      randomMatch.SetSSDScore(this->PatchDistanceFunctor->Distance(randomValidRegion, targetRegion));
       randomMatch.SetVerified(false);
 
-      initialization->SetPixel(targetPixel, randomMatch);
+      MatchSet matchSet;
+      matchSet.AddMatch(randomMatch);
+      initialization->SetPixel(targetPixel, matchSet);
     }
 
     //std::cout << "Finished RandomInit." << internalRegion << std::endl;

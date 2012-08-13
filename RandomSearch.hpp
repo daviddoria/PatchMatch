@@ -34,7 +34,7 @@ ProcessFunctor(NULL), AcceptanceTest(NULL)
 template <typename TImage, typename TPatchDistanceFunctor,
           typename TAcceptanceTest>
 void RandomSearch<TImage, TPatchDistanceFunctor, TAcceptanceTest>::
-Search(NNFieldType* const nnField)
+Search(PatchMatchHelpers::NNFieldType* const nnField)
 {
   assert(nnField);
   assert(this->Image);
@@ -52,21 +52,12 @@ Search(NNFieldType* const nnField)
   // The full region - so we can refer to this without specifying an image/mask that it is associated with
   itk::ImageRegion<2> region = nnField->GetLargestPossibleRegion();
 
-  unsigned int exactMatchPixels = 0;
   unsigned int numberOfUpdatedPixels = 0;
 
   std::vector<itk::Index<2> > pixelsToProcess = this->ProcessFunctor->GetPixelsToProcess();
   for(size_t pixelId = 0; pixelId < pixelsToProcess.size(); ++pixelId)
   {
     itk::Index<2> queryPixel = pixelsToProcess[pixelId];
-
-    // For inpainting, most of the NN-field will be an exact match. We don't have to search anymore
-    // once the exact match is found.
-    if((nnField->GetPixel(queryPixel).GetScore() == 0))
-    {
-      exactMatchPixels++;
-      continue;
-    }
 
     itk::ImageRegion<2> queryRegion =
       ITKHelpers::GetRegionInRadiusAroundPixel(queryPixel, this->PatchRadius);
@@ -118,18 +109,20 @@ Search(NNFieldType* const nnField)
       // Construct a match object
       Match potentialMatch;
       potentialMatch.SetRegion(randomValidRegion);
-      potentialMatch.SetScore(dist);
+      potentialMatch.SetSSDScore(dist);
 
       // Store this match as the best match if it meets the criteria.
       // In this class, the criteria is simply that it is
       // better than the current best patch. In subclasses (i.e. GeneralizedPatchMatch),
       // it must be better than the worst patch currently stored.
 
-      Match currentMatch = nnField->GetPixel(queryPixel);
+      Match currentMatch = nnField->GetPixel(queryPixel).GetMatch(0);
       if(this->AcceptanceTest->IsBetter(currentMatch.GetRegion(), currentMatch, potentialMatch))
       {
         potentialMatch.SetVerified(true);
-        nnField->SetPixel(queryPixel, potentialMatch);
+        MatchSet matchSet = nnField->GetPixel(queryPixel);
+        matchSet.AddMatch(potentialMatch);
+        nnField->SetPixel(queryPixel, matchSet);
         numberOfUpdatedPixels++;
       }
 

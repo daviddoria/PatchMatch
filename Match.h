@@ -16,8 +16,8 @@
  *
  *=========================================================================*/
 
-#ifndef MATCH_H
-#define MATCH_H
+#ifndef Match_H
+#define Match_H
 
 // ITK
 #include "itkImageRegion.h"
@@ -33,7 +33,7 @@ class Match
 {
 public:
 
-  Match() : Score(InvalidScore), Verified(false)
+  Match() : SSDScore(InvalidScore), VerificationScore(InvalidScore), Verified(false)
   {
     itk::Index<2> index = {{0,0}};
     itk::Size<2> size = {{0,0}};
@@ -44,7 +44,7 @@ public:
   /** Determine if the score is valid. */
   bool IsValid() const
   {
-    if(Helpers::IsNaN(this->Score))
+    if(Helpers::IsNaN(this->SSDScore))
     {
       return false;
     }
@@ -71,7 +71,8 @@ public:
   /** Set the Match to be invalid. */
   void MakeInvalid()
   {
-    this->Score = InvalidScore;
+    this->SSDScore = this->InvalidScore;
+    this->VerificationScore = this->InvalidScore;
 
     itk::Index<2> invalidIndex = {{0,0}};
     itk::Size<2> invalidSize = {{0,0}};
@@ -92,14 +93,24 @@ public:
     return this->Region;
   }
 
-  void SetScore(const float& score)
+  void SetSSDScore(const float& ssdScore)
   {
-    this->Score = score;
+    this->SSDScore = ssdScore;
   }
 
-  float GetScore() const
+  float GetSSDScore() const
   {
-    return this->Score;
+    return this->SSDScore;
+  }
+
+  float GetVerificationScore() const
+  {
+    return this->VerificationScore;
+  }
+
+  void SetVerificationScore(const float& verificationScore)
+  {
+    this->VerificationScore = verificationScore;
   }
 
 private:
@@ -107,7 +118,10 @@ private:
   itk::ImageRegion<2> Region;
 
   /** The score according to which ever PatchDistanceFunctor is being used. */
-  float Score;
+  float SSDScore;
+
+  /** The score according to a verification test being used. */
+  float VerificationScore;
 
   /** A constant making it easier to define an invalid score.*/
   static constexpr float InvalidScore = std::numeric_limits< float >::quiet_NaN();

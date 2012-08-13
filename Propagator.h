@@ -21,6 +21,7 @@
 
 // Custom
 #include "Match.h"
+#include "PatchMatchHelpers.h"
 #include "Process.h"
 
 /** A class that traverses a target region and propagates good matches. */
@@ -31,10 +32,9 @@ class Propagator
 public:
   Propagator();
 
-  typedef itk::Image<Match, 2> NNFieldType;
 
   /** Propagate good matches from specified offsets. */
-  void Propagate(NNFieldType* const nnField);
+  void Propagate(PatchMatchHelpers::NNFieldType* const nnField);
 
   void SetPatchRadius(const unsigned int patchRadius)
   {

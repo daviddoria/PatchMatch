@@ -134,8 +134,8 @@ public:
 
       if(acceptableMatchFound)
       {
-        randomMatch.Region = randomValidRegion;
-        randomMatch.Score = this->PatchDistanceFunctor->Distance(randomValidRegion, targetRegion);
+        randomMatch.SetRegion(randomValidRegion);
+        randomMatch.SetSSDScore(this->PatchDistanceFunctor->Distance(randomValidRegion, targetRegion));
       }
       else
       {

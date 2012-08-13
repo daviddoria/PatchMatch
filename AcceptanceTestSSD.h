@@ -28,7 +28,7 @@ public:
   virtual bool IsBetter(const itk::ImageRegion<2>& queryRegion, const Match& currentMatch,
                         const Match& potentialBetterMatch)
   {
-    if(potentialBetterMatch.GetScore() < currentMatch.GetScore())
+    if(potentialBetterMatch.GetSSDScore() < currentMatch.GetSSDScore())
     {
       return true;
     }
