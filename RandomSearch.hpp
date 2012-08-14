@@ -117,7 +117,7 @@ Search(PatchMatchHelpers::NNFieldType* const nnField)
       // it must be better than the worst patch currently stored.
 
       Match currentMatch = nnField->GetPixel(queryPixel).GetMatch(0);
-      float verificationScore;
+      float verificationScore = 0.0f;
       if(this->AcceptanceTest->IsBetterWithScore(currentMatch.GetRegion(), currentMatch, potentialMatch, verificationScore))
       {
         potentialMatch.SetVerified(true);
