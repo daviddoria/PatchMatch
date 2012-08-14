@@ -22,6 +22,9 @@
 // Custom
 #include "AcceptanceTest.h"
 
+// Boost
+#include <boost/signals2/signal.hpp>
+
 class AcceptanceTestComposite : public AcceptanceTest
 {
 public:
@@ -34,6 +37,7 @@ public:
       AcceptanceTest* acceptanceTest = this->AcceptanceTests[i];
       if(!acceptanceTest->IsBetterWithScore(queryRegion, oldMatch, potentialBetterMatch, score))
       {
+        WhichFailedSignal(i);
         return false;
       }
     }
@@ -50,13 +54,18 @@ public:
   /** Remove an acceptance test. */
   void RemoveAcceptanceTest(AcceptanceTest* const acceptanceTestToRemove)
   {
+    std::cout << "Before RemoveAcceptanceTest() there are " << this->AcceptanceTests.size() << std::endl;
     this->AcceptanceTests.erase(std::remove_if(this->AcceptanceTests.begin(), this->AcceptanceTests.end(),
                                                 [acceptanceTestToRemove](AcceptanceTest* queryTest)
                                                 {
                                                   return queryTest == acceptanceTestToRemove;
                                                 }),
                                  this->AcceptanceTests.end());
+
+    std::cout << "After RemoveAcceptanceTest() there are " << this->AcceptanceTests.size() << std::endl;
   }
+
+  boost::signals2::signal<void (unsigned int)> WhichFailedSignal;
 
 private:
   std::vector<AcceptanceTest*> AcceptanceTests;

@@ -76,16 +76,19 @@ struct ProcessValidMaskPixels : public Process
 
   bool ShouldProcess(const itk::Index<2>& queryIndex)
   {
+    assert(this->MaskImage);
     return this->MaskImage->IsValid(queryIndex);
   }
 
   std::vector<itk::Index<2> > GetPixelsToProcess()
   {
+    assert(this->MaskImage);
     return GetPixelsToProcess(this->MaskImage);
   }
 
   std::vector<itk::Index<2> > GetPixelsToProcess(const Mask* const mask)
   {
+    assert(mask);
     std::vector<itk::Index<2> > validPixels = mask->GetValidPixels(this->Forward);
     return validPixels;
   }

@@ -126,7 +126,8 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField)
           MatchSet matchSet = nnField->GetPixel(targetPixel);
           matchSet.AddMatch(potentialMatch);
           nnField->SetPixel(targetPixel, matchSet);
-          continue;
+          propagated = true;
+          break;
         }
 
         // If there were previous matches, add this one if it is better
