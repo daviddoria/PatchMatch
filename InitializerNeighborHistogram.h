@@ -114,6 +114,11 @@ public:
         randomHistogramDifference = Histogram<int>::HistogramDifference(queryHistogram, randomPatchHistogram);
 
         neighborHistogramDifference = Histogram<int>::HistogramDifference(queryHistogram, neighborPatchHistogram);
+
+        if(neighborHistogramDifference == 0)
+        {
+          throw std::runtime_error("neighborHistogramDifference is 0!");
+        }
         //std::cout << "histogramDifference: " << histogramDifference << std::endl;
         attempts++;
         if(attempts > this->MaxAttempts)

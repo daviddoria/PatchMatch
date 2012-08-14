@@ -71,6 +71,10 @@ public:
     float neighborHistogramDifference =
       Histogram<int>::HistogramDifference(neighborHistogram, queryHistogram);
 
+    if(neighborHistogramDifference == 0)
+    {
+      throw std::runtime_error("neighborHistogramDifference is 0!");
+    }
     float potentialMatchHistogramDifference =
       Histogram<int>::HistogramDifference(queryHistogram, potentialMatchHistogram);
 
