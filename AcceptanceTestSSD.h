@@ -36,6 +36,11 @@ public:
     {
       return false;
     }
+
+    if(this->IncludeInScore)
+    {
+      score += fabs(potentialBetterMatch.GetSSDScore() - currentMatch.GetSSDScore());
+    }
   }
 };
 

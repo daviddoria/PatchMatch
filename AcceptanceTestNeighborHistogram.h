@@ -74,8 +74,11 @@ public:
     float potentialMatchHistogramDifference =
       Histogram<int>::HistogramDifference(queryHistogram, potentialMatchHistogram);
 
-    score += fabs(potentialMatchHistogramDifference - neighborHistogramDifference);
-      
+    if(this->IncludeInScore)
+    {
+      score += fabs(potentialMatchHistogramDifference - neighborHistogramDifference);
+    }
+
     if(potentialMatchHistogramDifference < (this->NeighborHistogramMultiplier * neighborHistogramDifference))
     {
 //       std::cout << "AddIfBetterNeighborHistogram: Match accepted. SSD " << potentialMatch.Score

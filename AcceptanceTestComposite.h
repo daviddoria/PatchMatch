@@ -41,9 +41,21 @@ public:
     return true;
   }
 
+  /** Add an acceptance test. */
   void AddAcceptanceTest(AcceptanceTest* const acceptanceTest)
   {
     this->AcceptanceTests.push_back(acceptanceTest);
+  }
+
+  /** Remove an acceptance test. */
+  void RemoveAcceptanceTest(AcceptanceTest* const acceptanceTestToRemove)
+  {
+    this->AcceptanceTests.erase(std::remove_if(this->AcceptanceTests.begin(), this->AcceptanceTests.end(),
+                                                [acceptanceTestToRemove](AcceptanceTest* queryTest)
+                                                {
+                                                  return queryTest == acceptanceTestToRemove;
+                                                }),
+                                 this->AcceptanceTests.end());
   }
 
 private:

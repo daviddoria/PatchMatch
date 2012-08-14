@@ -29,6 +29,13 @@
 // Submodules
 #include <Mask/Mask.h>
 
+class RandomSearchParent
+{
+  void Search(PatchMatchHelpers::NNFieldType* const nnField)
+  {
+  }
+};
+
 template <typename TImage, typename TPatchDistanceFunctor,
           typename TAcceptanceTest>
 struct RandomSearch

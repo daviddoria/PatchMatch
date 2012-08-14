@@ -71,9 +71,9 @@ void CopyPixelsIf(const TImage* const oldImage, const TImage* const possibleNewI
 /////////// Non-template functions (defined in PatchMatchHelpers.cpp) /////////////
 void WriteValidPixels(const NNFieldType* const nnField, const std::string& fileName);
 
+void WriteVerifiedPixels(const NNFieldType* const nnField, const std::string& fileName);
+
 void WriteConsistentRegions(const NNFieldType* const nnField, const Mask* const regionMask, const std::string& fileName);
-
-
 
 } // end PatchMatchHelpers namespace
 

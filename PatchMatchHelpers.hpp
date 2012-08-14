@@ -22,15 +22,15 @@
 namespace PatchMatchHelpers
 {
 
-template <typename MatchImageType, typename CoordinateImageType>
-void GetPatchCentersImage(const MatchImageType* const matchImage, CoordinateImageType* const output)
+template <typename NNFieldType, typename CoordinateImageType>
+void GetPatchCentersImage(const NNFieldType* const matchImage, CoordinateImageType* const output)
 {
   output->SetRegions(matchImage->GetLargestPossibleRegion());
-  unsigned int numberOfComponents = 5;
+  unsigned int numberOfComponents = 6;
   output->SetNumberOfComponentsPerPixel(numberOfComponents); // Currently we write (X,Y,Score,Verified)
   output->Allocate();
 
-  itk::ImageRegionConstIterator<MatchImageType> imageIterator(matchImage,
+  itk::ImageRegionConstIterator<NNFieldType> imageIterator(matchImage,
                                                               matchImage->GetLargestPossibleRegion());
 
   while(!imageIterator.IsAtEnd())
@@ -40,7 +40,8 @@ void GetPatchCentersImage(const MatchImageType* const matchImage, CoordinateImag
 
     if(imageIterator.Get().GetNumberOfMatches() > 0)
     {
-      Match match = imageIterator.Get().GetMatch(0);
+      MatchSet matchSet = imageIterator.Get();
+      Match match = matchSet.GetMatch(0);
       itk::Index<2> center = ITKHelpers::GetRegionCenter(match.GetRegion());
 
       pixel[0] = center[0];
@@ -48,6 +49,7 @@ void GetPatchCentersImage(const MatchImageType* const matchImage, CoordinateImag
       pixel[2] = match.GetSSDScore();
       pixel[3] = match.GetVerificationScore();
       pixel[4] = match.IsVerified();
+      pixel[5] = matchSet.HasVerifiedMatch();
 
       output->SetPixel(imageIterator.GetIndex(), pixel);
     }
@@ -59,8 +61,8 @@ void GetPatchCentersImage(const MatchImageType* const matchImage, CoordinateImag
 
 /** Get an image where the channels are (x component, y component, score) from the nearest
   * neighbor field struct. */
-template <typename MatchImageType>
-void WriteNNField(const MatchImageType* const nnField, const std::string& fileName)
+template <typename NNFieldType>
+void WriteNNField(const NNFieldType* const nnField, const std::string& fileName)
 {
   PatchMatchHelpers::CoordinateImageType::Pointer coordinateImage = PatchMatchHelpers::CoordinateImageType::New();
   PatchMatchHelpers::GetPatchCentersImage(nnField, coordinateImage.GetPointer());

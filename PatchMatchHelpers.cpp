@@ -38,6 +38,32 @@ itk::Offset<2> RandomNeighborNonZeroOffset()
   return randomNeighborNonZeroOffset;
 }
 
+void WriteVerifiedPixels(const NNFieldType* const nnField, const std::string& fileName)
+{
+  // This function writes a boolean pixel (if any of the MatchSet matches are verified)
+  // to an image.
+
+  typedef itk::Image<unsigned char> ImageType;
+  ImageType::Pointer image = ImageType::New();
+  image->SetRegions(nnField->GetLargestPossibleRegion());
+  image->Allocate();
+  image->FillBuffer(0);
+
+  itk::ImageRegionConstIterator<NNFieldType> imageIterator(nnField,
+                                                           nnField->GetLargestPossibleRegion());
+
+  while(!imageIterator.IsAtEnd())
+  {
+    if(imageIterator.Get().HasVerifiedMatch())
+    {
+      image->SetPixel(imageIterator.GetIndex(), 255);
+    }
+
+    ++imageIterator;
+  }
+
+  ITKHelpers::WriteImage(image.GetPointer(), fileName);
+}
 
 void WriteValidPixels(const NNFieldType* const nnField, const std::string& fileName)
 {

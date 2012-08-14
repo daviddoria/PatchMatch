@@ -128,9 +128,11 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField)
         }
 
         // If there were previous matches, add this one if it is better
-        if(this->AcceptanceTest->IsBetter(targetRegion, currentMatch, potentialMatch))
+        float verificationScore;
+        if(this->AcceptanceTest->IsBetterWithScore(targetRegion, currentMatch, potentialMatch, verificationScore))
         {
           potentialMatch.SetVerified(true);
+          potentialMatch.SetVerificationScore(verificationScore);
           MatchSet matchSet = nnField->GetPixel(targetPixel);
           matchSet.AddMatch(potentialMatch);
           nnField->SetPixel(targetPixel, matchSet);

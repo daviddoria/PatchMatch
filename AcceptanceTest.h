@@ -35,17 +35,35 @@
 class AcceptanceTest
 {
 public:
-  AcceptanceTest() {}
+  AcceptanceTest() : IncludeInScore(true) {}
 
+  /** This function is used to determine if the acceptance test and return how well it did in 'score'. */
   virtual bool IsBetterWithScore(const itk::ImageRegion<2>& queryRegion, const Match& oldMatch,
                                  const Match& potentialBetterMatch, float& score) = 0;
 
+  /** This function is used to determine if the acceptance test passed without caring what the score was. */
   virtual bool IsBetter(const itk::ImageRegion<2>& queryRegion, const Match& oldMatch,
                         const Match& potentialBetterMatch)
   {
     float score; // unused
     return IsBetterWithScore(queryRegion, oldMatch, potentialBetterMatch, score);
   }
+
+  /** Set if this acceptance test will contribute to a composite acceptance test score. */
+  void SetIncludeInScore(const bool includeInScore)
+  {
+    this->IncludeInScore = includeInScore;
+  }
+
+  /** Determine if this acceptance test will contribute to a composite acceptance test score. */
+  bool GetIncludeInScore()
+  {
+    return IncludeInScore;
+  }
+
+protected:
+  /** Determine if this acceptance test will contribute to a composite acceptance test score. */
+  bool IncludeInScore;
 };
 
 /** A class that tests if a 'match' is better than the current match at 'index'. */
