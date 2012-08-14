@@ -38,6 +38,7 @@ public:
       if(!acceptanceTest->IsBetterWithScore(queryRegion, oldMatch, potentialBetterMatch, score))
       {
         WhichFailedSignal(i);
+        FailedScoreSignal(score);
         return false;
       }
     }
@@ -66,6 +67,7 @@ public:
   }
 
   boost::signals2::signal<void (unsigned int)> WhichFailedSignal;
+  boost::signals2::signal<void (float)> FailedScoreSignal;
 
 private:
   std::vector<AcceptanceTest*> AcceptanceTests;
