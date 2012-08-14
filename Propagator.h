@@ -42,12 +42,7 @@ public:
   }
 
 protected:
-  unsigned int PatchRadius;
-
-  TPatchDistanceFunctor* PatchDistanceFunctor;
   TNeighborFunctor* NeighborFunctor;
-  Process* ProcessFunctor;
-  TAcceptanceTest* AcceptanceTest;
 };
 
 #include "Propagator.hpp"
