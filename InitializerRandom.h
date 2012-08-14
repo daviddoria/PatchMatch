@@ -74,7 +74,7 @@ public:
       randomMatch.SetSSDScore(this->PatchDistanceFunctor->Distance(randomValidRegion, targetRegion));
       randomMatch.SetVerified(false);
 
-      MatchSet matchSet;
+      MatchSet matchSet = initialization->GetPixel(targetPixel);
       matchSet.AddMatch(randomMatch);
       initialization->SetPixel(targetPixel, matchSet);
     }
