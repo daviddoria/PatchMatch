@@ -44,5 +44,7 @@ if(PatchMatch_BuildDrivers)
  add_subdirectory(Drivers)
 endif()
 
+add_library(PatchMatchHelpers PatchMatchHelpers.cpp)
+
 GET_DIRECTORY_PROPERTY(AllPatchMatchIncludes INCLUDE_DIRECTORIES)
 message("Final PatchMatch includes: ${AllPatchMatchIncludes}")

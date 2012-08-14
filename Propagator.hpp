@@ -76,6 +76,7 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField)
       //assert(this->Image->GetLargestPossibleRegion().IsInside(potentialPropagationPixel));
       if(!region.IsInside(potentialPropagationPixel))
       {
+        // This check should be done in the NeighborFunctor
         //std::cerr << "Pixel " << potentialPropagationPixel << " is outside of the image." << std::endl;
         continue;
       }
@@ -86,6 +87,14 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField)
       // - The best match to (3,4) is (10,10)
       // - potentialMatch should be (11,10), because since the current pixel is 1 to the right
       // of the neighbor, we need to consider the patch one to the right of the neighbors best match
+      if(nnField->GetPixel(potentialPropagationPixel).GetNumberOfMatches() == 0)
+      {
+        //throw std::runtime_error("potentialPropagationPixel has 0 matches!");
+        // This check should really be done in the NeighborFunctor, but the Forwards/BackwardsPropagationNeighbors
+        // classes do not have the target mask or the source mask, which they would need to check their hard-coded
+        // offsets for validity, so it is easier to do here for now.
+        continue;
+      }
       itk::Index<2> currentNearestNeighbor =
         ITKHelpers::GetRegionCenter(nnField->GetPixel(potentialPropagationPixel).GetMatch(0).GetRegion());
       itk::Index<2> potentialMatchPixel = currentNearestNeighbor - potentialPropagationPixelOffset;
@@ -109,7 +118,17 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField)
 
         Match currentMatch = nnField->GetPixel(targetPixel).GetMatch(0);
 
-        if(this->AcceptanceTest->IsBetter(targetRegion, nnField->GetPixel(targetPixel).GetMatch(0), potentialMatch))
+        // If there is currently no match, add this one
+        if(nnField->GetPixel(targetPixel).GetNumberOfMatches() == 0)
+        {
+          MatchSet matchSet = nnField->GetPixel(targetPixel);
+          matchSet.AddMatch(potentialMatch);
+          nnField->SetPixel(targetPixel, matchSet);
+          continue;
+        }
+
+        // If there were previous matches, add this one if it is better
+        if(this->AcceptanceTest->IsBetter(targetRegion, currentMatch, potentialMatch))
         {
           potentialMatch.SetVerified(true);
           MatchSet matchSet = nnField->GetPixel(targetPixel);

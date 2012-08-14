@@ -35,7 +35,7 @@ template <typename TImage, typename TPatchDistanceFunctor>
 class InitializerNeighborHistogram : public InitializerPatch
 {
 public:
-  InitializerNeighborHistogram() : Image(NULL), NeighborHistogramMultiplier(2.0f), MaxAttempts(10), PatchDistanceFunctor(NULL)
+  InitializerNeighborHistogram() : Image(NULL), NeighborHistogramMultiplier(2.0f), MaxAttempts(10), PatchDistanceFunctor(NULL), NumberOfBinsPerDimension(20)
   {
     this->RangeMin = itk::NumericTraits<typename TypeTraits<typename TImage::PixelType>::ComponentType>::min();
     this->RangeMax = itk::NumericTraits<typename TypeTraits<typename TImage::PixelType>::ComponentType>::max();
@@ -84,11 +84,9 @@ public:
 
       itk::Index<2> targetPixel = targetPixels[targetPixelId];
 
-      unsigned int numberOfBinsPerDimension = 20;
-
       typedef Histogram<int>::HistogramType HistogramType;
       HistogramType queryHistogram = Histogram<int>::ComputeImageHistogram1D(this->Image,
-                                                                            targetRegion, numberOfBinsPerDimension, this->RangeMin, this->RangeMax);
+                                                                            targetRegion, this->NumberOfBinsPerDimension, this->RangeMin, this->RangeMax);
 
       float randomHistogramDifference;
       float neighborHistogramDifference;
@@ -103,7 +101,7 @@ public:
         unsigned int randomSourceRegionId = Helpers::RandomInt(0, validSourceRegions.size() - 1);
         randomValidRegion = validSourceRegions[randomSourceRegionId];
         randomPatchHistogram = Histogram<int>::ComputeImageHistogram1D(this->Image,
-                                                                      randomValidRegion, numberOfBinsPerDimension, this->RangeMin, this->RangeMax);
+                                                                      randomValidRegion, this->NumberOfBinsPerDimension, this->RangeMin, this->RangeMax);
 
         itk::Offset<2> randomNeighborOffset = PatchMatchHelpers::RandomNeighborNonZeroOffset();
 
@@ -111,7 +109,7 @@ public:
 
         itk::ImageRegion<2> neighborRegion = ITKHelpers::GetRegionInRadiusAroundPixel(neighbor, this->PatchRadius);
         neighborPatchHistogram = Histogram<int>::ComputeImageHistogram1D(this->Image,
-                                                                        neighborRegion, numberOfBinsPerDimension, this->RangeMin, this->RangeMax);
+                                                                        neighborRegion, this->NumberOfBinsPerDimension, this->RangeMin, this->RangeMax);
 
         randomHistogramDifference = Histogram<int>::HistogramDifference(queryHistogram, randomPatchHistogram);
 
@@ -183,6 +181,8 @@ public:
   {
     this->Image = image;
   }
+
+
 private:
   TImage* Image;
 
@@ -192,6 +192,8 @@ private:
 
   unsigned int MaxAttempts;
   TPatchDistanceFunctor* PatchDistanceFunctor;
+
+  unsigned int NumberOfBinsPerDimension;
 };
 
 #endif

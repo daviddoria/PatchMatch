@@ -52,12 +52,6 @@ public:
     itk::Size<2> zeroSize = {{0,0}};
     itk::ImageRegion<2> zeroRegion(zeroIndex, zeroSize);
 
-    // Create an invalid match
-    MatchSet emptyMatchSet;
-
-    // Initialize the entire NNfield to be invalid matches
-    ITKHelpers::SetImageToConstant(initialization, emptyMatchSet);
-
     // Get all of the regions that are entirely inside the image
     itk::ImageRegion<2> internalRegion =
               ITKHelpers::GetInternalRegion(region, this->PatchRadius);

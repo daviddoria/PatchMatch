@@ -25,14 +25,14 @@
 class AcceptanceTestComposite : public AcceptanceTest
 {
 public:
-  virtual bool IsBetter(const itk::ImageRegion<2>& queryRegion, const Match& oldMatch,
-                        const Match& potentialBetterMatch)
+  virtual bool IsBetterWithScore(const itk::ImageRegion<2>& queryRegion, const Match& oldMatch,
+                        const Match& potentialBetterMatch, float& score)
   {
     // Run the tests in a way that if one fails the rest are not run at all.
     for(size_t i = 0; i < this->AcceptanceTests.size(); ++i)
     {
       AcceptanceTest* acceptanceTest = this->AcceptanceTests[i];
-      if(!acceptanceTest->IsBetter(queryRegion, oldMatch, potentialBetterMatch))
+      if(!acceptanceTest->IsBetterWithScore(queryRegion, oldMatch, potentialBetterMatch, score))
       {
         return false;
       }

@@ -25,9 +25,10 @@
 class AcceptanceTestAcceptAll : public AcceptanceTest
 {
 public:
-  virtual bool IsBetter(const itk::ImageRegion<2>& queryRegion, const Match& oldMatch,
-                        const Match& potentialBetterMatch)
+  virtual bool IsBetterWithScore(const itk::ImageRegion<2>& queryRegion, const Match& oldMatch,
+                        const Match& potentialBetterMatch, float& score)
   {
+    score += 0;
     return true;
   }
 

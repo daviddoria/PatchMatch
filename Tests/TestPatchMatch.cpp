@@ -69,7 +69,7 @@ int main(int argc, char*argv[])
   SSD<ImageType>* patchDistanceFunctor = new SSD<ImageType>;
   patchDistanceFunctor->SetImage(imageReader->GetOutput());
 
-  typedef PatchMatch<ImageType> PatchMatchType;
+  typedef PatchMatch PatchMatchType;
   PatchMatchType patchMatch;
   patchMatch.SetImage(imageReader->GetOutput());
   patchMatch.SetPatchRadius(3);

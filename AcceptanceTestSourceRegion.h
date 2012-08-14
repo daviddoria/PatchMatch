@@ -30,8 +30,8 @@ public:
     this->MaskImage = mask;
   }
 
-  virtual bool IsBetter(const itk::ImageRegion<2>& queryRegion, const Match& oldMatch,
-                        const Match& potentialBetterMatch)
+  virtual bool IsBetterWithScore(const itk::ImageRegion<2>& queryRegion, const Match& oldMatch,
+                        const Match& potentialBetterMatch, float& score)
   {
     assert(this->MaskImage);
     return this->MaskImage->IsValid(potentialBetterMatch.GetRegion());

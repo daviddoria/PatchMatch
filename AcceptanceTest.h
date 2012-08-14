@@ -37,8 +37,15 @@ class AcceptanceTest
 public:
   AcceptanceTest() {}
 
+  virtual bool IsBetterWithScore(const itk::ImageRegion<2>& queryRegion, const Match& oldMatch,
+                                 const Match& potentialBetterMatch, float& score) = 0;
+
   virtual bool IsBetter(const itk::ImageRegion<2>& queryRegion, const Match& oldMatch,
-                        const Match& potentialBetterMatch) = 0;
+                        const Match& potentialBetterMatch)
+  {
+    float score; // unused
+    return IsBetterWithScore(queryRegion, oldMatch, potentialBetterMatch, score);
+  }
 };
 
 /** A class that tests if a 'match' is better than the current match at 'index'. */
@@ -53,8 +60,8 @@ public:
     this->PatchRadius = patchRadius;
   }
 
-  virtual bool IsBetter(const itk::ImageRegion<2>& queryRegion, const Match& oldMatch,
-                        const Match& potentialBetterMatch) = 0;
+  virtual bool IsBetterWithScore(const itk::ImageRegion<2>& queryRegion, const Match& oldMatch,
+                        const Match& potentialBetterMatch, float& score) = 0;
 
   void SetImage(TImage* const image)
   {

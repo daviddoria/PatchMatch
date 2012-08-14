@@ -22,7 +22,7 @@
 #include "PatchMatch.h"
 
 template<typename TImage>
-class GeneralizedPatchMatch : public PatchMatch<TImage>
+class GeneralizedPatchMatch : public PatchMatch
 {
 public:
 

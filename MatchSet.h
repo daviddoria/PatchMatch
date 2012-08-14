@@ -43,6 +43,8 @@ public:
     return this->Matches.size();
   }
 
+  /** Test if any of the contained matches are verified.
+    * Note that this correctly returns false if there are no matches at all.*/
   bool HasVerifiedMatch() const
   {
     for(size_t i = 0; i < this->Matches.size(); ++i)
@@ -90,6 +92,11 @@ public:
                             };
       std::sort(this->Matches.begin(), this->Matches.end(), verificationSortFunctor);
     }
+  }
+
+  void SetMaximumMatches(const unsigned int maximumMatches)
+  {
+    this->MaximumMatches = maximumMatches;
   }
 
 private:

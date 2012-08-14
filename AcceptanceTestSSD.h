@@ -25,8 +25,8 @@
 class AcceptanceTestSSD : public AcceptanceTest
 {
 public:
-  virtual bool IsBetter(const itk::ImageRegion<2>& queryRegion, const Match& currentMatch,
-                        const Match& potentialBetterMatch)
+  virtual bool IsBetterWithScore(const itk::ImageRegion<2>& queryRegion, const Match& currentMatch,
+                        const Match& potentialBetterMatch, float& score)
   {
     if(potentialBetterMatch.GetSSDScore() < currentMatch.GetSSDScore())
     {

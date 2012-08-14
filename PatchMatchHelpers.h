@@ -25,12 +25,20 @@
 #include "itkCovariantVector.h"
 #include "itkVectorImage.h"
 
+// Submodules
+#include <Mask/Mask.h>
+
+#include <ITKHelpers/ITKHelpers.h>
+
 // Custom
 #include "Match.h"
 #include "MatchSet.h"
 
 namespace PatchMatchHelpers
 {
+
+//typedef itk::Image<itk::CovariantVector<float, 3>, 2> CoordinateImageType;
+typedef itk::VectorImage<float, 2> CoordinateImageType;
 
 itk::Offset<2> RandomNeighborNonZeroOffset();
 
@@ -39,9 +47,9 @@ typedef itk::VectorImage<float, 2> CoordinateImageType;
 
 typedef itk::Image<MatchSet, 2> NNFieldType;
 
+/////////// Non-template functions (defined in PatchMatchHelpers.hpp) /////////////
 template <typename NNFieldType, typename CoordinateImageType>
 void GetPatchCentersImage(const NNFieldType* const matchImage, CoordinateImageType* const output);
-
 
 /** Get an image where the channels are (x component, y component, score) from the nearest
   * neighbor field struct. */
@@ -56,7 +64,16 @@ unsigned int CountTestedPixels(const NNFieldType* const nnField, const Mask* con
 template <typename NNFieldType>
 unsigned int CountInvalidPixels(const NNFieldType* const nnField, const Mask* const mask);
 
+template <typename TImage, typename TTestFunction>
+void CopyPixelsIf(const TImage* const oldImage, const TImage* const possibleNewImage,
+                  TTestFunction testFunction, TImage* const output);
+
+/////////// Non-template functions (defined in PatchMatchHelpers.cpp) /////////////
 void WriteValidPixels(const NNFieldType* const nnField, const std::string& fileName);
+
+void WriteConsistentRegions(const NNFieldType* const nnField, const Mask* const regionMask, const std::string& fileName);
+
+
 
 } // end PatchMatchHelpers namespace
 

@@ -22,25 +22,6 @@
 namespace PatchMatchHelpers
 {
 
-itk::Offset<2> RandomNeighborNonZeroOffset()
-{
-  int randomOffsetX = 0;
-  int randomOffsetY = 0;
-  while((randomOffsetX == 0) && (randomOffsetY == 0) ) // We don't want the random offset to be (0,0), because the histogram difference would be zero!
-  {
-    // Generate random numbers in the set (-1,0,1) by generating a number in (0,1,2) and then subtracting 1
-    randomOffsetX = rand()%3 - 1;
-    randomOffsetY = rand()%3 - 1;
-  }
-
-  itk::Offset<2> randomNeighborNonZeroOffset = {{randomOffsetX, randomOffsetY}};
-
-  return randomNeighborNonZeroOffset;
-}
-
-//typedef itk::Image<itk::CovariantVector<float, 3>, 2> CoordinateImageType;
-typedef itk::VectorImage<float, 2> CoordinateImageType;
-
 template <typename MatchImageType, typename CoordinateImageType>
 void GetPatchCentersImage(const MatchImageType* const matchImage, CoordinateImageType* const output)
 {
@@ -57,16 +38,19 @@ void GetPatchCentersImage(const MatchImageType* const matchImage, CoordinateImag
     typename CoordinateImageType::PixelType pixel;
     pixel.SetSize(numberOfComponents);
 
-    Match match = imageIterator.Get().GetMatch(0);
-    itk::Index<2> center = ITKHelpers::GetRegionCenter(match.GetRegion());
+    if(imageIterator.Get().GetNumberOfMatches() > 0)
+    {
+      Match match = imageIterator.Get().GetMatch(0);
+      itk::Index<2> center = ITKHelpers::GetRegionCenter(match.GetRegion());
 
-    pixel[0] = center[0];
-    pixel[1] = center[1];
-    pixel[2] = match.GetSSDScore();
-    pixel[3] = match.GetVerificationScore();
-    pixel[4] = match.IsVerified();
+      pixel[0] = center[0];
+      pixel[1] = center[1];
+      pixel[2] = match.GetSSDScore();
+      pixel[3] = match.GetVerificationScore();
+      pixel[4] = match.IsVerified();
 
-    output->SetPixel(imageIterator.GetIndex(), pixel);
+      output->SetPixel(imageIterator.GetIndex(), pixel);
+    }
 
     ++imageIterator;
     }
@@ -119,31 +103,20 @@ unsigned int CountInvalidPixels(const MatchImageType* const nnField, const Mask*
   return numberOfInvalidPixels;
 }
 
-void WriteValidPixels(const NNFieldType* const nnField, const std::string& fileName)
+template <typename TImage, typename TTestFunction>
+void CopyPixelsIf(const TImage* const oldImage, const TImage* const possibleNewImage,
+                  TTestFunction testFunction, TImage* const output)
 {
-  // This function writes the validity of the first Match in the MatchSet at every pixel
-  // to an image.
+  itk::ImageRegionConstIterator<TImage> oldImageIterator(oldImage, oldImage->GetLargestPossibleRegion());
 
-  typedef itk::Image<unsigned char> ImageType;
-  ImageType::Pointer image = ImageType::New();
-  image->SetRegions(nnField->GetLargestPossibleRegion());
-  image->Allocate();
-  image->FillBuffer(0);
-
-  itk::ImageRegionConstIterator<NNFieldType> imageIterator(nnField,
-                                                           nnField->GetLargestPossibleRegion());
-
-  while(!imageIterator.IsAtEnd())
+  while(!oldImageIterator.IsAtEnd())
   {
-    if(imageIterator.Get().GetMatch(0).IsValid())
+    if(testFunction(oldImageIterator.Get(), possibleNewImage->GetPixel(oldImageIterator.GetIndex())))
     {
-      image->SetPixel(imageIterator.GetIndex(), 255);
+      output->SetPixel(oldImageIterator.GetIndex(), possibleNewImage->GetPixel(oldImageIterator.GetIndex()));
     }
-
-    ++imageIterator;
+    ++oldImageIterator;
   }
-
-  ITKHelpers::WriteImage(image.GetPointer(), fileName);
 }
 
 } // end PatchMatchHelpers namespace

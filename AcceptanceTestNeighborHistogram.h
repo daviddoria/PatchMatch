@@ -31,14 +31,14 @@ template <typename TImage>
 class AcceptanceTestNeighborHistogram : public AcceptanceTestImage<TImage>
 {
 public:
-  AcceptanceTestNeighborHistogram() : AcceptanceTestImage<TImage>(), NeighborHistogramMultiplier(2.0f)
+  AcceptanceTestNeighborHistogram() : AcceptanceTestImage<TImage>(), NeighborHistogramMultiplier(2.0f), NumberOfBinsPerDimension(20)
   {
     this->RangeMin = itk::NumericTraits<typename TypeTraits<typename TImage::PixelType>::ComponentType>::min();
     this->RangeMax = itk::NumericTraits<typename TypeTraits<typename TImage::PixelType>::ComponentType>::max();
   }
 
-  virtual bool IsBetter(const itk::ImageRegion<2>& queryRegion, const Match& currentMatch,
-                        const Match& potentialBetterMatch)
+  virtual bool IsBetterWithScore(const itk::ImageRegion<2>& queryRegion, const Match& currentMatch,
+                        const Match& potentialBetterMatch, float& score)
   {
 //     std::cout << "AcceptanceTestNeighborHistogram: "
 //                  << " RangeMin = " << static_cast<float>(this->RangeMin) << std::endl;
@@ -50,15 +50,13 @@ public:
 
     itk::Index<2> queryIndex = ITKHelpers::GetRegionCenter(queryRegion);
 
-    const unsigned int numberOfBinsPerDimension = 20;
-
     typedef Histogram<int>::HistogramType HistogramType;
     HistogramType queryHistogram = Histogram<int>::ComputeImageHistogram1D(
-                  this->Image, queryRegion, numberOfBinsPerDimension, this->RangeMin, this->RangeMax);
+                  this->Image, queryRegion, this->NumberOfBinsPerDimension, this->RangeMin, this->RangeMax);
 
     HistogramType potentialMatchHistogram =
       Histogram<int>::ComputeImageHistogram1D(this->Image,
-                                              potentialBetterMatch.GetRegion(), numberOfBinsPerDimension,
+                                              potentialBetterMatch.GetRegion(), this->NumberOfBinsPerDimension,
                                               this->RangeMin, this->RangeMax);
 
     itk::Offset<2> randomNeighborOffset = PatchMatchHelpers::RandomNeighborNonZeroOffset();
@@ -68,7 +66,7 @@ public:
     itk::ImageRegion<2> neighborRegion =
       ITKHelpers::GetRegionInRadiusAroundPixel(neighbor, this->PatchRadius);
     HistogramType neighborHistogram = Histogram<int>::ComputeImageHistogram1D(
-                  this->Image, neighborRegion, numberOfBinsPerDimension, this->RangeMin, this->RangeMax);
+                  this->Image, neighborRegion, this->NumberOfBinsPerDimension, this->RangeMin, this->RangeMax);
 
     float neighborHistogramDifference =
       Histogram<int>::HistogramDifference(neighborHistogram, queryHistogram);
@@ -76,6 +74,8 @@ public:
     float potentialMatchHistogramDifference =
       Histogram<int>::HistogramDifference(queryHistogram, potentialMatchHistogram);
 
+    score += fabs(potentialMatchHistogramDifference - neighborHistogramDifference);
+      
     if(potentialMatchHistogramDifference < (this->NeighborHistogramMultiplier * neighborHistogramDifference))
     {
 //       std::cout << "AddIfBetterNeighborHistogram: Match accepted. SSD " << potentialMatch.Score
@@ -109,10 +109,17 @@ public:
     this->NeighborHistogramMultiplier = neighborHistogramMultiplier;
   }
 
+  void SetNumberOfBinsPerDimension(const unsigned int numberOfBinsPerDimension)
+  {
+    this->NumberOfBinsPerDimension = numberOfBinsPerDimension;
+  }
+
 private:
   float NeighborHistogramMultiplier;
   typename TypeTraits<typename TImage::PixelType>::ComponentType RangeMin;
   typename TypeTraits<typename TImage::PixelType>::ComponentType RangeMax;
+
+  unsigned int NumberOfBinsPerDimension;
 };
 
 #endif
