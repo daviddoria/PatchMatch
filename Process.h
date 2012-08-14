@@ -92,4 +92,41 @@ struct ProcessValidMaskPixels : public Process
 
 };
 
+struct ProcessUnverifiedValidMaskPixels : public Process
+{
+  ProcessUnverifiedValidMaskPixels(PatchMatchHelpers::NNFieldType* const nnField, Mask* const mask) : Process(mask), NNField(nnField)
+  {
+  }
+
+  bool ShouldProcess(const itk::Index<2>& queryIndex)
+  {
+    bool shouldProcess = this->MaskImage->IsValid(queryIndex) && this->NNField->GetPixel(queryIndex).HasVerifiedMatch();
+    return shouldProcess;
+  }
+
+  std::vector<itk::Index<2> > GetPixelsToProcess()
+  {
+    return GetPixelsToProcess(this->MaskImage);
+  }
+
+  std::vector<itk::Index<2> > GetPixelsToProcess(const Mask* const mask)
+  {
+    std::vector<itk::Index<2> > validMaskPixels = mask->GetValidPixels(this->Forward);
+
+    std::vector<itk::Index<2> > pixelsToProcess;
+    for(size_t i = 0; i < validMaskPixels.size(); ++i)
+    {
+      if(ShouldProcess(validMaskPixels[i]))
+      {
+        pixelsToProcess.push_back(validMaskPixels[i]);
+      }
+    }
+    return pixelsToProcess;
+  }
+
+private:
+  PatchMatchHelpers::NNFieldType* NNField;
+
+};
+
 #endif

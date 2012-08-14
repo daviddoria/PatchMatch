@@ -45,11 +45,11 @@
 #include "Process.h"
 #include "RandomSearch.h"
 
-template<typename TPropagation, typename TRandomSearch, typename TProcessFunctor>
+template<typename TPropagation, typename TRandomSearch>
 void PatchMatch::Compute(PatchMatchHelpers::NNFieldType* nnField,
                          TPropagation* const propagationFunctor,
                          TRandomSearch* const randomSearch,
-                         TProcessFunctor* const processFunctor)
+                         Process* const processFunctor)
 {
   assert(nnField);
   assert(propagationFunctor);

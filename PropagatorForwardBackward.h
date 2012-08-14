@@ -23,7 +23,7 @@
 #include "Propagator.h"
 
 /** A class that traverses a target region and propagates good matches. */
-template <typename TPatchDistanceFunctor, typename TProcessFunctor,
+template <typename TPatchDistanceFunctor,
           typename TAcceptanceTest>
 class PropagatorForwardBackward
 {
@@ -60,7 +60,7 @@ public:
     {
       std::cout << "Propagating backward." << std::endl;
       this->ProcessFunctor->SetForward(false);
-      
+
       BackwardPropagationNeighbors neighborFunctor;
       Propagator<TPatchDistanceFunctor, BackwardPropagationNeighbors,
                  TAcceptanceTest> propagator;
@@ -80,7 +80,7 @@ public:
     this->PatchRadius = patchRadius;
   }
 
-  void SetProcessFunctor(TProcessFunctor* processFunctor)
+  void SetProcessFunctor(Process* processFunctor)
   {
     this->ProcessFunctor = processFunctor;
   }
@@ -101,7 +101,7 @@ protected:
   bool Forward;
 
   TPatchDistanceFunctor* PatchDistanceFunctor;
-  TProcessFunctor* ProcessFunctor;
+  Process* ProcessFunctor;
   TAcceptanceTest* AcceptanceTest;
 };
 

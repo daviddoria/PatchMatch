@@ -28,16 +28,25 @@
 class MatchSet
 {
 public:
+  /** Constructor. */
   MatchSet() : MaximumMatches(1)
   {
   }
 
+  /** Clear/delete all matches. */
+  void Clear()
+  {
+    this->Matches.clear();
+  }
+
+  /** Get the specified match if it is in the valid range. */
   Match GetMatch(const unsigned int matchId) const
   {
     assert(matchId < this->MaximumMatches);
     return this->Matches[matchId];
   }
 
+  /** Get the number of matches in this set. */
   unsigned int GetNumberOfMatches() const
   {
     return this->Matches.size();

@@ -40,9 +40,8 @@ static void TestCopyPixelsIf();
 
 int main(int argc, char*argv[])
 {
-  
   TestCopyPixelsIf();
-  
+
   return EXIT_SUCCESS;
 }
 

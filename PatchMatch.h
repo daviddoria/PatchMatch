@@ -30,9 +30,10 @@
 #include <PatchComparison/PatchDistance.h>
 
 // Custom
-#include "PatchMatchHelpers.h"
-#include "MatchSet.h"
 #include "AcceptanceTest.h"
+#include "MatchSet.h"
+#include "PatchMatchHelpers.h"
+#include "Process.h"
 
 /** This class computes a nearest neighbor field using the PatchMatch algorithm.
   * Note that this class does not actually need the image, as the acceptance test
@@ -42,9 +43,9 @@ class PatchMatch
 public:
 
   /** Perform multiple iterations of propagation and random search.*/
-  template<typename TPropagation, typename TRandomSearch, typename TProcessFunctor>
+  template<typename TPropagation, typename TRandomSearch>
   void Compute(PatchMatchHelpers::NNFieldType* nnField, TPropagation* const propagation,
-               TRandomSearch* const randomSearch, TProcessFunctor* const processFunctor);
+               TRandomSearch* const randomSearch, Process* const processFunctor);
 
   /** Set the number of iterations to perform. */
   void SetIterations(const unsigned int iterations)

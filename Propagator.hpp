@@ -160,7 +160,7 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField)
   } // end loop over target pixels
 
   std::cout << "Propagation() propagated " << propagatedPixels << " pixels." << std::endl;
-  std::cout << "AcceptanceTest failed " << acceptanceTestFailed << std::endl;
+  //std::cout << "AcceptanceTest failed " << acceptanceTestFailed << std::endl;
 }
 
 #endif
