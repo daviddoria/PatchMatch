@@ -19,11 +19,12 @@
 #ifndef Propagator_HPP
 #define Propagator_HPP
 
+#include "Propagator.h"
+
 template <typename TPatchDistanceFunctor, typename TNeighborFunctor,
           typename TAcceptanceTest>
 Propagator<TPatchDistanceFunctor, TNeighborFunctor, TAcceptanceTest>::Propagator() :
-PatchRadius(0), PatchDistanceFunctor(NULL), NeighborFunctor(NULL), ProcessFunctor(NULL),
-AcceptanceTest(NULL)
+PropagatorInterface<TPatchDistanceFunctor, TAcceptanceTest>(), NeighborFunctor(NULL)
 {
 }
 
@@ -37,14 +38,14 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField)
   assert(this->AcceptanceTest);
   assert(this->PatchDistanceFunctor);
 
-  itk::ImageRegion<2> region = nnField->GetLargestPossibleRegion();
+  itk::ImageRegion<2> fullRegion = nnField->GetLargestPossibleRegion();
 
   assert(nnField->GetLargestPossibleRegion().GetSize()[0] > 0); // An initialization must be provided
 
   std::vector<itk::Index<2> > targetPixels = this->ProcessFunctor->GetPixelsToProcess();
 
-//   std::cout << "Propagation(): There are " << targetPixels.size()
-//             << " pixels that would like to be processed before pruning." << std::endl;
+  std::cout << "Propagation(): There are " << targetPixels.size()
+            << " pixels that would like to be processed." << std::endl;
 
   unsigned int propagatedPixels = 0;
   unsigned int acceptanceTestFailed = 0;
@@ -56,7 +57,7 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField)
     itk::ImageRegion<2> targetRegion =
           ITKHelpers::GetRegionInRadiusAroundPixel(targetPixel, this->PatchRadius);
 
-    if(!region.IsInside(targetRegion))
+    if(!fullRegion.IsInside(targetRegion))
       {
         std::cerr << "targetRegion " << targetRegion << " is outside of the image." << std::endl;
         continue;
@@ -74,7 +75,7 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField)
       itk::Offset<2> potentialPropagationPixelOffset = potentialPropagationPixel - targetPixel;
 
       //assert(this->Image->GetLargestPossibleRegion().IsInside(potentialPropagationPixel));
-      if(!region.IsInside(potentialPropagationPixel))
+      if(!fullRegion.IsInside(potentialPropagationPixel))
       {
         // This check should be done in the NeighborFunctor
         //std::cerr << "Pixel " << potentialPropagationPixel << " is outside of the image." << std::endl;
@@ -102,7 +103,7 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField)
       itk::ImageRegion<2> potentialMatchRegion =
             ITKHelpers::GetRegionInRadiusAroundPixel(potentialMatchPixel, this->PatchRadius);
 
-      if(!region.IsInside(potentialMatchRegion))
+      if(!fullRegion.IsInside(potentialMatchRegion))
       {
         // do nothing - we don't want to propagate information that is not originally valid
         //std::cerr << "Cannot propagate from this source region " << potentialMatchRegion
@@ -121,6 +122,7 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField)
         // If there is currently no match, add this one
         if(nnField->GetPixel(targetPixel).GetNumberOfMatches() == 0)
         {
+          std::cout << "There were no matches, so this one was automatically accepted." << std::endl;
           MatchSet matchSet = nnField->GetPixel(targetPixel);
           matchSet.AddMatch(potentialMatch);
           nnField->SetPixel(targetPixel, matchSet);
@@ -155,10 +157,6 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField)
       //std::cerr << "Failed to propagate to " << targetPixel << std::endl;
     }
 
-//     { // Debug only
-//     std::string sequentialFileName = Helpers::GetSequentialFileName("PatchMatch_Propagation", targetPixelId, "mha");
-//     PatchMatchHelpers::WriteNNField(temp.GetPointer(), sequentialFileName);
-//     }
   } // end loop over target pixels
 
   std::cout << "Propagation() propagated " << propagatedPixels << " pixels." << std::endl;

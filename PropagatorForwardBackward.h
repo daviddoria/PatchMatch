@@ -21,15 +21,16 @@
 
 // Custom
 #include "Propagator.h"
+#include "PropagatorInterface.h"
 
 /** A class that traverses a target region and propagates good matches. */
 template <typename TPatchDistanceFunctor,
           typename TAcceptanceTest>
-class PropagatorForwardBackward
+class PropagatorForwardBackward : public PropagatorInterface<TPatchDistanceFunctor, TAcceptanceTest>
 {
 public:
-  PropagatorForwardBackward() : PatchRadius(0), Forward(true), PatchDistanceFunctor(NULL),
-                                ProcessFunctor(NULL), AcceptanceTest(NULL){}
+  PropagatorForwardBackward() : PropagatorInterface<TPatchDistanceFunctor, TAcceptanceTest>(),
+                                Forward(true) {}
 
   /** Propagate good matches from specified offsets. */
 
@@ -75,34 +76,10 @@ public:
     this->Forward = !this->Forward;
   }
 
-  void SetPatchRadius(const unsigned int patchRadius)
-  {
-    this->PatchRadius = patchRadius;
-  }
-
-  void SetProcessFunctor(Process* processFunctor)
-  {
-    this->ProcessFunctor = processFunctor;
-  }
-
-  void SetAcceptanceTest(TAcceptanceTest* acceptanceTest)
-  {
-    this->AcceptanceTest = acceptanceTest;
-  }
-
-  void SetPatchDistanceFunctor(TPatchDistanceFunctor* patchDistanceFunctor)
-  {
-    this->PatchDistanceFunctor = patchDistanceFunctor;
-  }
-
 protected:
-  unsigned int PatchRadius;
 
   bool Forward;
 
-  TPatchDistanceFunctor* PatchDistanceFunctor;
-  Process* ProcessFunctor;
-  TAcceptanceTest* AcceptanceTest;
 };
 
 #endif

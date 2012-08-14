@@ -23,42 +23,22 @@
 #include "Match.h"
 #include "PatchMatchHelpers.h"
 #include "Process.h"
+#include "PropagatorInterface.h"
 
 /** A class that traverses a target region and propagates good matches. */
 template <typename TPatchDistanceFunctor, typename TNeighborFunctor,
           typename TAcceptanceTest>
-class Propagator
+class Propagator : public PropagatorInterface<TPatchDistanceFunctor, TAcceptanceTest>
 {
 public:
   Propagator();
 
-
   /** Propagate good matches from specified offsets. */
   void Propagate(PatchMatchHelpers::NNFieldType* const nnField);
-
-  void SetPatchRadius(const unsigned int patchRadius)
-  {
-    this->PatchRadius = patchRadius;
-  }
 
   void SetNeighborFunctor(TNeighborFunctor* neigborFunctor)
   {
     this->NeighborFunctor = neigborFunctor;
-  }
-
-  void SetProcessFunctor(Process* processFunctor)
-  {
-    this->ProcessFunctor = processFunctor;
-  }
-
-  void SetAcceptanceTest(TAcceptanceTest* acceptanceTest)
-  {
-    this->AcceptanceTest = acceptanceTest;
-  }
-
-  void SetPatchDistanceFunctor(TPatchDistanceFunctor* patchDistanceFunctor)
-  {
-    this->PatchDistanceFunctor = patchDistanceFunctor;
   }
 
 protected:

@@ -100,7 +100,7 @@ struct ProcessUnverifiedValidMaskPixels : public Process
 
   bool ShouldProcess(const itk::Index<2>& queryIndex)
   {
-    bool shouldProcess = this->MaskImage->IsValid(queryIndex) && this->NNField->GetPixel(queryIndex).HasVerifiedMatch();
+    bool shouldProcess = this->MaskImage->IsValid(queryIndex) && !this->NNField->GetPixel(queryIndex).HasVerifiedMatch();
     return shouldProcess;
   }
 
