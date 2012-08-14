@@ -131,7 +131,7 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField)
         }
 
         // If there were previous matches, add this one if it is better
-        float verificationScore;
+        float verificationScore = 0.0f;
         if(this->AcceptanceTest->IsBetterWithScore(targetRegion, currentMatch, potentialMatch, verificationScore))
         {
           potentialMatch.SetVerified(true);
