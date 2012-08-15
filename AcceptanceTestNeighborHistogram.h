@@ -28,10 +28,10 @@
 #include <ITKHelpers/ITKTypeTraits.h>
 
 template <typename TImage>
-class AcceptanceTestNeighborHistogram : public AcceptanceTestImage<TImage>
+class AcceptanceTestNeighborHistogramRatio : public AcceptanceTestImage<TImage>
 {
 public:
-  AcceptanceTestNeighborHistogram() : AcceptanceTestImage<TImage>(), NeighborHistogramMultiplier(2.0f), NumberOfBinsPerDimension(20)
+  AcceptanceTestNeighborHistogramRatio() : AcceptanceTestImage<TImage>(), MaxNeighborHistogramRatio(2.0f), NumberOfBinsPerDimension(20)
   {
     this->RangeMin = itk::NumericTraits<typename TypeTraits<typename TImage::PixelType>::ComponentType>::min();
     this->RangeMax = itk::NumericTraits<typename TypeTraits<typename TImage::PixelType>::ComponentType>::max();
@@ -78,12 +78,14 @@ public:
     float potentialMatchHistogramDifference =
       Histogram<int>::HistogramDifference(queryHistogram, potentialMatchHistogram);
 
+    float neighborHistogramRatio = potentialMatchHistogramDifference / neighborHistogramDifference;
+
     if(this->IncludeInScore)
     {
       score += fabs(potentialMatchHistogramDifference - neighborHistogramDifference);
     }
 
-    if(potentialMatchHistogramDifference < (this->NeighborHistogramMultiplier * neighborHistogramDifference))
+    if(neighborHistogramRatio < this->MaxNeighborHistogramRatio)
     {
 //       std::cout << "AddIfBetterNeighborHistogram: Match accepted. SSD " << potentialMatch.Score
 //                 << " (better than " << currentMatch.Score << ", "
@@ -105,15 +107,15 @@ public:
   {
     this->RangeMin = rangeMin;
   }
-  
+
   void SetRangeMax(const typename TypeTraits<typename TImage::PixelType>::ComponentType rangeMax)
   {
     this->RangeMax = rangeMax;
   }
 
-  void SetNeighborHistogramMultiplier(const float neighborHistogramMultiplier)
+  void SetMaxNeighborHistogramRatio(const float maxNeighborHistogramRatio)
   {
-    this->NeighborHistogramMultiplier = neighborHistogramMultiplier;
+    this->MaxNeighborHistogramRatio = maxNeighborHistogramRatio;
   }
 
   void SetNumberOfBinsPerDimension(const unsigned int numberOfBinsPerDimension)
@@ -122,10 +124,16 @@ public:
   }
 
 private:
-  float NeighborHistogramMultiplier;
+  /** The largest the the (queryHistogramDifference/neighborHistogramDifference) is allowed to be to accepte the new match. */
+  float MaxNeighborHistogramRatio;
+
+  /** Minimum value of the lowest histogram bin. */
   typename TypeTraits<typename TImage::PixelType>::ComponentType RangeMin;
+
+  /** Maximum value of the highest histogram bin. */
   typename TypeTraits<typename TImage::PixelType>::ComponentType RangeMax;
 
+  /** The number of bins to use per image channel/dimension. */
   unsigned int NumberOfBinsPerDimension;
 };
 

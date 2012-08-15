@@ -54,6 +54,14 @@ void WriteVerifiedPixels(const NNFieldType* const nnField, const std::string& fi
 
   while(!imageIterator.IsAtEnd())
   {
+    // Differentiate pixels that have not yet been visited at all from pixels that have been visited and do not have a verified match
+    if(imageIterator.Get().GetNumberOfMatches() == 0)
+    {
+      image->SetPixel(imageIterator.GetIndex(), std::numeric_limits<ImageType::PixelType>::quiet_NaN());
+      ++imageIterator;
+      continue;
+    }
+
     if(imageIterator.Get().HasVerifiedMatch())
     {
       image->SetPixel(imageIterator.GetIndex(), 255);

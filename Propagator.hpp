@@ -117,44 +117,32 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force)
         potentialMatch.SetRegion(potentialMatchRegion);
         potentialMatch.SetSSDScore(distance);
 
+        // If there were previous matches, add this one if it is better
         Match currentMatch = nnField->GetPixel(targetPixel).GetMatch(0);
 
-        // If there is currently no match, add this one
-        if(nnField->GetPixel(targetPixel).GetNumberOfMatches() == 0)
-        {
-          std::cout << "There were no matches, so this one was automatically accepted." << std::endl;
-          MatchSet matchSet = nnField->GetPixel(targetPixel);
-          matchSet.AddMatch(potentialMatch);
-          nnField->SetPixel(targetPixel, matchSet);
-          propagated = true;
-          break;
-        }
-
-        if(force == true)
-        {
-          potentialMatch.SetVerified(true);
-          MatchSet matchSet = nnField->GetPixel(targetPixel);
-          potentialMatch.SetVerificationScore(0);
-          matchSet.ForceMatch(potentialMatch);
-          nnField->SetPixel(targetPixel, matchSet);
-          propagated = true;
-          break;
-        }
-
-        // If there were previous matches, add this one if it is better
         float verificationScore = 0.0f;
         if(this->AcceptanceTest->IsBetterWithScore(targetRegion, currentMatch, potentialMatch, verificationScore))
         {
           potentialMatch.SetVerified(true);
           potentialMatch.SetVerificationScore(verificationScore);
           MatchSet matchSet = nnField->GetPixel(targetPixel);
-          matchSet.AddMatch(potentialMatch);
+          if(force == true)
+          {
+            matchSet.ForceMatch(potentialMatch);
+          }
+          else
+          {
+            matchSet.AddMatch(potentialMatch);
+          }
           nnField->SetPixel(targetPixel, matchSet);
+          PropagatedSignal(nnField);
           propagated = true;
         }
         else
         {
           acceptanceTestFailed++;
+          // DEBUG ONLY: Run this again so we can see what happened
+          //this->AcceptanceTest->IsBetterWithScore(targetRegion, currentMatch, potentialMatch, verificationScore); 
           //std::cerr << "Acceptance test failed!" << std::endl;
         }
 

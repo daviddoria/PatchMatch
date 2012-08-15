@@ -19,6 +19,9 @@
 #ifndef PatchMatchHelpers_HPP
 #define PatchMatchHelpers_HPP
 
+// STL
+#include <limits>
+
 namespace PatchMatchHelpers
 {
 
@@ -26,15 +29,15 @@ template <typename NNFieldType, typename CoordinateImageType>
 void GetPatchCentersImage(const NNFieldType* const matchImage, CoordinateImageType* const output)
 {
   output->SetRegions(matchImage->GetLargestPossibleRegion());
-  unsigned int numberOfComponents = 6;
-  output->SetNumberOfComponentsPerPixel(numberOfComponents); // Currently we write (X,Y,Score,Verified)
+  unsigned int numberOfComponents = 3;
+  output->SetNumberOfComponentsPerPixel(numberOfComponents);
   output->Allocate();
 
   itk::ImageRegionConstIterator<NNFieldType> imageIterator(matchImage,
-                                                              matchImage->GetLargestPossibleRegion());
+                                                           matchImage->GetLargestPossibleRegion());
 
   while(!imageIterator.IsAtEnd())
-    {
+  {
     typename CoordinateImageType::PixelType pixel;
     pixel.SetSize(numberOfComponents);
 
@@ -46,16 +49,23 @@ void GetPatchCentersImage(const NNFieldType* const matchImage, CoordinateImageTy
 
       pixel[0] = center[0];
       pixel[1] = center[1];
-      pixel[2] = match.GetSSDScore();
-      pixel[3] = match.GetVerificationScore();
-      pixel[4] = match.IsVerified();
-      pixel[5] = matchSet.HasVerifiedMatch();
+      pixel[2] = matchSet.HasVerifiedMatch();
 
-      output->SetPixel(imageIterator.GetIndex(), pixel);
+//       pixel[2] = match.GetSSDScore();
+//       pixel[3] = match.GetVerificationScore();
+//       pixel[4] = match.IsVerified();
+//       pixel[5] = matchSet.HasVerifiedMatch();
+    }
+    else
+    {
+      pixel[0] = std::numeric_limits<float>::quiet_NaN();
+      pixel[1] = std::numeric_limits<float>::quiet_NaN();
+      pixel[2] = std::numeric_limits<float>::quiet_NaN();
     }
 
+    output->SetPixel(imageIterator.GetIndex(), pixel);
     ++imageIterator;
-    }
+  }
 }
 
 

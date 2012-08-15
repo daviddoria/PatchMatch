@@ -105,17 +105,20 @@ struct ProcessUnverifiedValidMaskPixels : public Process
 
   bool ShouldProcess(const itk::Index<2>& queryIndex)
   {
-    bool shouldProcess = this->MaskImage->IsValid(queryIndex) && !this->NNField->GetPixel(queryIndex).HasVerifiedMatch();
-    return shouldProcess;
+    return this->MaskImage->IsValid(queryIndex) && !this->NNField->GetPixel(queryIndex).HasVerifiedMatch();
   }
 
   std::vector<itk::Index<2> > GetPixelsToProcess()
   {
+    assert(this->MaskImage);
     return GetPixelsToProcess(this->MaskImage);
   }
 
   std::vector<itk::Index<2> > GetPixelsToProcess(const Mask* const mask)
   {
+    assert(mask);
+    assert(this->NNField);
+
     std::vector<itk::Index<2> > validMaskPixels = mask->GetValidPixels(this->Forward);
 
     std::vector<itk::Index<2> > pixelsToProcess;
@@ -131,7 +134,6 @@ struct ProcessUnverifiedValidMaskPixels : public Process
 
 private:
   PatchMatchHelpers::NNFieldType* NNField;
-
 };
 
 #endif

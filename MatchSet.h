@@ -74,7 +74,7 @@ public:
     // Delete the last element
     if(this->Matches.size() == this->MaximumMatches)
       {
-        std::cout << "Removed match." << std::endl;
+        //std::cout << "Removed match." << std::endl;
         this->Matches.resize(this->Matches.size() - 1);
       }
     AddMatch(potentialMatch);

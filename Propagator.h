@@ -25,6 +25,9 @@
 #include "Process.h"
 #include "PropagatorInterface.h"
 
+// Boost
+#include <boost/signals2/signal.hpp>
+
 /** A class that traverses a target region and propagates good matches. */
 template <typename TPatchDistanceFunctor, typename TNeighborFunctor,
           typename TAcceptanceTest>
@@ -40,6 +43,8 @@ public:
   {
     this->NeighborFunctor = neigborFunctor;
   }
+
+  boost::signals2::signal<void (PatchMatchHelpers::NNFieldType*)> PropagatedSignal;
 
 protected:
   TNeighborFunctor* NeighborFunctor;

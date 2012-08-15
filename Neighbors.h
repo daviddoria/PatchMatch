@@ -31,18 +31,18 @@ struct NeighborParent
   virtual std::vector<itk::Index<2> > GetNeighbors(const itk::Index<2>& queryIndex) const = 0;
 };
 
-struct ValidMaskValidScoreNeighbors : public NeighborParent
+struct ValidMaskVerifiedNeighbors : public NeighborParent
 {
-  typedef itk::Image<Match, 2> MatchImageType;
-
-  ValidMaskValidScoreNeighbors(MatchImageType* const matchImage, Mask* const targetMask)
+  ValidMaskVerifiedNeighbors(PatchMatchHelpers::NNFieldType* const nnField, Mask* const targetMask) :
+  NNField(nnField), TargetMask(targetMask)
   {
-    this->MatchImage = matchImage;
-    this->TargetMask = targetMask;
   }
 
   std::vector<itk::Index<2> > GetNeighbors(const itk::Index<2>& queryIndex) const
   {
+    assert(this->NNField);
+    assert(this->TargetMask);
+
     std::vector<itk::Index<2> > potentialPropagationNeighbors =
         ITKHelpers::Get8NeighborsInRegion(this->TargetMask->GetLargestPossibleRegion(),
                                           queryIndex);
@@ -50,7 +50,7 @@ struct ValidMaskValidScoreNeighbors : public NeighborParent
     std::vector<itk::Index<2> > allowedPropagationNeighbors;
     for(size_t i = 0; i < potentialPropagationNeighbors.size(); ++i)
     {
-      if(this->MatchImage->GetPixel(potentialPropagationNeighbors[i]).IsValid() &&
+      if(this->NNField->GetPixel(potentialPropagationNeighbors[i]).HasVerifiedMatch() &&
          this->TargetMask->IsValid(potentialPropagationNeighbors[i]) )
       {
         allowedPropagationNeighbors.push_back(potentialPropagationNeighbors[i]);
@@ -60,7 +60,40 @@ struct ValidMaskValidScoreNeighbors : public NeighborParent
   }
 
 private:
-  MatchImageType* MatchImage;
+  PatchMatchHelpers::NNFieldType* NNField;
+  Mask* TargetMask;
+};
+
+struct ValidMaskValidScoreNeighbors : public NeighborParent
+{
+  ValidMaskValidScoreNeighbors(PatchMatchHelpers::NNFieldType* const nnField, Mask* const targetMask) :
+  NNField(nnField), TargetMask(targetMask)
+  {
+  }
+
+  std::vector<itk::Index<2> > GetNeighbors(const itk::Index<2>& queryIndex) const
+  {
+    assert(this->NNField);
+    assert(this->TargetMask);
+
+    std::vector<itk::Index<2> > potentialPropagationNeighbors =
+        ITKHelpers::Get8NeighborsInRegion(this->TargetMask->GetLargestPossibleRegion(),
+                                          queryIndex);
+
+    std::vector<itk::Index<2> > allowedPropagationNeighbors;
+    for(size_t i = 0; i < potentialPropagationNeighbors.size(); ++i)
+    {
+      if(this->NNField->GetPixel(potentialPropagationNeighbors[i]).GetMatch(0).IsValid() &&
+         this->TargetMask->IsValid(potentialPropagationNeighbors[i]) )
+      {
+        allowedPropagationNeighbors.push_back(potentialPropagationNeighbors[i]);
+      }
+    }
+    return allowedPropagationNeighbors;
+  }
+
+private:
+  PatchMatchHelpers::NNFieldType* NNField;
   Mask* TargetMask;
 };
 
