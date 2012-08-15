@@ -30,6 +30,8 @@
 // Submodules
 #include <Mask/Mask.h>
 
+/** This class decides which pixels are allowed to be propagated to (aka be processed/receive new information). (The reverse of PropagationAllowed, which determines if pixels
+  * can be propagated.)*/
 struct Process
 {
 

@@ -21,6 +21,7 @@
 
 // Custom
 #include "Match.h"
+#include "PatchMatchHelpers.h"
 
 // Submodules
 #include <Mask/Mask.h>
@@ -93,6 +94,37 @@ private:
   Mask* MaskImage;
 };
 
+struct VerifiedForwardPropagationNeighbors : public NeighborParent
+{
+  VerifiedForwardPropagationNeighbors(PatchMatchHelpers::NNFieldType* const nnField) : NNField(nnField)
+  {
+  }
+
+  std::vector<itk::Index<2> > GetNeighbors(const itk::Index<2>& queryIndex) const
+  {
+    assert(this->NNField);
+
+    std::vector<itk::Index<2> > allowedPropagationNeighbors;
+
+    itk::Offset<2> leftPixelOffset = {{-1, 0}};
+    if(this->NNField->GetPixel(queryIndex + leftPixelOffset).HasVerifiedMatch())
+    {
+      allowedPropagationNeighbors.push_back(queryIndex + leftPixelOffset);
+    }
+
+    itk::Offset<2> upPixelOffset = {{0, -1}};
+    if(this->NNField->GetPixel(queryIndex + upPixelOffset).HasVerifiedMatch())
+    {
+      allowedPropagationNeighbors.push_back(queryIndex + upPixelOffset);
+    }
+
+    return allowedPropagationNeighbors;
+  }
+
+private:
+  PatchMatchHelpers::NNFieldType* NNField;
+};
+
 struct ForwardPropagationNeighbors : public NeighborParent
 {
   std::vector<itk::Index<2> > GetNeighbors(const itk::Index<2>& queryIndex) const
@@ -107,6 +139,35 @@ struct ForwardPropagationNeighbors : public NeighborParent
 
     return allowedPropagationNeighbors;
   }
+};
+
+struct VerifiedBackwardPropagationNeighbors : public NeighborParent
+{
+  VerifiedBackwardPropagationNeighbors(PatchMatchHelpers::NNFieldType* const nnField) : NNField(nnField)
+  {
+  }
+
+  std::vector<itk::Index<2> > GetNeighbors(const itk::Index<2>& queryIndex) const
+  {
+    std::vector<itk::Index<2> > allowedPropagationNeighbors;
+
+    itk::Offset<2> rightPixelOffset = {{1, 0}};
+    if(this->NNField->GetPixel(queryIndex + rightPixelOffset).HasVerifiedMatch())
+    {
+      allowedPropagationNeighbors.push_back(queryIndex + rightPixelOffset);
+    }
+
+    itk::Offset<2> downPixelOffset = {{0, 1}};
+    if(this->NNField->GetPixel(queryIndex + downPixelOffset).HasVerifiedMatch())
+    {
+      allowedPropagationNeighbors.push_back(queryIndex + downPixelOffset);
+    }
+
+    return allowedPropagationNeighbors;
+  }
+
+private:
+  PatchMatchHelpers::NNFieldType* NNField;
 };
 
 struct BackwardPropagationNeighbors : public NeighborParent

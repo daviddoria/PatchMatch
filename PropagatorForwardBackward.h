@@ -25,7 +25,7 @@
 
 /** A class that traverses a target region and propagates good matches. */
 template <typename TPatchDistanceFunctor,
-          typename TAcceptanceTest>
+          typename TAcceptanceTest, typename TForwardNeighbors, typename TBackwardNeighbors>
 class PropagatorForwardBackward : public PropagatorInterface<TPatchDistanceFunctor, TAcceptanceTest>
 {
 public:
@@ -41,17 +41,18 @@ public:
     assert(this->ProcessFunctor);
     assert(this->AcceptanceTest);
     assert(this->PatchDistanceFunctor);
+    assert(this->ForwardNeighborFunctor);
+    assert(this->BackwardNeighborFunctor);
 
     if(this->Forward)
     {
       std::cout << "Propagating forward." << std::endl;
       this->ProcessFunctor->SetForward(true);
 
-      ForwardPropagationNeighbors neighborFunctor;
-      Propagator<TPatchDistanceFunctor, ForwardPropagationNeighbors,
+      Propagator<TPatchDistanceFunctor, TForwardNeighbors,
                  TAcceptanceTest> propagator;
       propagator.SetPatchRadius(this->PatchRadius);
-      propagator.SetNeighborFunctor(&neighborFunctor);
+      propagator.SetNeighborFunctor(this->ForwardNeighborFunctor);
       propagator.SetAcceptanceTest(this->AcceptanceTest);
       propagator.SetPatchDistanceFunctor(this->PatchDistanceFunctor);
       propagator.SetProcessFunctor(this->ProcessFunctor);
@@ -62,11 +63,10 @@ public:
       std::cout << "Propagating backward." << std::endl;
       this->ProcessFunctor->SetForward(false);
 
-      BackwardPropagationNeighbors neighborFunctor;
-      Propagator<TPatchDistanceFunctor, BackwardPropagationNeighbors,
+      Propagator<TPatchDistanceFunctor, TBackwardNeighbors,
                  TAcceptanceTest> propagator;
       propagator.SetPatchRadius(this->PatchRadius);
-      propagator.SetNeighborFunctor(&neighborFunctor);
+      propagator.SetNeighborFunctor(this->BackwardNeighborFunctor);
       propagator.SetAcceptanceTest(this->AcceptanceTest);
       propagator.SetPatchDistanceFunctor(this->PatchDistanceFunctor);
       propagator.SetProcessFunctor(this->ProcessFunctor);
@@ -76,10 +76,22 @@ public:
     this->Forward = !this->Forward;
   }
 
+  void SetForwardNeighborFunctor(TForwardNeighbors* const forwardNeighborFunctor)
+  {
+    this->ForwardNeighborFunctor = forwardNeighborFunctor;
+  }
+
+  void SetBackwardNeighborFunctor(TBackwardNeighbors* const backwardNeighborFunctor)
+  {
+    this->BackwardNeighborFunctor = backwardNeighborFunctor;
+  }
+
 protected:
 
   bool Forward;
 
+  TForwardNeighbors* ForwardNeighborFunctor;
+  TBackwardNeighbors* BackwardNeighborFunctor;
 };
 
 #endif
