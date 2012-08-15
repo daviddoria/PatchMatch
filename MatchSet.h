@@ -66,17 +66,38 @@ public:
     return false;
   }
 
+  /** Force this match into the set by deleting one of the elements if necessary. */
+  void ForceMatch(const Match& potentialMatch)
+  {
+    assert(this->Matches.size() <= this->MaximumMatches);
+
+    // Delete the last element
+    if(this->Matches.size() == this->MaximumMatches)
+      {
+        std::cout << "Removed match." << std::endl;
+        this->Matches.resize(this->Matches.size() - 1);
+      }
+    AddMatch(potentialMatch);
+  }
+
+  /** Add this match to the set if it's SSD is better than the worst stored match. */
   void AddMatch(const Match& potentialMatch)
   {
     // Insert 'match' to Matches if it is better than any of the existing saved matches.
     // Delete (by trimming) any matches that are now not in the top MaximumMatches matches.
 
-    // Check if the item is already in the container. We don't want to store the same match multipe times
+    // Check if a Match object of the same region is already in the container.
+    // (We don't want to store the same match multipe times)
     auto result = std::find_if(this->Matches.begin(), this->Matches.end(), [&potentialMatch](const Match& match) {
           return match.GetRegion() == potentialMatch.GetRegion();});
 
-    // If the item was not found
-    if(result == this->Matches.end())
+    // If the item was found
+    if(result != this->Matches.end()) // (The 'result' iterator matches the .end() if the item was not found)
+    {
+      // Replace the match with the new match data.
+      *result = potentialMatch;
+    }
+    else // If the item was not found
     {
       // Add the item to the container
       this->Matches.push_back(potentialMatch);

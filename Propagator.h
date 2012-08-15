@@ -34,7 +34,7 @@ public:
   Propagator();
 
   /** Propagate good matches from specified offsets. */
-  void Propagate(PatchMatchHelpers::NNFieldType* const nnField);
+  void Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force = false);
 
   void SetNeighborFunctor(TNeighborFunctor* neigborFunctor)
   {

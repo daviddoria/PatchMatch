@@ -31,7 +31,7 @@ PropagatorInterface<TPatchDistanceFunctor, TAcceptanceTest>(), NeighborFunctor(N
 template <typename TPatchDistanceFunctor, typename TNeighborFunctor,
           typename TAcceptanceTest>
 void Propagator<TPatchDistanceFunctor, TNeighborFunctor, TAcceptanceTest>::
-Propagate(PatchMatchHelpers::NNFieldType* const nnField)
+Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force)
 {
   assert(this->NeighborFunctor);
   assert(this->ProcessFunctor);
@@ -125,6 +125,17 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField)
           std::cout << "There were no matches, so this one was automatically accepted." << std::endl;
           MatchSet matchSet = nnField->GetPixel(targetPixel);
           matchSet.AddMatch(potentialMatch);
+          nnField->SetPixel(targetPixel, matchSet);
+          propagated = true;
+          break;
+        }
+
+        if(force == true)
+        {
+          potentialMatch.SetVerified(true);
+          MatchSet matchSet = nnField->GetPixel(targetPixel);
+          potentialMatch.SetVerificationScore(0);
+          matchSet.ForceMatch(potentialMatch);
           nnField->SetPixel(targetPixel, matchSet);
           propagated = true;
           break;

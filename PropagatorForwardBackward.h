@@ -34,7 +34,7 @@ public:
 
   /** Propagate good matches from specified offsets. */
 
-  void Propagate(PatchMatchHelpers::NNFieldType* const nnField)
+  void Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force = false)
   {
     assert(nnField);
     assert(this->PatchRadius > 0);
@@ -55,7 +55,7 @@ public:
       propagator.SetAcceptanceTest(this->AcceptanceTest);
       propagator.SetPatchDistanceFunctor(this->PatchDistanceFunctor);
       propagator.SetProcessFunctor(this->ProcessFunctor);
-      propagator.Propagate(nnField);
+      propagator.Propagate(nnField, force);
     }
     else
     {
@@ -70,7 +70,7 @@ public:
       propagator.SetAcceptanceTest(this->AcceptanceTest);
       propagator.SetPatchDistanceFunctor(this->PatchDistanceFunctor);
       propagator.SetProcessFunctor(this->ProcessFunctor);
-      propagator.Propagate(nnField);
+      propagator.Propagate(nnField, force);
     }
 
     this->Forward = !this->Forward;

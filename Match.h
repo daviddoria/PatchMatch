@@ -113,6 +113,50 @@ public:
     this->VerificationScore = verificationScore;
   }
 
+  bool operator==(const Match &other) const
+  {
+    // Take special care in comparing scores because they could be NaN (which doesn't compare as expected).
+
+    // If one score is NaN and the other is not
+    if(Helpers::IsNaN(this->SSDScore) != Helpers::IsNaN(other.SSDScore))
+    {
+      return false;
+    }
+
+    // If one score is not NaN, the other must also not be NaN (or the previous test would have failed), so we can compare them normally
+    if(!Helpers::IsNaN(this->SSDScore))
+    {
+      if(this->SSDScore != other.SSDScore)
+      {
+        return false;
+      }
+    }
+
+    // If one score is NaN and the other is not
+    if(Helpers::IsNaN(this->VerificationScore) != Helpers::IsNaN(other.VerificationScore))
+    {
+      return false;
+    }
+
+    // If one score is not NaN, the other must also not be NaN (or the previous test would have failed), so we can compare them normally
+    if(!Helpers::IsNaN(this->VerificationScore))
+    {
+      if(this->VerificationScore != other.VerificationScore)
+      {
+        return false;
+      }
+    }
+
+    // Compare normal members
+    if((this->Verified != other.Verified) ||
+       (this->Region == other.Region))
+    {
+      return false;
+    }
+
+    return true;
+  }
+
 private:
   /** The region/patch that describes the 'source' of the match. */
   itk::ImageRegion<2> Region;
