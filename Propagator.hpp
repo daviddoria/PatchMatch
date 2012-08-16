@@ -21,16 +21,16 @@
 
 #include "Propagator.h"
 
-template <typename TPatchDistanceFunctor, typename TNeighborFunctor,
+template <typename TPatchDistanceFunctor,
           typename TAcceptanceTest>
-Propagator<TPatchDistanceFunctor, TNeighborFunctor, TAcceptanceTest>::Propagator() :
+Propagator<TPatchDistanceFunctor, TAcceptanceTest>::Propagator() :
 PropagatorInterface<TPatchDistanceFunctor, TAcceptanceTest>(), NeighborFunctor(NULL)
 {
 }
 
-template <typename TPatchDistanceFunctor, typename TNeighborFunctor,
+template <typename TPatchDistanceFunctor,
           typename TAcceptanceTest>
-void Propagator<TPatchDistanceFunctor, TNeighborFunctor, TAcceptanceTest>::
+void Propagator<TPatchDistanceFunctor, TAcceptanceTest>::
 Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force)
 {
   assert(this->NeighborFunctor);

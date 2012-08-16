@@ -25,7 +25,7 @@
 
 /** A class that traverses a target region and propagates good matches. */
 template <typename TPatchDistanceFunctor,
-          typename TAcceptanceTest, typename TForwardNeighbors, typename TBackwardNeighbors>
+          typename TAcceptanceTest>
 class PropagatorForwardBackward : public PropagatorInterface<TPatchDistanceFunctor, TAcceptanceTest>
 {
 public:
@@ -49,8 +49,7 @@ public:
       std::cout << "Propagating forward." << std::endl;
       this->ProcessFunctor->SetForward(true);
 
-      Propagator<TPatchDistanceFunctor, TForwardNeighbors,
-                 TAcceptanceTest> propagator;
+      Propagator<TPatchDistanceFunctor, TAcceptanceTest> propagator;
       propagator.SetPatchRadius(this->PatchRadius);
       propagator.SetNeighborFunctor(this->ForwardNeighborFunctor);
       propagator.SetAcceptanceTest(this->AcceptanceTest);
@@ -63,8 +62,7 @@ public:
       std::cout << "Propagating backward." << std::endl;
       this->ProcessFunctor->SetForward(false);
 
-      Propagator<TPatchDistanceFunctor, TBackwardNeighbors,
-                 TAcceptanceTest> propagator;
+      Propagator<TPatchDistanceFunctor, TAcceptanceTest> propagator;
       propagator.SetPatchRadius(this->PatchRadius);
       propagator.SetNeighborFunctor(this->BackwardNeighborFunctor);
       propagator.SetAcceptanceTest(this->AcceptanceTest);
@@ -76,12 +74,12 @@ public:
     this->Forward = !this->Forward;
   }
 
-  void SetForwardNeighborFunctor(TForwardNeighbors* const forwardNeighborFunctor)
+  void SetForwardNeighborFunctor(Neighbors* const forwardNeighborFunctor)
   {
     this->ForwardNeighborFunctor = forwardNeighborFunctor;
   }
 
-  void SetBackwardNeighborFunctor(TBackwardNeighbors* const backwardNeighborFunctor)
+  void SetBackwardNeighborFunctor(Neighbors* const backwardNeighborFunctor)
   {
     this->BackwardNeighborFunctor = backwardNeighborFunctor;
   }
@@ -90,8 +88,8 @@ protected:
 
   bool Forward;
 
-  TForwardNeighbors* ForwardNeighborFunctor;
-  TBackwardNeighbors* BackwardNeighborFunctor;
+  Neighbors* ForwardNeighborFunctor;
+  Neighbors* BackwardNeighborFunctor;
 };
 
 #endif

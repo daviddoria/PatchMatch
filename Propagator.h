@@ -24,12 +24,13 @@
 #include "PatchMatchHelpers.h"
 #include "Process.h"
 #include "PropagatorInterface.h"
+#include "Neighbors.h"
 
 // Boost
 #include <boost/signals2/signal.hpp>
 
 /** A class that traverses a target region and propagates good matches. */
-template <typename TPatchDistanceFunctor, typename TNeighborFunctor,
+template <typename TPatchDistanceFunctor,
           typename TAcceptanceTest>
 class Propagator : public PropagatorInterface<TPatchDistanceFunctor, TAcceptanceTest>
 {
@@ -39,7 +40,7 @@ public:
   /** Propagate good matches from specified offsets. */
   void Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force = false);
 
-  void SetNeighborFunctor(TNeighborFunctor* neigborFunctor)
+  void SetNeighborFunctor(Neighbors* neigborFunctor)
   {
     this->NeighborFunctor = neigborFunctor;
   }
@@ -47,7 +48,7 @@ public:
   boost::signals2::signal<void (PatchMatchHelpers::NNFieldType*)> PropagatedSignal;
 
 protected:
-  TNeighborFunctor* NeighborFunctor;
+  Neighbors* NeighborFunctor;
 };
 
 #include "Propagator.hpp"
