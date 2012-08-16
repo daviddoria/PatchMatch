@@ -128,10 +128,12 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force)
           MatchSet matchSet = nnField->GetPixel(targetPixel);
           if(force == true)
           {
+            potentialMatch.SetAllowPropagation(false);
             matchSet.ForceMatch(potentialMatch);
           }
           else
           {
+            potentialMatch.SetAllowPropagation(true);
             matchSet.AddMatch(potentialMatch);
           }
           nnField->SetPixel(targetPixel, matchSet);

@@ -31,6 +31,79 @@ struct NeighborParent
   virtual std::vector<itk::Index<2> > GetNeighbors(const itk::Index<2>& queryIndex) const = 0;
 };
 
+struct AllowedPropagationNeighbors : public NeighborParent
+{
+  AllowedPropagationNeighbors(PatchMatchHelpers::NNFieldType* const nnField) :
+  NNField(nnField)
+  {
+  }
+
+  std::vector<itk::Index<2> > GetNeighbors(const itk::Index<2>& queryIndex) const
+  {
+    assert(this->NNField);
+
+    std::vector<itk::Index<2> > potentialPropagationNeighbors =
+        ITKHelpers::Get8NeighborsInRegion(this->NNField->GetLargestPossibleRegion(),
+                                          queryIndex);
+
+    std::vector<itk::Index<2> > allowedPropagationNeighbors;
+    for(size_t i = 0; i < potentialPropagationNeighbors.size(); ++i)
+    {
+      MatchSet matchSet = this->NNField->GetPixel(potentialPropagationNeighbors[i]);
+      if(matchSet.GetNumberOfMatches() == 0)
+      {
+        continue;
+      }
+      if(matchSet.GetMatch(0).GetAllowPropagation())
+      {
+        allowedPropagationNeighbors.push_back(potentialPropagationNeighbors[i]);
+      }
+    }
+    return allowedPropagationNeighbors;
+  }
+
+private:
+  PatchMatchHelpers::NNFieldType* NNField;
+};
+
+struct ValidMaskAllowedPropagationNeighbors : public NeighborParent
+{
+  ValidMaskAllowedPropagationNeighbors(PatchMatchHelpers::NNFieldType* const nnField, Mask* const targetMask) :
+  NNField(nnField), TargetMask(targetMask)
+  {
+  }
+
+  std::vector<itk::Index<2> > GetNeighbors(const itk::Index<2>& queryIndex) const
+  {
+    assert(this->NNField);
+    assert(this->TargetMask);
+
+    std::vector<itk::Index<2> > potentialPropagationNeighbors =
+        ITKHelpers::Get8NeighborsInRegion(this->TargetMask->GetLargestPossibleRegion(),
+                                          queryIndex);
+
+    std::vector<itk::Index<2> > allowedPropagationNeighbors;
+    for(size_t i = 0; i < potentialPropagationNeighbors.size(); ++i)
+    {
+      MatchSet matchSet = this->NNField->GetPixel(potentialPropagationNeighbors[i]);
+      if(matchSet.GetNumberOfMatches() == 0)
+      {
+        continue;
+      }
+      if(matchSet.GetMatch(0).GetAllowPropagation() &&
+         this->TargetMask->IsValid(potentialPropagationNeighbors[i]) )
+      {
+        allowedPropagationNeighbors.push_back(potentialPropagationNeighbors[i]);
+      }
+    }
+    return allowedPropagationNeighbors;
+  }
+
+private:
+  PatchMatchHelpers::NNFieldType* NNField;
+  Mask* TargetMask;
+};
+
 struct ValidMaskVerifiedNeighbors : public NeighborParent
 {
   ValidMaskVerifiedNeighbors(PatchMatchHelpers::NNFieldType* const nnField, Mask* const targetMask) :
@@ -120,6 +193,68 @@ struct ValidMaskNeighbors : public NeighborParent
         allowedPropagationNeighbors.push_back(potentialPropagationNeighbors[i]);
       }
     }
+    return allowedPropagationNeighbors;
+  }
+
+private:
+  Mask* MaskImage;
+};
+
+struct ValidMaskForwardPropagationNeighbors : public NeighborParent
+{
+  ValidMaskForwardPropagationNeighbors(Mask* const mask) : MaskImage(mask)
+  {
+  }
+
+  std::vector<itk::Index<2> > GetNeighbors(const itk::Index<2>& queryIndex) const
+  {
+    assert(this->MaskImage);
+
+    std::vector<itk::Index<2> > allowedPropagationNeighbors;
+
+    itk::Offset<2> leftPixelOffset = {{-1, 0}};
+    if(this->MaskImage->IsValid(queryIndex + leftPixelOffset))
+    {
+      allowedPropagationNeighbors.push_back(queryIndex + leftPixelOffset);
+    }
+
+    itk::Offset<2> upPixelOffset = {{0, -1}};
+    if(this->MaskImage->IsValid(queryIndex + upPixelOffset))
+    {
+      allowedPropagationNeighbors.push_back(queryIndex + upPixelOffset);
+    }
+
+    return allowedPropagationNeighbors;
+  }
+
+private:
+  Mask* MaskImage;
+};
+
+struct ValidMaskBackwardPropagationNeighbors : public NeighborParent
+{
+  ValidMaskBackwardPropagationNeighbors(Mask* const mask) : MaskImage(mask)
+  {
+  }
+
+  std::vector<itk::Index<2> > GetNeighbors(const itk::Index<2>& queryIndex) const
+  {
+    assert(this->MaskImage);
+
+    std::vector<itk::Index<2> > allowedPropagationNeighbors;
+
+    itk::Offset<2> rightPixelOffset = {{1, 0}};
+    if(this->MaskImage->IsValid(queryIndex + rightPixelOffset))
+    {
+      allowedPropagationNeighbors.push_back(queryIndex + rightPixelOffset);
+    }
+
+    itk::Offset<2> downPixelOffset = {{0, 1}};
+    if(this->MaskImage->IsValid(queryIndex + downPixelOffset))
+    {
+      allowedPropagationNeighbors.push_back(queryIndex + downPixelOffset);
+    }
+
     return allowedPropagationNeighbors;
   }
 

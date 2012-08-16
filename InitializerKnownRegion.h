@@ -76,6 +76,7 @@ public:
         selfMatch.SetSSDScore(0.0f);
         selfMatch.SetVerificationScore(0.0f);
         selfMatch.SetVerified(true);
+        selfMatch.SetAllowPropagation(true);
 
         MatchSet currentMatches = outputIterator.Get();
         currentMatches.AddMatch(selfMatch);

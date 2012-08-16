@@ -32,5 +32,10 @@ public:
     return true;
   }
 
+  std::string GetName() const
+  {
+    return "AcceptanceTestAcceptAll";
+  }
+
 };
 #endif

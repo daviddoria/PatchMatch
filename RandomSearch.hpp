@@ -121,6 +121,7 @@ Search(PatchMatchHelpers::NNFieldType* const nnField)
       if(this->AcceptanceTest->IsBetterWithScore(currentMatch.GetRegion(), currentMatch, potentialMatch, verificationScore))
       {
         potentialMatch.SetVerified(true);
+        potentialMatch.SetAllowPropagation(true);
         potentialMatch.SetVerificationScore(verificationScore);
         MatchSet matchSet = nnField->GetPixel(queryPixel);
         matchSet.AddMatch(potentialMatch);

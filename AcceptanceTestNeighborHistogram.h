@@ -123,6 +123,11 @@ public:
     this->NumberOfBinsPerDimension = numberOfBinsPerDimension;
   }
 
+  std::string GetName() const
+  {
+    return "AcceptanceTestNeighborHistogramRatio";
+  }
+
 private:
   /** The largest the the (queryHistogramDifference/neighborHistogramDifference) is allowed to be to accepte the new match. */
   float MaxNeighborHistogramRatio;

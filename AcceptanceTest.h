@@ -61,6 +61,10 @@ public:
     return IncludeInScore;
   }
 
+
+  /** The name of this test. */
+  virtual std::string GetName() const = 0;
+
 protected:
   /** Determine if this acceptance test will contribute to a composite acceptance test score. */
   bool IncludeInScore;
@@ -77,6 +81,8 @@ public:
   {
     this->PatchRadius = patchRadius;
   }
+
+  virtual std::string GetName() const = 0;
 
   virtual bool IsBetterWithScore(const itk::ImageRegion<2>& queryRegion, const Match& oldMatch,
                         const Match& potentialBetterMatch, float& score) = 0;

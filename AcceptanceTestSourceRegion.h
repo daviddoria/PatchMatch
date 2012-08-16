@@ -22,6 +22,11 @@
 // Custom
 #include "AcceptanceTest.h"
 
+// Submodules
+#include <ITKHelpers/ITKHelpers.h>
+
+/** This class assumes that if a center of a patch is valid in the 'MaskImage',
+  * that the patch is valid. */
 class AcceptanceTestSourceRegion : public AcceptanceTest
 {
 public:
@@ -30,11 +35,27 @@ public:
     this->MaskImage = mask;
   }
 
+  std::string GetName() const
+  {
+    return "AcceptanceTestSourceRegion";
+  }
+
   virtual bool IsBetterWithScore(const itk::ImageRegion<2>& queryRegion, const Match& oldMatch,
-                        const Match& potentialBetterMatch, float& score)
+                                 const Match& potentialBetterMatch, float& score)
   {
     assert(this->MaskImage);
-    return this->MaskImage->IsValid(potentialBetterMatch.GetRegion());
+    //return this->MaskImage->IsValid(potentialBetterMatch.GetRegion());
+
+    // If the patch is not entirely inside the image, it clearly is not a good candidate.
+    if(!this->MaskImage->GetLargestPossibleRegion().IsInside(potentialBetterMatch.GetRegion()))
+    {
+      return false;
+    }
+
+    // Check if the center of the patch is in the source region (indicating that we have defined valid pixels
+    // in the source mask to mean that these are allowable pixel centers).
+    itk::Index<2> center = ITKHelpers::GetRegionCenter(potentialBetterMatch.GetRegion());
+    return this->MaskImage->IsValid(center);
   }
 
 private:

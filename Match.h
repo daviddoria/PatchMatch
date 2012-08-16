@@ -33,7 +33,7 @@ class Match
 {
 public:
 
-  Match() : SSDScore(InvalidScore), VerificationScore(InvalidScore), Verified(false)
+  Match() : SSDScore(InvalidScore), VerificationScore(InvalidScore), Verified(false), AllowPropagation(false)
   {
     itk::Index<2> index = {{0,0}};
     itk::Size<2> size = {{0,0}};
@@ -57,15 +57,28 @@ public:
     return true;
   }
 
-  /** Determine if the score is valid. */
+  /** Determine if the match is valid. */
   bool IsVerified() const
   {
     return this->Verified;
   }
 
+  /** Set if the match has been verified. */
   void SetVerified(const bool verified)
   {
     this->Verified = verified;
+  }
+
+  /** Get if the match is allowed to be propagated. */
+  bool GetAllowPropagation()
+  {
+    return this->AllowPropagation;
+  }
+
+  /** Set if the match is allowed to be propagated. */
+  void SetAllowPropagation(const bool allowPropagation)
+  {
+    this->AllowPropagation = allowPropagation;
   }
 
   /** Set the Match to be invalid. */
@@ -173,6 +186,8 @@ private:
   /** A flag to determine if the Match has passed some sort of test (histogram, etc). */
   bool Verified;
 
+  /** A flag to determine if the information at this pixel can be propagated. */
+  bool AllowPropagation;
 };
 
 #endif

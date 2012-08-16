@@ -29,7 +29,7 @@ template <typename NNFieldType, typename CoordinateImageType>
 void GetPatchCentersImage(const NNFieldType* const matchImage, CoordinateImageType* const output)
 {
   output->SetRegions(matchImage->GetLargestPossibleRegion());
-  unsigned int numberOfComponents = 3;
+  unsigned int numberOfComponents = 4;
   output->SetNumberOfComponentsPerPixel(numberOfComponents);
   output->Allocate();
 
@@ -50,6 +50,7 @@ void GetPatchCentersImage(const NNFieldType* const matchImage, CoordinateImageTy
       pixel[0] = center[0];
       pixel[1] = center[1];
       pixel[2] = matchSet.HasVerifiedMatch();
+      pixel[3] = match.GetAllowPropagation();
 
 //       pixel[2] = match.GetSSDScore();
 //       pixel[3] = match.GetVerificationScore();

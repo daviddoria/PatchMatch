@@ -46,6 +46,13 @@ public:
     return this->Matches[matchId];
   }
 
+  /** Get a reference to the specified match if it is in the valid range. */
+  Match& GetMatch(const unsigned int matchId)
+  {
+    assert(matchId < this->MaximumMatches);
+    return this->Matches[matchId];
+  }
+
   /** Get the number of matches in this set. */
   unsigned int GetNumberOfMatches() const
   {

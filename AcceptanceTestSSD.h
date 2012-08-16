@@ -42,6 +42,11 @@ public:
       score += fabs(potentialBetterMatch.GetSSDScore() - currentMatch.GetSSDScore());
     }
   }
+
+  std::string GetName() const
+  {
+    return "AcceptanceTestSSD";
+  }
 };
 
 #endif

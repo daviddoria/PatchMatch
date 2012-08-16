@@ -37,13 +37,18 @@ public:
       AcceptanceTest* acceptanceTest = this->AcceptanceTests[i];
       if(!acceptanceTest->IsBetterWithScore(queryRegion, oldMatch, potentialBetterMatch, score))
       {
-        WhichFailedSignal(i);
+        WhichFailedSignal(this->AcceptanceTests[i]->GetName() + " failed.");
         FailedScoreSignal(score);
         return false;
       }
     }
 
     return true;
+  }
+
+  std::string GetName() const
+  {
+    return "AcceptanceTestComposite";
   }
 
   /** Add an acceptance test. */
@@ -66,7 +71,7 @@ public:
     std::cout << "After RemoveAcceptanceTest() there are " << this->AcceptanceTests.size() << std::endl;
   }
 
-  boost::signals2::signal<void (unsigned int)> WhichFailedSignal;
+  boost::signals2::signal<void (std::string)> WhichFailedSignal;
   boost::signals2::signal<void (float)> FailedScoreSignal;
 
 private:
