@@ -123,6 +123,8 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force)
         float verificationScore = 0.0f;
         if(this->AcceptanceTest->IsBetterWithScore(targetRegion, currentMatch, potentialMatch, verificationScore))
         {
+          AcceptedSignal(targetPixel, potentialMatchPixel, verificationScore);
+
           potentialMatch.SetVerified(true);
           potentialMatch.SetVerificationScore(verificationScore);
           MatchSet matchSet = nnField->GetPixel(targetPixel);

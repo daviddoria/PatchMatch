@@ -74,6 +74,14 @@ struct RandomSearch
     this->AcceptanceTest = acceptanceTest;
   }
 
+  boost::signals2::signal<void (const itk::Index<2>& queryCenter, const itk::Index<2>& matchCenter, const float)> AcceptedSignal;
+
+  /** Set if the results are truly randomized. */
+  void SetRandom(const bool random)
+  {
+    this->Random = random;
+  }
+
 private:
   TImage* Image;
   Mask* SourceMask;
@@ -81,6 +89,13 @@ private:
   TPatchDistanceFunctor* PatchDistanceFunctor;
   Process* ProcessFunctor;
   TAcceptanceTest* AcceptanceTest;
+
+  /** Determine if the result should be randomized. This should only be false for testing purposes. */
+  bool Random;
+
+  /** Seed the random number generator if we are supposed to. */
+  void InitRandom();
+
 };
 
 #include "RandomSearch.hpp"

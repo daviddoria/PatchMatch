@@ -47,6 +47,8 @@ public:
 
   boost::signals2::signal<void (PatchMatchHelpers::NNFieldType*)> PropagatedSignal;
 
+  boost::signals2::signal<void (const itk::Index<2>& queryCenter, const itk::Index<2>& matchCenter, const float)> AcceptedSignal;
+
 protected:
   Neighbors* NeighborFunctor;
 };

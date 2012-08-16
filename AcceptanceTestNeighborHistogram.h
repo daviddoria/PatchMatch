@@ -19,6 +19,12 @@
 #ifndef AcceptanceTestNeighborHistogram_H
 #define AcceptanceTestNeighborHistogram_H
 
+// STL
+#include <iostream>
+
+// ITK
+#include "itkNumericTraits.h"
+
 // Custom
 #include "AcceptanceTest.h"
 #include "PatchMatchHelpers.h"
@@ -38,7 +44,7 @@ public:
   }
 
   virtual bool IsBetterWithScore(const itk::ImageRegion<2>& queryRegion, const Match& currentMatch,
-                        const Match& potentialBetterMatch, float& score)
+                                 const Match& potentialBetterMatch, float& score)
   {
 //     std::cout << "AcceptanceTestNeighborHistogram: "
 //                  << " RangeMin = " << static_cast<float>(this->RangeMin) << std::endl;
@@ -87,10 +93,19 @@ public:
 
     if(neighborHistogramRatio < this->MaxNeighborHistogramRatio)
     {
-//       std::cout << "AddIfBetterNeighborHistogram: Match accepted. SSD " << potentialMatch.Score
-//                 << " (better than " << currentMatch.Score << ", "
-//                 << " Potential Match Histogram score: " << potentialMatchHistogramDifference
-//                 << " vs neighbor histogram score " << neighborHistogramDifference << std::endl;
+      std::cout << "AddIfBetterNeighborHistogram: Match accepted."
+                << " Potential Match Histogram score: " << potentialMatchHistogramDifference
+                << " vs neighbor histogram score " << neighborHistogramDifference << std::endl;
+      std::cout << "query pixel : " << ITKHelpers::GetRegionCenter(queryRegion)
+                << " current match: " << ITKHelpers::GetRegionCenter(currentMatch.GetRegion())
+                << " potential match: " << ITKHelpers::GetRegionCenter(potentialBetterMatch.GetRegion()) << std::endl;
+      std::cout << "query region histogram: " << std::endl;
+      Histogram<int>::OutputHistogram(queryHistogram);
+      std::cout << std::endl;
+
+      std::cout << "potential match histogram: " << std::endl;
+      Histogram<int>::OutputHistogram(potentialMatchHistogram);
+      std::cout << std::endl;
       return true;
     }
     else

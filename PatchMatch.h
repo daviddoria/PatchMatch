@@ -24,6 +24,9 @@
 #include "itkImageRegion.h"
 #include "itkVectorImage.h"
 
+// Boost
+#include <boost/signals2/signal.hpp>
+
 // Submodules
 #include <ITKHelpers/ITKHelpers.h>
 #include <Mask/Mask.h>
@@ -53,16 +56,12 @@ public:
     this->Iterations = iterations;
   }
 
+  boost::signals2::signal<void (PatchMatchHelpers::NNFieldType*)> UpdatedSignal;
+
 protected:
 
   /** Set the number of iterations to perform. */
   unsigned int Iterations;
-
-  /** Determine if the result should be randomized. This should only be false for testing purposes. */
-  bool Random;
-
-  /** Seed the random number generator if we are supposed to. */
-  void InitRandom();
 
 }; // end PatchMatch class
 

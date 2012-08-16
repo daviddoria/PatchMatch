@@ -19,14 +19,23 @@
 #ifndef RandomSearch_HPP
 #define RandomSearch_HPP
 
+#include "RandomSearch.h"
+
+// ITK
+#include "itkImageRegion.h"
+
 // STL
+#include <cassert>
 #include <iostream>
+
+// Submodules
+#include <ITKHelpers/ITKHelpers.h>
 
 template <typename TImage, typename TPatchDistanceFunctor,
           typename TAcceptanceTest>
 RandomSearch<TImage, TPatchDistanceFunctor, TAcceptanceTest>::RandomSearch() :
 Image(NULL), SourceMask(NULL), PatchRadius(0), PatchDistanceFunctor(NULL),
-ProcessFunctor(NULL), AcceptanceTest(NULL)
+ProcessFunctor(NULL), AcceptanceTest(NULL), Random(true)
 {
 
 }
@@ -48,6 +57,8 @@ Search(PatchMatchHelpers::NNFieldType* const nnField)
   assert(this->Image->GetLargestPossibleRegion().GetSize()[0] > 0);
   assert(nnField->GetLargestPossibleRegion().GetSize() ==
          this->Image->GetLargestPossibleRegion().GetSize());
+
+  InitRandom();
 
   // The full region - so we can refer to this without specifying an image/mask that it is associated with
   itk::ImageRegion<2> region = nnField->GetLargestPossibleRegion();
@@ -90,11 +101,11 @@ Search(PatchMatchHelpers::NNFieldType* const nnField)
       itk::ImageRegion<2> randomValidRegion;
       try
       {
-      // This function throws an exception if no valid patch was found
-      randomValidRegion =
-                MaskOperations::GetRandomValidPatchInRegion(this->SourceMask,
-                                                            searchRegion, this->PatchRadius,
-                                                            maxNumberOfAttempts);
+        // This function throws an exception if no valid patch was found
+        randomValidRegion =
+                  MaskOperations::GetRandomValidPatchInRegion(this->SourceMask,
+                                                              searchRegion, this->PatchRadius,
+                                                              maxNumberOfAttempts);
       }
       catch (...) // If no suitable region is found, move on
       {
@@ -120,6 +131,8 @@ Search(PatchMatchHelpers::NNFieldType* const nnField)
       float verificationScore = 0.0f;
       if(this->AcceptanceTest->IsBetterWithScore(currentMatch.GetRegion(), currentMatch, potentialMatch, verificationScore))
       {
+        AcceptedSignal(queryPixel, ITKHelpers::GetRegionCenter(randomValidRegion), verificationScore);
+
         potentialMatch.SetVerified(true);
         potentialMatch.SetAllowPropagation(true);
         potentialMatch.SetVerificationScore(verificationScore);
@@ -136,6 +149,20 @@ Search(PatchMatchHelpers::NNFieldType* const nnField)
 
   std::cout << "RandomSearch() updated " << numberOfUpdatedPixels << " pixels." << std::endl;
   //std::cout << "RandomSearch: already exact match " << exactMatchPixels << std::endl;
+}
+
+template <typename TImage, typename TPatchDistanceFunctor,
+          typename TAcceptanceTest>
+void RandomSearch<TImage, TPatchDistanceFunctor, TAcceptanceTest>::InitRandom()
+{
+  if(this->Random)
+  {
+    srand(time(NULL));
+  }
+  else
+  {
+    srand(0);
+  }
 }
 
 #endif

@@ -23,6 +23,9 @@
 #include "Propagator.h"
 #include "PropagatorInterface.h"
 
+// Boost
+#include <boost/signals2/signal.hpp>
+
 /** A class that traverses a target region and propagates good matches. */
 template <typename TPatchDistanceFunctor,
           typename TAcceptanceTest>
@@ -55,6 +58,7 @@ public:
       propagator.SetAcceptanceTest(this->AcceptanceTest);
       propagator.SetPatchDistanceFunctor(this->PatchDistanceFunctor);
       propagator.SetProcessFunctor(this->ProcessFunctor);
+      propagator.AcceptedSignal.connect(this->AcceptedSignal);
       propagator.Propagate(nnField, force);
     }
     else
@@ -68,6 +72,7 @@ public:
       propagator.SetAcceptanceTest(this->AcceptanceTest);
       propagator.SetPatchDistanceFunctor(this->PatchDistanceFunctor);
       propagator.SetProcessFunctor(this->ProcessFunctor);
+      propagator.AcceptedSignal.connect(this->AcceptedSignal);
       propagator.Propagate(nnField, force);
     }
 
@@ -83,6 +88,9 @@ public:
   {
     this->BackwardNeighborFunctor = backwardNeighborFunctor;
   }
+
+  boost::signals2::signal<void (const itk::Index<2>& queryCenter, const itk::Index<2>& matchCenter, const float)> AcceptedSignal;
+  boost::signals2::signal<void (PatchMatchHelpers::NNFieldType*)> PropagatedSignal;
 
 protected:
 

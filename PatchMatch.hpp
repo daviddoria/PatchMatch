@@ -56,8 +56,6 @@ void PatchMatch::Compute(PatchMatchHelpers::NNFieldType* nnField,
   assert(randomSearch);
   assert(processFunctor);
 
-  InitRandom();
-
   // For the number of iterations specified, perform the appropriate propagation and then a random search
   for(unsigned int iteration = 0; iteration < this->Iterations; ++iteration)
   {
@@ -66,11 +64,15 @@ void PatchMatch::Compute(PatchMatchHelpers::NNFieldType* nnField,
     propagationFunctor->SetProcessFunctor(processFunctor);
     propagationFunctor->Propagate(nnField);
 
+    UpdatedSignal(nnField);
+
     PatchMatchHelpers::WriteNNField(nnField,
                                     Helpers::GetSequentialFileName("AfterPropagation", iteration, "mha"));
 
     randomSearch->SetProcessFunctor(processFunctor);
     randomSearch->Search(nnField);
+
+    UpdatedSignal(nnField);
 
     PatchMatchHelpers::WriteNNField(nnField,
                                     Helpers::GetSequentialFileName("AfterRandomSearch", iteration, "mha"));
@@ -84,17 +86,5 @@ void PatchMatch::Compute(PatchMatchHelpers::NNFieldType* nnField,
   std::cout << "PatchMatch finished." << std::endl;
 }
 
-
-void PatchMatch::InitRandom()
-{
-  if(this->Random)
-  {
-    srand(time(NULL));
-  }
-  else
-  {
-    srand(0);
-  }
-}
 
 #endif
