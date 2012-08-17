@@ -129,7 +129,7 @@ Search(PatchMatchHelpers::NNFieldType* const nnField)
 
       Match currentMatch = nnField->GetPixel(queryPixel).GetMatch(0);
       float verificationScore = 0.0f;
-      if(this->AcceptanceTest->IsBetterWithScore(currentMatch.GetRegion(), currentMatch, potentialMatch, verificationScore))
+      if(this->AcceptanceTest->IsBetterWithScore(queryRegion, currentMatch, potentialMatch, verificationScore))
       {
         AcceptedSignal(queryPixel, ITKHelpers::GetRegionCenter(randomValidRegion), verificationScore);
 
