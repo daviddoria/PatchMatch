@@ -58,7 +58,10 @@ public:
       propagator.SetAcceptanceTest(this->AcceptanceTest);
       propagator.SetPatchDistanceFunctor(this->PatchDistanceFunctor);
       propagator.SetProcessFunctor(this->ProcessFunctor);
+
       propagator.AcceptedSignal.connect(this->AcceptedSignal);
+      propagator.ProcessPixelSignal.connect(this->ProcessPixelSignal);
+
       propagator.Propagate(nnField, force);
     }
     else
@@ -72,7 +75,10 @@ public:
       propagator.SetAcceptanceTest(this->AcceptanceTest);
       propagator.SetPatchDistanceFunctor(this->PatchDistanceFunctor);
       propagator.SetProcessFunctor(this->ProcessFunctor);
+
       propagator.AcceptedSignal.connect(this->AcceptedSignal);
+      propagator.ProcessPixelSignal.connect(this->ProcessPixelSignal);
+
       propagator.Propagate(nnField, force);
     }
 
@@ -91,6 +97,7 @@ public:
 
   boost::signals2::signal<void (const itk::Index<2>& queryCenter, const itk::Index<2>& matchCenter, const float)> AcceptedSignal;
   boost::signals2::signal<void (PatchMatchHelpers::NNFieldType*)> PropagatedSignal;
+  boost::signals2::signal<void (const itk::Index<2>&)> ProcessPixelSignal;
 
 protected:
 

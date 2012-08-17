@@ -53,6 +53,7 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force)
   for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
   {
     itk::Index<2> targetPixel = targetPixels[targetPixelId];
+    ProcessPixelSignal(targetPixel);
 
     itk::ImageRegion<2> targetRegion =
           ITKHelpers::GetRegionInRadiusAroundPixel(targetPixel, this->PatchRadius);
@@ -64,6 +65,7 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force)
       }
 
     std::vector<itk::Index<2> > potentialPropagationPixels = this->NeighborFunctor->GetNeighbors(targetPixel);
+    std::cout << "There are " << potentialPropagationPixels.size() << " potentialPropagationPixels." << std::endl;
 
     bool propagated = false;
     for(size_t potentialPropagationPixelId = 0;
@@ -96,9 +98,9 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force)
         // offsets for validity, so it is easier to do here for now.
         continue;
       }
-      itk::Index<2> currentNearestNeighbor =
+      itk::Index<2> potentialPropagationPixelNN =
         ITKHelpers::GetRegionCenter(nnField->GetPixel(potentialPropagationPixel).GetMatch(0).GetRegion());
-      itk::Index<2> potentialMatchPixel = currentNearestNeighbor - potentialPropagationPixelOffset;
+      itk::Index<2> potentialMatchPixel = potentialPropagationPixelNN - potentialPropagationPixelOffset;
 
       itk::ImageRegion<2> potentialMatchRegion =
             ITKHelpers::GetRegionInRadiusAroundPixel(potentialMatchPixel, this->PatchRadius);
@@ -123,6 +125,7 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force)
         float verificationScore = 0.0f;
         if(this->AcceptanceTest->IsBetterWithScore(targetRegion, currentMatch, potentialMatch, verificationScore))
         {
+          std::cout << "Accepted new match for " << targetPixel << std::endl;
           AcceptedSignal(targetPixel, potentialMatchPixel, verificationScore);
 
           potentialMatch.SetVerified(true);

@@ -31,6 +31,14 @@
 // Submodules
 #include <ITKHelpers/ITKHelpers.h>
 
+struct OutputPixelSlot
+{
+  void OutputPixel(const itk::Index<2>& index)
+  {
+    std::cout << index << std::endl;
+  }
+};
+
 struct WriteSlot
 {
   std::string Prefix;
@@ -64,7 +72,9 @@ struct WritePatchPair
 
   void Write(const itk::Index<2>& queryCenter, const itk::Index<2>& matchCenter, const float score)
   {
-    std::cout << "WritePatchPair writing queryCenter: " << queryCenter << " matchCenter: " << matchCenter << std::endl;
+    std::cout << "WritePatchPair (" << this->Prefix << ", radius " << this->PatchRadius
+              << ") writing queryCenter: " << queryCenter << " matchCenter: " << matchCenter
+              << " score: " << score << std::endl;
 
     std::ofstream fout("scores.txt", std::ios::app);
     fout << score << std::endl;
