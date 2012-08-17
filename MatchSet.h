@@ -113,7 +113,17 @@ public:
       // Sort the container
       auto ssdSortFunctor = [](const Match& match1, const Match& match2)
                             {
-                              return match1.GetSSDScore() < match2.GetSSDScore();
+                              float score1 = match1.GetSSDScore();
+                              float score2 = match2.GetSSDScore();
+                              if(Helpers::IsNaN(score1))
+                              {
+                                score1 = std::numeric_limits<float>::max();
+                              }
+                              if(Helpers::IsNaN(score2))
+                              {
+                                score2 = std::numeric_limits<float>::max();
+                              }
+                              return score1 < score2;
                             };
       std::sort(this->Matches.begin(), this->Matches.end(), ssdSortFunctor);
 

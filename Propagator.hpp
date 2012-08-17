@@ -65,7 +65,7 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force)
       }
 
     std::vector<itk::Index<2> > potentialPropagationPixels = this->NeighborFunctor->GetNeighbors(targetPixel);
-    std::cout << "There are " << potentialPropagationPixels.size() << " potentialPropagationPixels." << std::endl;
+    // std::cout << "There are " << potentialPropagationPixels.size() << " potentialPropagationPixels." << std::endl;
 
     bool propagated = false;
     for(size_t potentialPropagationPixelId = 0;
