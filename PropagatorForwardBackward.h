@@ -35,9 +35,9 @@ public:
   PropagatorForwardBackward() : PropagatorInterface<TPatchDistanceFunctor, TAcceptanceTest>(),
                                 Forward(true) {}
 
-  /** Propagate good matches from specified offsets. */
-
-  void Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force = false)
+  /** Propagate good matches from specified offsets. Returns the number of pixels
+    * that were propagated to. */
+  unsigned int Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force = false)
   {
     assert(nnField);
     assert(this->PatchRadius > 0);
@@ -47,6 +47,7 @@ public:
     assert(this->ForwardNeighborFunctor);
     assert(this->BackwardNeighborFunctor);
 
+    unsigned int numberOfPropagatedPixels = 0;
     if(this->Forward)
     {
       std::cout << "Propagating forward." << std::endl;
@@ -62,7 +63,7 @@ public:
       propagator.AcceptedSignal.connect(this->AcceptedSignal);
       propagator.ProcessPixelSignal.connect(this->ProcessPixelSignal);
 
-      propagator.Propagate(nnField, force);
+      numberOfPropagatedPixels = propagator.Propagate(nnField, force);
     }
     else
     {
@@ -79,10 +80,12 @@ public:
       propagator.AcceptedSignal.connect(this->AcceptedSignal);
       propagator.ProcessPixelSignal.connect(this->ProcessPixelSignal);
 
-      propagator.Propagate(nnField, force);
+      numberOfPropagatedPixels = propagator.Propagate(nnField, force);
     }
 
     this->Forward = !this->Forward;
+
+    return numberOfPropagatedPixels;
   }
 
   void SetForwardNeighborFunctor(Neighbors* const forwardNeighborFunctor)

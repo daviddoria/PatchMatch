@@ -37,8 +37,9 @@ class Propagator : public PropagatorInterface<TPatchDistanceFunctor, TAcceptance
 public:
   Propagator();
 
-  /** Propagate good matches from specified offsets. */
-  void Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force = false);
+  /** Propagate good matches from specified offsets. Returns the number of pixels
+    * that were successfully propagated to. */
+  unsigned int Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force = false);
 
   void SetNeighborFunctor(Neighbors* neigborFunctor)
   {

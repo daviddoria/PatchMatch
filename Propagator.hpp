@@ -30,7 +30,7 @@ PropagatorInterface<TPatchDistanceFunctor, TAcceptanceTest>(), NeighborFunctor(N
 
 template <typename TPatchDistanceFunctor,
           typename TAcceptanceTest>
-void Propagator<TPatchDistanceFunctor, TAcceptanceTest>::
+unsigned int Propagator<TPatchDistanceFunctor, TAcceptanceTest>::
 Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force)
 {
   assert(this->NeighborFunctor);
@@ -168,6 +168,7 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force)
 
   std::cout << "Propagation() propagated " << propagatedPixels << " pixels." << std::endl;
   //std::cout << "AcceptanceTest failed " << acceptanceTestFailed << std::endl;
+  return propagatedPixels;
 }
 
 #endif
