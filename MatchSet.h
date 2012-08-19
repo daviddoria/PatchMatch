@@ -111,6 +111,7 @@ public:
 
       // Keep the top MaximumMatches patches according to SSD
       // Sort the container
+      // NaN does not sort correctly, so replace NaN's with max() before sorting
       auto ssdSortFunctor = [](const Match& match1, const Match& match2)
                             {
                               float score1 = match1.GetSSDScore();
@@ -133,10 +134,21 @@ public:
         this->Matches.resize(this->MaximumMatches);
       }
 
+      // NaN does not sort correctly, so replace NaN's with max() before sorting
       auto verificationSortFunctor = [](const Match& match1, const Match& match2)
-                            {
-                              return match1.GetVerificationScore() < match2.GetVerificationScore();
-                            };
+                          {
+                          float score1 = match1.GetVerificationScore();
+                          float score2 = match2.GetVerificationScore();
+                          if(Helpers::IsNaN(score1))
+                          {
+                            score1 = std::numeric_limits<float>::max();
+                          }
+                          if(Helpers::IsNaN(score2))
+                          {
+                            score2 = std::numeric_limits<float>::max();
+                          }
+                          return score1 < score2;
+                          };
       std::sort(this->Matches.begin(), this->Matches.end(), verificationSortFunctor);
     }
   }
