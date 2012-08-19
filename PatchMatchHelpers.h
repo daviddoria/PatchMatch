@@ -61,8 +61,19 @@ template <typename NNFieldType, typename TTestFunctor>
 unsigned int CountTestedPixels(const NNFieldType* const nnField, const Mask* const mask,
                                TTestFunctor testFunctor);
 
+/** Get the pixels in the 'nnField' which are Valid in the 'mask' pass (return true) the testFunctor. */
+template <typename NNFieldType, typename TTestFunctor>
+std::vector<itk::Index<2> > GetTestedPixels(const NNFieldType* const nnField, const Mask* const mask,
+                                            TTestFunctor testFunctor);
+
 template <typename NNFieldType>
 unsigned int CountInvalidPixels(const NNFieldType* const nnField, const Mask* const mask);
+
+template <typename NNFieldType>
+unsigned int CountUnverifiedPixels(const NNFieldType* const nnField, const Mask* const mask);
+
+template <typename NNFieldType>
+std::vector<itk::Index<2> > GetUnverifiedPixels(const NNFieldType* const nnField, const Mask* const mask);
 
 template <typename TImage, typename TTestFunction>
 void CopyPixelsIf(const TImage* const oldImage, const TImage* const possibleNewImage,

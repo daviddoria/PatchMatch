@@ -61,6 +61,7 @@ void PatchMatch::Compute(PatchMatchHelpers::NNFieldType* nnField,
   {
     //std::cout << "PatchMatch iteration " << iteration << std::endl;
 
+    // We can propagate before random search because we are hoping the the random initialization gave us something good enough to propagate
     propagationFunctor->SetProcessFunctor(processFunctor);
     propagationFunctor->Propagate(nnField);
 

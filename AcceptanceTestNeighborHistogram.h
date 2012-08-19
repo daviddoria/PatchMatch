@@ -93,19 +93,19 @@ public:
 
     if(neighborHistogramRatio < this->MaxNeighborHistogramRatio)
     {
-      std::cout << "AddIfBetterNeighborHistogram: Match accepted."
-                << " Potential Match Histogram score: " << potentialMatchHistogramDifference
-                << " vs neighbor histogram score " << neighborHistogramDifference << std::endl;
-      std::cout << "query pixel : " << ITKHelpers::GetRegionCenter(queryRegion)
-                << " current match: " << ITKHelpers::GetRegionCenter(currentMatch.GetRegion())
-                << " potential match: " << ITKHelpers::GetRegionCenter(potentialBetterMatch.GetRegion()) << std::endl;
-      std::cout << "query region histogram: " << std::endl;
-      Histogram<int>::OutputHistogram(queryHistogram);
-      std::cout << std::endl;
+//      std::cout << "AddIfBetterNeighborHistogram: Match accepted."
+//                << " Potential Match Histogram score: " << potentialMatchHistogramDifference
+//                << " vs neighbor histogram score " << neighborHistogramDifference << std::endl;
+//      std::cout << "query pixel : " << ITKHelpers::GetRegionCenter(queryRegion)
+//                << " current match: " << ITKHelpers::GetRegionCenter(currentMatch.GetRegion())
+//                << " potential match: " << ITKHelpers::GetRegionCenter(potentialBetterMatch.GetRegion()) << std::endl;
+//      std::cout << "query region histogram: " << std::endl;
+//      Histogram<int>::OutputHistogram(queryHistogram);
+//      std::cout << std::endl;
 
-      std::cout << "potential match histogram: " << std::endl;
-      Histogram<int>::OutputHistogram(potentialMatchHistogram);
-      std::cout << std::endl;
+//      std::cout << "potential match histogram: " << std::endl;
+//      Histogram<int>::OutputHistogram(potentialMatchHistogram);
+//      std::cout << std::endl;
       return true;
     }
     else

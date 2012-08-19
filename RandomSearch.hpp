@@ -147,7 +147,7 @@ Search(PatchMatchHelpers::NNFieldType* const nnField)
 
   } // end loop over target pixels
 
-  std::cout << "RandomSearch() updated " << numberOfUpdatedPixels << " pixels." << std::endl;
+//  std::cout << "RandomSearch() updated " << numberOfUpdatedPixels << " pixels." << std::endl;
   //std::cout << "RandomSearch: already exact match " << exactMatchPixels << std::endl;
 }
 

@@ -80,23 +80,62 @@ void WriteNNField(const NNFieldType* const nnField, const std::string& fileName)
   ITKHelpers::WriteImage(coordinateImage.GetPointer(), fileName);
 }
 
+template <typename NNFieldType, typename TTestFunctor>
+std::vector<itk::Index<2> > GetTestedPixels(const NNFieldType* const nnField, const Mask* const mask,
+                                            TTestFunctor testFunctor)
+{
+  std::vector<itk::Index<2> > pixelsToTest = mask->GetValidPixels();
+
+  std::vector<itk::Index<2> > passedPixels;
+
+  for(size_t pixelId = 0; pixelId < pixelsToTest.size(); ++pixelId)
+  {
+    if(testFunctor(nnField->GetPixel(pixelsToTest[pixelId])))
+    {
+      passedPixels.push_back(pixelsToTest[pixelId]);
+    }
+  }
+
+  return passedPixels;
+}
+
 /** Count how many pixels in the 'nnField' which are Valid in the 'mask' pass (return true) the testFunctor. */
 template <typename NNFieldType, typename TTestFunctor>
 unsigned int CountTestedPixels(const NNFieldType* const nnField, const Mask* const mask,
                                TTestFunctor testFunctor)
 {
-  std::vector<itk::Index<2> > pixelsToTest = mask->GetValidPixels();
+  // The 'testFunctor' must accept a const MatchSet&. An example functor is:
+//  auto unverifiedTester = [](const MatchSet& matchSet)
+//  {
+//    if(!matchSet.HasVerifiedMatch())
+//    {
+//      return true;
+//    }
+//    return false;
+//  };
 
-  unsigned int numberOfPassPixels = 0;
-  for(size_t pixelId = 0; pixelId < pixelsToTest.size(); ++pixelId)
+  return GetTestedPixels(nnField, mask, testFunctor).size();
+}
+
+template <typename NNFieldType>
+std::vector<itk::Index<2> > GetUnverifiedPixels(const NNFieldType* const nnField, const Mask* const mask)
+{
+  auto unverifiedTester = [](const MatchSet& matchSet)
   {
-    if(testFunctor(nnField->GetPixel(pixelsToTest[pixelId])))
+    if(!matchSet.HasVerifiedMatch())
     {
-      numberOfPassPixels++;
+      return true;
     }
-  }
+    return false;
+  };
 
-  return numberOfPassPixels;
+  return GetTestedPixels(nnField, mask, unverifiedTester);
+}
+
+template <typename MatchImageType>
+unsigned int CountUnverifiedPixels(const MatchImageType* const nnField, const Mask* const mask)
+{
+  return GetUnverifiedPixels(nnField, mask).size();
 }
 
 template <typename MatchImageType>

@@ -44,8 +44,8 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force)
 
   std::vector<itk::Index<2> > targetPixels = this->ProcessFunctor->GetPixelsToProcess();
 
-  std::cout << "Propagation(): There are " << targetPixels.size()
-            << " pixels that would like to be processed." << std::endl;
+//  std::cout << "Propagation(): There are " << targetPixels.size()
+//            << " pixels that would like to be processed." << std::endl;
 
   unsigned int propagatedPixels = 0;
   unsigned int acceptanceTestFailed = 0;
@@ -125,7 +125,7 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force)
         float verificationScore = 0.0f;
         if(this->AcceptanceTest->IsBetterWithScore(targetRegion, currentMatch, potentialMatch, verificationScore))
         {
-          std::cout << "Accepted new match for " << targetPixel << std::endl;
+          //std::cout << "Accepted new match for " << targetPixel << std::endl;
           AcceptedSignal(targetPixel, potentialMatchPixel, verificationScore);
 
           potentialMatch.SetVerified(true);
@@ -166,7 +166,7 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force)
 
   } // end loop over target pixels
 
-  std::cout << "Propagation() propagated " << propagatedPixels << " pixels." << std::endl;
+  //std::cout << "Propagation() propagated " << propagatedPixels << " pixels." << std::endl;
   //std::cout << "AcceptanceTest failed " << acceptanceTestFailed << std::endl;
   return propagatedPixels;
 }
