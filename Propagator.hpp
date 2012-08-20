@@ -123,6 +123,9 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force)
         Match currentMatch = nnField->GetPixel(targetPixel).GetMatch(0);
 
         float verificationScore = 0.0f;
+
+        MatchSet matchSet = nnField->GetPixel(targetPixel);
+
         if(this->AcceptanceTest->IsBetterWithScore(targetRegion, currentMatch, potentialMatch, verificationScore))
         {
           //std::cout << "Accepted new match for " << targetPixel << std::endl;
@@ -130,20 +133,6 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force)
 
           potentialMatch.SetVerified(true);
           potentialMatch.SetVerificationScore(verificationScore);
-          MatchSet matchSet = nnField->GetPixel(targetPixel);
-          if(force == true)
-          {
-            potentialMatch.SetAllowPropagation(false);
-            matchSet.ForceMatch(potentialMatch);
-          }
-          else
-          {
-            potentialMatch.SetAllowPropagation(true);
-            matchSet.AddMatch(potentialMatch);
-          }
-          nnField->SetPixel(targetPixel, matchSet);
-          PropagatedSignal(nnField);
-          propagated = true;
         }
         else
         {
@@ -152,6 +141,13 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force)
           //this->AcceptanceTest->IsBetterWithScore(targetRegion, currentMatch, potentialMatch, verificationScore); 
           //std::cerr << "Acceptance test failed!" << std::endl;
         }
+
+        // This function handles adding or not adding the match based on the scores
+        matchSet.AddMatch(potentialMatch);
+
+        nnField->SetPixel(targetPixel, matchSet);
+        PropagatedSignal(nnField);
+        propagated = true;
 
       } // end else source region valid
     } // end loop over potentialPropagationPixels

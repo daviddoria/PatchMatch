@@ -73,21 +73,7 @@ public:
     return false;
   }
 
-  /** Force this match into the set by deleting one of the elements if necessary. */
-  void ForceMatch(const Match& potentialMatch)
-  {
-    assert(this->Matches.size() <= this->MaximumMatches);
-
-    // Delete the last element
-    if(this->Matches.size() == this->MaximumMatches)
-      {
-        //std::cout << "Removed match." << std::endl;
-        this->Matches.resize(this->Matches.size() - 1);
-      }
-    AddMatch(potentialMatch);
-  }
-
-  /** Add this match to the set if it's SSD is better than the worst stored match. */
+  /** Add this match to the set if it's SSD is better than the worst stored match, or if the container is not yet full. */
   void AddMatch(const Match& potentialMatch)
   {
     // Insert 'match' to Matches if it is better than any of the existing saved matches.
@@ -149,13 +135,20 @@ public:
                           }
                           return score1 < score2;
                           };
-      std::sort(this->Matches.begin(), this->Matches.end(), verificationSortFunctor);
+      // stable_sort ensures that the order of identical elements is preserved. That is, we want the matches to remain
+      // ordered by their SSD scores if the verification scores are max().
+      std::stable_sort(this->Matches.begin(), this->Matches.end(), verificationSortFunctor);
     }
   }
 
   void SetMaximumMatches(const unsigned int maximumMatches)
   {
     this->MaximumMatches = maximumMatches;
+  }
+
+  unsigned int GetMaximumMatches()
+  {
+    return this->MaximumMatches;
   }
 
 private:

@@ -73,7 +73,8 @@ template <typename NNFieldType>
 unsigned int CountUnverifiedPixels(const NNFieldType* const nnField, const Mask* const mask);
 
 template <typename NNFieldType>
-std::vector<itk::Index<2> > GetUnverifiedPixels(const NNFieldType* const nnField, const Mask* const mask);
+std::vector<itk::Index<2> > GetUnverifiedPixels(const NNFieldType* const nnField,
+                                                const Mask* const mask);
 
 template <typename TImage, typename TTestFunction>
 void CopyPixelsIf(const TImage* const oldImage, const TImage* const possibleNewImage,
@@ -84,7 +85,11 @@ void WriteValidPixels(const NNFieldType* const nnField, const std::string& fileN
 
 void WriteVerifiedPixels(const NNFieldType* const nnField, const std::string& fileName);
 
-void WriteConsistentRegions(const NNFieldType* const nnField, const Mask* const regionMask, const std::string& fileName);
+void WriteConsistentRegions(const NNFieldType* const nnField, const Mask* const regionMask,
+                            const std::string& fileName);
+
+void ReadNNField(const std::string& fileName, const unsigned int patchRadius,
+                 NNFieldType* const nnField);
 
 } // end PatchMatchHelpers namespace
 

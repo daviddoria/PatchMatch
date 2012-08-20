@@ -126,4 +126,31 @@ void WriteConsistentRegions(const NNFieldType* const nnField, const Mask* const 
 
 }
 
+void ReadNNField(const std::string& fileName, const unsigned int patchRadius, NNFieldType* const nnField)
+{
+  typedef itk::ImageFileReader<CoordinateImageType> NNFieldReaderType;
+  NNFieldReaderType::Pointer nnFieldReader = NNFieldReaderType::New();
+  nnFieldReader->SetFileName(fileName);
+  nnFieldReader->Update();
+
+  itk::ImageRegionIterator<CoordinateImageType>
+      imageIterator(nnFieldReader->GetOutput(),
+                    nnFieldReader->GetOutput()->GetLargestPossibleRegion());
+
+  while(!imageIterator.IsAtEnd())
+  {
+    MatchSet matchSet;
+    Match match;
+    itk::Index<2> center = {{static_cast<unsigned int>(imageIterator.Get()[0]),
+                             static_cast<unsigned int>(imageIterator.Get()[1])}};
+    itk::ImageRegion<2> region = ITKHelpers::GetRegionInRadiusAroundPixel(center, patchRadius);
+    match.SetRegion(region);
+    matchSet.AddMatch(match);
+
+    nnField->SetPixel(imageIterator.GetIndex(), matchSet);
+
+    ++imageIterator;
+  }
+}
+
 } // namespace PatchMatchHelpers
