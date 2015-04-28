@@ -3,6 +3,45 @@ cmake_minimum_required(VERSION 2.6)
 PROJECT(PatchMatch)
 SET(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+# Add non-compiled files to the project
+add_custom_target(PatchMatchSources SOURCES
+AcceptanceTest.h
+AcceptanceTestAcceptAll.h
+AcceptanceTestComposite.h
+AcceptanceTestDownsampledHistogram.h
+AcceptanceTestHistogram.h
+AcceptanceTestNeighborHistogram.h
+AcceptanceTestSourceRegion.h
+AcceptanceTestSSD.h
+GeneralizedPatchMatch.h
+GeneralizedPatchMatch.hpp
+Initializer.h
+InitializerBoundary.h
+InitializerHistogram.h
+InitializerKnownRegion.h
+InitializerNeighborHistogram.h
+InitializerRandom.h
+Match.h
+MatchSet.h
+Neighbors.h
+PatchMatch.h
+PatchMatch.hpp
+PatchMatchHelpers.h
+PatchMatchHelpers.hpp
+PatchMatchRings.h
+PatchMatchRings.hpp
+Process.h
+PropagationAllowed.h
+Propagator.h
+Propagator.hpp
+PropagatorForwardBackward.h
+PropagatorInterface.h
+RandomSearch.h
+RandomSearch.hpp
+Slots.h
+Verifier.h
+)
+
 # C++11 support
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=gnu++0x")
 
