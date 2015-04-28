@@ -10,9 +10,18 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=gnu++0x")
 if(NOT ITK_FOUND)
   FIND_PACKAGE(ITK REQUIRED ITKCommon ITKIOImageBase ITKIOPNG ITKIOMeta ITKDistanceMap
                             ITKImageIntensity ITKImageFeature ITKMathematicalMorphology
-                            ITKBinaryMathematicalMorphology)
-  INCLUDE(${USE_ITK_FILE})
+                            ITKBinaryMathematicalMorphology ITKTestKernel)
+  INCLUDE(${ITK_USE_FILE})
 endif()
+
+# Boost
+set(Boost_NO_BOOST_CMAKE TRUE) # seems to avoid "add_library cannot create imported target" errors
+
+FIND_PACKAGE(Boost 1.51 REQUIRED) # The signals2 library is header only, so we don't need to / can't search for it in find_package
+
+IF (Boost_FOUND)
+    INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIR})
+ENDIF()
 
 # Submodules
 if(NOT TARGET PatchComparison)

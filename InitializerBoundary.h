@@ -22,12 +22,11 @@
 #include "Initializer.h"
 
 template <typename TImage>
-class InitializerBoundary : public InitializerImage<TImage>
+class InitializerBoundary
 {
 public:
 
-  InitializerBoundary(TImage* const image, const unsigned int patchRadius) :
-    InitializerImage<TImage>(image, patchRadius) {}
+  InitializerBoundary(TImage* const image, const unsigned int patchRadius)  {}
     
   virtual void Initialize()
   {
@@ -83,7 +82,7 @@ public:
 
       Match match;
       match.Region = closestBoundaryPatchRegion;
-      match.Score = this->PatchDistanceFunctor->Distance(closestBoundaryPatchRegion, currentRegion);
+      match.SSDScore = this->PatchDistanceFunctor->Distance(closestBoundaryPatchRegion, currentRegion);
       this->Output->SetPixel(targetPixelIndex, match);
     }
 

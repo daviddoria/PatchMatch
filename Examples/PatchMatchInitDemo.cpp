@@ -71,26 +71,26 @@ int main(int argc, char*argv[])
   SSD<ImageType>* patchDistanceFunctor = new SSD<ImageType>;
   patchDistanceFunctor->SetImage(imageReader->GetOutput());
 
-  PatchMatch<ImageType> patchMatch;
-  patchMatch.SetImage(imageReader->GetOutput());
-  patchMatch.SetTargetMask(targetMask);
-  patchMatch.SetSourceMask(sourceMask);
-  patchMatch.SetIterations(10);
-  patchMatch.SetPatchRadius(patchRadius);
-  patchMatch.SetPatchDistanceFunctor(patchDistanceFunctor);
+  PatchMatch patchMatch;
+//  patchMatch.SetImage(imageReader->GetOutput());
+//  patchMatch.SetTargetMask(targetMask);
+//  patchMatch.SetSourceMask(sourceMask);
+//  patchMatch.SetIterations(10);
+//  patchMatch.SetPatchRadius(patchRadius);
+//  patchMatch.SetPatchDistanceFunctor(patchDistanceFunctor);
 
-  PatchMatch<ImageType>::CoordinateImageType::Pointer output =
-    PatchMatch<ImageType>::CoordinateImageType::New();
+//  PatchMatch<ImageType>::CoordinateImageType::Pointer output =
+//    PatchMatch<ImageType>::CoordinateImageType::New();
 
-  {
-  InitializerRandom<ImageType> initializer(imageReader->GetOutput(), patchRadius);
-  patchMatch.SetInitializer(&initializer);
-  std::cout << "Starting randomInit..." << std::endl;
-  patchMatch.Initialize();
+//  {
+//  InitializerRandom<ImageType> initializer(imageReader->GetOutput(), patchRadius);
+//  patchMatch.SetInitializer(&initializer);
+//  std::cout << "Starting randomInit..." << std::endl;
+//  patchMatch.Initialize();
 
-  PatchMatch<ImageType>::GetPatchCentersImage(patchMatch.GetOutput(), output);
-  ITKHelpers::WriteImage(output.GetPointer(), "randomInit.mha");
-  }
+//  PatchMatch<ImageType>::GetPatchCentersImage(patchMatch.GetOutput(), output);
+//  ITKHelpers::WriteImage(output.GetPointer(), "randomInit.mha");
+//  }
 
 //   {
 //   std::cout << "Starting boundaryInit..." << std::endl;

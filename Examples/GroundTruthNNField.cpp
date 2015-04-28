@@ -67,9 +67,8 @@ int main(int argc, char*argv[])
   
   itk::ImageRegionIteratorWithIndex<ImageType> imageIterator(image, targetMaskBoundingBox);
 
-  typedef PatchMatch<ImageType> PatchMatchType;
-  PatchMatchType::CoordinateImageType::Pointer nnField =
-       PatchMatchType::CoordinateImageType::New();
+  PatchMatchHelpers::CoordinateImageType::Pointer nnField =
+       PatchMatchHelpers::CoordinateImageType::New();
   nnField->SetRegions(image->GetLargestPossibleRegion());
   nnField->Allocate();
 
@@ -89,7 +88,7 @@ int main(int argc, char*argv[])
                         Helpers::SortBySecondAccending<SelfPatchCompareType::PatchDataType>);
 
       itk::Index<2> bestMatchCenter = ITKHelpers::GetRegionCenter(patchData[0].first);
-      PatchMatchType::CoordinateImageType::PixelType nnFieldPixel;
+      PatchMatchHelpers::CoordinateImageType::PixelType nnFieldPixel;
       nnFieldPixel[0] = bestMatchCenter[0];
       nnFieldPixel[1] = bestMatchCenter[1];
       nnFieldPixel[2] = patchData[0].second;
