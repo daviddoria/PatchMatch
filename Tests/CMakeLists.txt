@@ -8,6 +8,3 @@ TARGET_LINK_LIBRARIES(TestPatchMatch Mask)
 
 ADD_EXECUTABLE(TestPatchMatchHelpers TestPatchMatchHelpers.cpp)
 TARGET_LINK_LIBRARIES(TestPatchMatchHelpers Mask PatchMatchHelpers)
-
-#ADD_EXECUTABLE(TestGeneralizedPatchMatch TestGeneralizedPatchMatch.cpp)
-#TARGET_LINK_LIBRARIES(TestGeneralizedPatchMatch Mask)

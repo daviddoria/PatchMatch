@@ -45,8 +45,6 @@ itk::Offset<2> RandomNeighborNonZeroOffset();
 //typedef itk::Image<itk::CovariantVector<float, 3>, 2> CoordinateImageType;
 typedef itk::VectorImage<float, 2> CoordinateImageType;
 
-typedef itk::Image<MatchSet, 2> NNFieldType;
-
 /////////// Non-template functions (defined in PatchMatchHelpers.hpp) /////////////
 template <typename NNFieldType, typename CoordinateImageType>
 void GetPatchCentersImage(const NNFieldType* const matchImage, CoordinateImageType* const output);

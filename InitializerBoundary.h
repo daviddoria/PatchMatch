@@ -35,13 +35,14 @@ public:
 
     // Expand the hole
     Mask::Pointer expandedSourceMask = Mask::New();
-    expandedSourceMask->DeepCopyFrom(this->SourceMask);
+    ITKHelpers::DeepCopy(this->SourceMask, expandedSourceMask.GetPointer());
     expandedSourceMask->ExpandHole(this->PatchRadius);
 
     // Get the expanded boundary
     Mask::BoundaryImageType::Pointer boundaryImage = Mask::BoundaryImageType::New();
     unsigned char outputBoundaryPixelValue = 255;
-    expandedSourceMask->FindBoundary(boundaryImage.GetPointer(), Mask::VALID, outputBoundaryPixelValue);
+    expandedSourceMask->CreateBoundaryImage(boundaryImage.GetPointer(), HoleMaskPixelTypeEnum::VALID);
+
     ITKHelpers::WriteImage(boundaryImage.GetPointer(), "ExpandedBoundary.png");
 
     // Get the boundary pixels

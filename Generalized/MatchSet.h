@@ -25,6 +25,7 @@
 // Custom
 #include "Match.h"
 
+/** In Generalized Patch Match, rather than each pixel of the NNF being an index, it is a list of potentially best indices. */
 class MatchSet
 {
 public:

@@ -61,7 +61,6 @@ public:
     return IncludeInScore;
   }
 
-
   /** The name of this test. */
   virtual std::string GetName() const = 0;
 

@@ -64,7 +64,7 @@ int main(int argc, char*argv[])
   Mask::Pointer targetMask = Mask::New();
   targetMask->SetRegions(sourceMask->GetLargestPossibleRegion());
   targetMask->Allocate();
-  ITKHelpers::SetImageToConstant(targetMask.GetPointer(), targetMask->GetValidValue());
+  ITKHelpers::SetImageToConstant(targetMask.GetPointer(), HoleMaskPixelTypeEnum::VALID);
 
   unsigned int patchRadius = 3;
 

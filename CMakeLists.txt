@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 2.6)
 PROJECT(PatchMatch)
 SET(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+add_subdirectory(CMakeHelpers)
+
 # Add non-compiled files to the project
 add_custom_target(PatchMatchSources SOURCES
 AcceptanceTest.h
@@ -13,8 +15,6 @@ AcceptanceTestHistogram.h
 AcceptanceTestNeighborHistogram.h
 AcceptanceTestSourceRegion.h
 AcceptanceTestSSD.h
-GeneralizedPatchMatch.h
-GeneralizedPatchMatch.hpp
 Initializer.h
 InitializerBoundary.h
 InitializerHistogram.h
@@ -28,8 +28,6 @@ PatchMatch.h
 PatchMatch.hpp
 PatchMatchHelpers.h
 PatchMatchHelpers.hpp
-PatchMatchRings.h
-PatchMatchRings.hpp
 Process.h
 PropagationAllowed.h
 Propagator.h
@@ -43,7 +41,25 @@ Verifier.h
 )
 
 # C++11 support
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=gnu++0x")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=gnu++11")
+
+#### Eigen ####
+# Tell CMake to also look in the source directory to find some .cmake files
+set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_MODULE_PATH})
+
+# Set the CMake variable to the value of the environment variable.
+# If the build is absolutely fresh, this will be the case if the CMake variable EIGEN3_INCLUDE_DIR is not set.
+if(NOT EIGEN3_INCLUDE_DIR)
+  set(EIGEN3_INCLUDE_DIR $ENV{EIGEN3_INCLUDE_DIR})
+  message("Set EIGEN3_INCLUDE_DIR to ${EIGEN3_INCLUDE_DIR} from environment variable of the same name.")
+else()
+  message("EIGEN3_INCLUDE_DIR is ${EIGEN3_INCLUDE_DIR}")
+endif()
+
+if(NOT EIGEN3_FOUND)
+  FIND_PACKAGE(Eigen3 REQUIRED) #requires FindEigen3.cmake to be in the source directory
+  include_directories(${EIGEN3_INCLUDE_DIR})
+endif()
 
 # ITK
 if(NOT ITK_FOUND)
@@ -62,20 +78,9 @@ IF (Boost_FOUND)
     INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIR})
 ENDIF()
 
-# Submodules
-if(NOT TARGET PatchComparison)
-  add_subdirectory(PatchComparison)
-  include_directories(${PatchComparison_includes})
-  set(PatchMatch_includes ${PatchMatch_includes} ${PatchComparison_includes})
-  set(PatchMatch_libraries ${PatchMatch_libraries} ${PatchComparison_libraries})
-endif()
+UseSubmodule(PatchComparison PatchMatch)
 
-if(NOT ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
-  set(PatchMatch_includes ${PatchComparison_includes}
-      ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
-  set(PatchMatch_libraries ${PatchMatch_libraries} PARENT_SCOPE)
-  message("PatchMatch submodule used from ${CMAKE_CURRENT_SOURCE_DIR}")
-endif()
+CreateSubmodule(PatchMatch)
 
 SET(PatchMatch_BuildExamples OFF CACHE BOOL "Build examples?")
 if(PatchMatch_BuildExamples)
@@ -93,6 +98,3 @@ if(PatchMatch_BuildDrivers)
 endif()
 
 add_library(PatchMatchHelpers PatchMatchHelpers.cpp)
-
-GET_DIRECTORY_PROPERTY(AllPatchMatchIncludes INCLUDE_DIRECTORIES)
-message("Final PatchMatch includes: ${AllPatchMatchIncludes}")

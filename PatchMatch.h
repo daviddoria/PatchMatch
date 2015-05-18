@@ -44,10 +44,11 @@
 class PatchMatch
 {
 public:
+  typedef itk::Image<MatchSet, 2> NNFieldType;
 
   /** Perform multiple iterations of propagation and random search.*/
   template<typename TPropagation, typename TRandomSearch>
-  void Compute(PatchMatchHelpers::NNFieldType* nnField, TPropagation* const propagation,
+  void Compute(TPropagation* const propagation,
                TRandomSearch* const randomSearch, Process* const processFunctor);
 
   /** Set the number of iterations to perform. */
@@ -60,8 +61,11 @@ public:
 
 protected:
 
-  /** Set the number of iterations to perform. */
+  /** The number of iterations to perform. */
   unsigned int Iterations;
+
+  /** The number of iterations to perform. */
+  PatchMatchHelpers::NNFieldType* nnField;
 
 }; // end PatchMatch class
 

@@ -103,8 +103,7 @@ void WriteValidPixels(const NNFieldType* const nnField, const std::string& fileN
 void WriteConsistentRegions(const NNFieldType* const nnField, const Mask* const regionMask, const std::string& fileName)
 {
   Mask::Pointer usedMask = Mask::New();
-  usedMask->DeepCopyFrom(regionMask);
-
+  ITKHelpers::DeepCopy(regionMask, usedMask.GetPointer());
 //   std::vector<itk::Index<2> > unusedPixels;
 //   do
 //   {
