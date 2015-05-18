@@ -29,7 +29,7 @@
 
 // Submodules
 #include "Mask/Mask.h"
-#include "Mask/ITKHelpers/ITKHelpers.h"
+#include "ITKHelpers/ITKHelpers.h"
 #include "PatchComparison/SSD.h"
 
 // Custom

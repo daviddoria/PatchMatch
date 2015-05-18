@@ -1,15 +1,18 @@
 [submodule "GUI/ITKVTKHelpers"]
 	path = GUI/ITKVTKHelpers
-	url = git@github.com:daviddoria/ITKVTKHelpers.git
+	url = ../ITKVTKHelpers.git
 [submodule "GUI/ITKVTKCamera"]
 	path = GUI/ITKVTKCamera
-	url = git@github.com:daviddoria/ITKVTKCamera.git
+	url = ../ITKVTKCamera.git
 [submodule "GUI/VTKHelpers"]
 	path = GUI/VTKHelpers
-	url = git@github.com:daviddoria/VTKHelpers.git
+	url = ../VTKHelpers.git
 [submodule "GUI/Layer"]
 	path = GUI/Layer
-	url = https://github.com/daviddoria/Layer
+	url = ../Layer
 [submodule "PatchComparison"]
 	path = PatchComparison
-	url = https://github.com/daviddoria/PatchComparison.git
+	url = ../PatchComparison.git
+[submodule "CMakeHelpers"]
+	path = CMakeHelpers
+	url = ../CMakeHelpers.git
