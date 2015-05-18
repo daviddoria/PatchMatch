@@ -38,93 +38,6 @@ itk::Offset<2> RandomNeighborNonZeroOffset()
   return randomNeighborNonZeroOffset;
 }
 
-void WriteVerifiedPixels(const NNFieldType* const nnField, const std::string& fileName)
-{
-  // This function writes a boolean pixel (if any of the MatchSet matches are verified)
-  // to an image.
-
-  typedef itk::Image<unsigned char> ImageType;
-  ImageType::Pointer image = ImageType::New();
-  image->SetRegions(nnField->GetLargestPossibleRegion());
-  image->Allocate();
-  image->FillBuffer(0);
-
-  itk::ImageRegionConstIterator<NNFieldType> imageIterator(nnField,
-                                                           nnField->GetLargestPossibleRegion());
-
-  while(!imageIterator.IsAtEnd())
-  {
-    // Differentiate pixels that have not yet been visited at all from pixels that have been visited and do not have a verified match
-    if(imageIterator.Get().GetNumberOfMatches() == 0)
-    {
-      image->SetPixel(imageIterator.GetIndex(), std::numeric_limits<ImageType::PixelType>::quiet_NaN());
-      ++imageIterator;
-      continue;
-    }
-
-    if(imageIterator.Get().HasVerifiedMatch())
-    {
-      image->SetPixel(imageIterator.GetIndex(), 255);
-    }
-
-    ++imageIterator;
-  }
-
-  ITKHelpers::WriteImage(image.GetPointer(), fileName);
-}
-
-void WriteValidPixels(const NNFieldType* const nnField, const std::string& fileName)
-{
-  // This function writes the validity of the first Match in the MatchSet at every pixel
-  // to an image.
-
-  typedef itk::Image<unsigned char> ImageType;
-  ImageType::Pointer image = ImageType::New();
-  image->SetRegions(nnField->GetLargestPossibleRegion());
-  image->Allocate();
-  image->FillBuffer(0);
-
-  itk::ImageRegionConstIterator<NNFieldType> imageIterator(nnField,
-                                                           nnField->GetLargestPossibleRegion());
-
-  while(!imageIterator.IsAtEnd())
-  {
-    if(imageIterator.Get().GetMatch(0).IsValid())
-    {
-      image->SetPixel(imageIterator.GetIndex(), 255);
-    }
-
-    ++imageIterator;
-  }
-
-  ITKHelpers::WriteImage(image.GetPointer(), fileName);
-}
-
-void WriteConsistentRegions(const NNFieldType* const nnField, const Mask* const regionMask, const std::string& fileName)
-{
-  Mask::Pointer usedMask = Mask::New();
-  ITKHelpers::DeepCopy(regionMask, usedMask.GetPointer());
-//   std::vector<itk::Index<2> > unusedPixels;
-//   do
-//   {
-//     unusedPixels = usedMask->GetValidPixels();
-//
-//     itk::ImageRegionConstIterator<NNFieldType> imageIterator(nnField,
-//                                                              nnField->GetLargestPossibleRegion());
-//
-//     while(!imageIterator.IsAtEnd())
-//     {
-//       if(imageIterator.Get().GetMatch(0).IsValid())
-//       {
-//         image->SetPixel(imageIterator.GetIndex(), 255);
-//       }
-//
-//       ++imageIterator;
-//     }
-//   } while (unusedPixels.size() > 0);
-
-}
-
 void ReadNNField(const std::string& fileName, const unsigned int patchRadius, NNFieldType* const nnField)
 {
   typedef itk::ImageFileReader<CoordinateImageType> NNFieldReaderType;
@@ -138,15 +51,13 @@ void ReadNNField(const std::string& fileName, const unsigned int patchRadius, NN
 
   while(!imageIterator.IsAtEnd())
   {
-    MatchSet matchSet;
     Match match;
     itk::Index<2> center = {{static_cast<unsigned int>(imageIterator.Get()[0]),
                              static_cast<unsigned int>(imageIterator.Get()[1])}};
     itk::ImageRegion<2> region = ITKHelpers::GetRegionInRadiusAroundPixel(center, patchRadius);
     match.SetRegion(region);
-    matchSet.AddMatch(match);
 
-    nnField->SetPixel(imageIterator.GetIndex(), matchSet);
+    nnField->SetPixel(imageIterator.GetIndex(), match);
 
     ++imageIterator;
   }

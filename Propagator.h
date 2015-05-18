@@ -22,38 +22,41 @@
 // Custom
 #include "Match.h"
 #include "PatchMatchHelpers.h"
-#include "Process.h"
-#include "PropagatorInterface.h"
-#include "Neighbors.h"
-
-// Boost
-#include <boost/signals2/signal.hpp>
+#include "NNField.h"
 
 /** A class that traverses a target region and propagates good matches. */
-template <typename TPatchDistanceFunctor,
-          typename TAcceptanceTest>
-class Propagator : public PropagatorInterface<TPatchDistanceFunctor, TAcceptanceTest>
+template <typename TPatchDistanceFunctor>
+class Propagator
 {
 public:
-  Propagator();
-
   /** Propagate good matches from specified offsets. Returns the number of pixels
     * that were successfully propagated to. */
-  unsigned int Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force = false);
+  unsigned int Propagate(NNFieldType* const nnField);
 
-  void SetNeighborFunctor(Neighbors* neigborFunctor)
+  void SetForward(const bool forward)
   {
-    this->NeighborFunctor = neigborFunctor;
+      this->Forward = forward;
   }
 
-  boost::signals2::signal<void (PatchMatchHelpers::NNFieldType*)> PropagatedSignal;
+  void SetPatchRadius(const unsigned int patchRadius)
+  {
+      this->PatchRadius = patchRadius;
+  }
 
-  boost::signals2::signal<void (const itk::Index<2>&)> ProcessPixelSignal;
+  void SetPatchDistanceFunctor(TPatchDistanceFunctor* const patchDistanceFunctor)
+  {
+      this->PatchDistanceFunctor = patchDistanceFunctor;
+  }
 
-  boost::signals2::signal<void (const itk::Index<2>& queryCenter, const itk::Index<2>& matchCenter, const float)> AcceptedSignal;
+private:
+  bool Forward = true;
 
-protected:
-  Neighbors* NeighborFunctor;
+  std::vector<itk::Index<2> > GetTraversalPixels(const itk::ImageRegion<2>& region);
+  std::vector<itk::Offset<2> > GetPropagationOffsets();
+
+  unsigned int PatchRadius = 5;
+
+  TPatchDistanceFunctor* PatchDistanceFunctor = nullptr;
 };
 
 #include "Propagator.hpp"

@@ -29,7 +29,7 @@ template <typename NNFieldType, typename CoordinateImageType>
 void GetPatchCentersImage(const NNFieldType* const matchImage, CoordinateImageType* const output)
 {
   output->SetRegions(matchImage->GetLargestPossibleRegion());
-  unsigned int numberOfComponents = 4;
+  unsigned int numberOfComponents = 2; // (x,y) of the best match
   output->SetNumberOfComponentsPerPixel(numberOfComponents);
   output->Allocate();
 
@@ -41,28 +41,12 @@ void GetPatchCentersImage(const NNFieldType* const matchImage, CoordinateImageTy
     typename CoordinateImageType::PixelType pixel;
     pixel.SetSize(numberOfComponents);
 
-    if(imageIterator.Get().GetNumberOfMatches() > 0)
-    {
-      MatchSet matchSet = imageIterator.Get();
-      Match match = matchSet.GetMatch(0);
-      itk::Index<2> center = ITKHelpers::GetRegionCenter(match.GetRegion());
+    Match match = imageIterator.Get();
 
-      pixel[0] = center[0];
-      pixel[1] = center[1];
-      pixel[2] = matchSet.HasVerifiedMatch();
-      pixel[3] = match.GetAllowPropagation();
+    itk::Index<2> center = ITKHelpers::GetRegionCenter(match.GetRegion());
 
-//       pixel[2] = match.GetSSDScore();
-//       pixel[3] = match.GetVerificationScore();
-//       pixel[4] = match.IsVerified();
-//       pixel[5] = matchSet.HasVerifiedMatch();
-    }
-    else
-    {
-      pixel[0] = std::numeric_limits<float>::quiet_NaN();
-      pixel[1] = std::numeric_limits<float>::quiet_NaN();
-      pixel[2] = std::numeric_limits<float>::quiet_NaN();
-    }
+    pixel[0] = center[0];
+    pixel[1] = center[1];
 
     output->SetPixel(imageIterator.GetIndex(), pixel);
     ++imageIterator;
@@ -78,97 +62,6 @@ void WriteNNField(const NNFieldType* const nnField, const std::string& fileName)
   PatchMatchHelpers::CoordinateImageType::Pointer coordinateImage = PatchMatchHelpers::CoordinateImageType::New();
   PatchMatchHelpers::GetPatchCentersImage(nnField, coordinateImage.GetPointer());
   ITKHelpers::WriteImage(coordinateImage.GetPointer(), fileName);
-}
-
-template <typename NNFieldType, typename TTestFunctor>
-std::vector<itk::Index<2> > GetTestedPixels(const NNFieldType* const nnField, const Mask* const mask,
-                                            TTestFunctor testFunctor)
-{
-  std::vector<itk::Index<2> > pixelsToTest = mask->GetValidPixels();
-
-  std::vector<itk::Index<2> > passedPixels;
-
-  for(size_t pixelId = 0; pixelId < pixelsToTest.size(); ++pixelId)
-  {
-    if(testFunctor(nnField->GetPixel(pixelsToTest[pixelId])))
-    {
-      passedPixels.push_back(pixelsToTest[pixelId]);
-    }
-  }
-
-  return passedPixels;
-}
-
-/** Count how many pixels in the 'nnField' which are Valid in the 'mask' pass (return true) the testFunctor. */
-template <typename NNFieldType, typename TTestFunctor>
-unsigned int CountTestedPixels(const NNFieldType* const nnField, const Mask* const mask,
-                               TTestFunctor testFunctor)
-{
-  // The 'testFunctor' must accept a const MatchSet&. An example functor is:
-//  auto unverifiedTester = [](const MatchSet& matchSet)
-//  {
-//    if(!matchSet.HasVerifiedMatch())
-//    {
-//      return true;
-//    }
-//    return false;
-//  };
-
-  return GetTestedPixels(nnField, mask, testFunctor).size();
-}
-
-template <typename NNFieldType>
-std::vector<itk::Index<2> > GetUnverifiedPixels(const NNFieldType* const nnField, const Mask* const mask)
-{
-  auto unverifiedTester = [](const MatchSet& matchSet)
-  {
-    if(!matchSet.HasVerifiedMatch())
-    {
-      return true;
-    }
-    return false;
-  };
-
-  return GetTestedPixels(nnField, mask, unverifiedTester);
-}
-
-template <typename MatchImageType>
-unsigned int CountUnverifiedPixels(const MatchImageType* const nnField, const Mask* const mask)
-{
-  return GetUnverifiedPixels(nnField, mask).size();
-}
-
-template <typename MatchImageType>
-unsigned int CountInvalidPixels(const MatchImageType* const nnField, const Mask* const mask)
-{
-  std::vector<itk::Index<2> > regionPixels = mask->GetValidPixels();
-
-  unsigned int numberOfInvalidPixels = 0;
-  for(size_t pixelId = 0; pixelId < regionPixels.size(); ++pixelId)
-  {
-    if(!nnField->GetPixel(regionPixels[pixelId]).IsValid())
-    {
-      numberOfInvalidPixels++;
-    }
-  }
-
-  return numberOfInvalidPixels;
-}
-
-template <typename TImage, typename TTestFunction>
-void CopyPixelsIf(const TImage* const oldImage, const TImage* const possibleNewImage,
-                  TTestFunction testFunction, TImage* const output)
-{
-  itk::ImageRegionConstIterator<TImage> oldImageIterator(oldImage, oldImage->GetLargestPossibleRegion());
-
-  while(!oldImageIterator.IsAtEnd())
-  {
-    if(testFunction(oldImageIterator.Get(), possibleNewImage->GetPixel(oldImageIterator.GetIndex())))
-    {
-      output->SetPixel(oldImageIterator.GetIndex(), possibleNewImage->GetPixel(oldImageIterator.GetIndex()));
-    }
-    ++oldImageIterator;
-  }
 }
 
 } // end PatchMatchHelpers namespace

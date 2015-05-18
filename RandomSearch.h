@@ -24,25 +24,15 @@
 
 // Custom
 #include "Match.h"
-#include "Process.h"
+#include "NNField.h"
 
 // Submodules
 #include <Mask/Mask.h>
 
-class RandomSearchParent
-{
-  void Search(PatchMatchHelpers::NNFieldType* const nnField)
-  {
-  }
-};
-
-template <typename TImage, typename TPatchDistanceFunctor,
-          typename TAcceptanceTest>
+template <typename TImage, typename TPatchDistanceFunctor>
 struct RandomSearch
 {
-  RandomSearch();
-
-  void Search(PatchMatchHelpers::NNFieldType* const nnField);
+  void Search(NNFieldType* const nnField);
 
   void SetPatchRadius(const unsigned int patchRadius)
   {
@@ -59,19 +49,14 @@ struct RandomSearch
     this->SourceMask = mask;
   }
 
-  void SetProcessFunctor(Process* const processFunctor)
-  {
-    this->ProcessFunctor = processFunctor;
-  }
-
   void SetPatchDistanceFunctor(TPatchDistanceFunctor* const patchDistanceFunctor)
   {
     this->PatchDistanceFunctor = patchDistanceFunctor;
   }
 
-  void SetAcceptanceTest(TAcceptanceTest* const acceptanceTest)
+  TPatchDistanceFunctor* GetPatchDistanceFunctor() const
   {
-    this->AcceptanceTest = acceptanceTest;
+    return this->PatchDistanceFunctor;
   }
 
   boost::signals2::signal<void (const itk::Index<2>& queryCenter, const itk::Index<2>& matchCenter, const float)> AcceptedSignal;
@@ -83,19 +68,18 @@ struct RandomSearch
   }
 
 private:
-  TImage* Image;
-  Mask* SourceMask;
-  unsigned int PatchRadius;
-  TPatchDistanceFunctor* PatchDistanceFunctor;
-  Process* ProcessFunctor;
-  TAcceptanceTest* AcceptanceTest;
+  TImage* Image = nullptr;
+  Mask* SourceMask = nullptr;
+  unsigned int PatchRadius = 0;
+  TPatchDistanceFunctor* PatchDistanceFunctor = nullptr;
 
   /** Determine if the result should be randomized. This should only be false for testing purposes. */
-  bool Random;
+  bool Random = true;
 
   /** Seed the random number generator if we are supposed to. */
   void InitRandom();
 
+  std::vector<itk::Index<2> > GetAllPixelIndices(const itk::ImageRegion<2>& region);
 };
 
 #include "RandomSearch.hpp"

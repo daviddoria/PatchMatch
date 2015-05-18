@@ -21,68 +21,51 @@
 
 #include "Propagator.h"
 
-template <typename TPatchDistanceFunctor,
-          typename TAcceptanceTest>
-Propagator<TPatchDistanceFunctor, TAcceptanceTest>::Propagator() :
-PropagatorInterface<TPatchDistanceFunctor, TAcceptanceTest>(), NeighborFunctor(NULL)
-{
-}
+#include <algorithm>
 
-template <typename TPatchDistanceFunctor,
-          typename TAcceptanceTest>
-unsigned int Propagator<TPatchDistanceFunctor, TAcceptanceTest>::
-Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force)
+#include "itkImageRegionIteratorWithIndex.h"
+
+template <typename TPatchDistanceFunctor>
+unsigned int Propagator<TPatchDistanceFunctor>::
+Propagate(NNFieldType* const nnField)
 {
-  assert(this->NeighborFunctor);
-  assert(this->ProcessFunctor);
-  assert(this->AcceptanceTest);
   assert(this->PatchDistanceFunctor);
 
   itk::ImageRegion<2> fullRegion = nnField->GetLargestPossibleRegion();
 
   assert(nnField->GetLargestPossibleRegion().GetSize()[0] > 0); // An initialization must be provided
 
-  std::vector<itk::Index<2> > targetPixels = this->ProcessFunctor->GetPixelsToProcess();
+  std::vector<itk::Index<2> > targetPixels = GetTraversalPixels(fullRegion);
 
 //  std::cout << "Propagation(): There are " << targetPixels.size()
 //            << " pixels that would like to be processed." << std::endl;
 
-  unsigned int propagatedPixels = 0;
-  unsigned int acceptanceTestFailed = 0;
+  unsigned int numberOfPropagatedPixels = 0;
 
   for(size_t targetPixelId = 0; targetPixelId < targetPixels.size(); ++targetPixelId)
   {
     itk::Index<2> targetPixel = targetPixels[targetPixelId];
-    ProcessPixelSignal(targetPixel);
+    //ProcessPixelSignal(targetPixel);
 
     itk::ImageRegion<2> targetRegion =
           ITKHelpers::GetRegionInRadiusAroundPixel(targetPixel, this->PatchRadius);
 
-    if(!fullRegion.IsInside(targetRegion))
-      {
-        std::cerr << "targetRegion " << targetRegion << " is outside of the image." << std::endl;
-        continue;
-      }
-
-    std::vector<itk::Index<2> > potentialPropagationPixels = this->NeighborFunctor->GetNeighbors(targetPixel);
-    // std::cout << "There are " << potentialPropagationPixels.size() << " potentialPropagationPixels." << std::endl;
+    std::vector<itk::Offset<2> > propagationOffsets = GetPropagationOffsets();
 
     bool propagated = false;
-    for(size_t potentialPropagationPixelId = 0;
-        potentialPropagationPixelId < potentialPropagationPixels.size();
-        ++potentialPropagationPixelId)
+    for(size_t propagationOffsetId = 0;
+        propagationOffsetId < propagationOffsets.size();
+        ++propagationOffsetId)
     {
-      itk::Index<2> potentialPropagationPixel = potentialPropagationPixels[potentialPropagationPixelId];
-
-      itk::Offset<2> potentialPropagationPixelOffset = potentialPropagationPixel - targetPixel;
+      itk::Offset<2> propagationOffset = propagationOffsets[propagationOffsetId];
 
       //assert(this->Image->GetLargestPossibleRegion().IsInside(potentialPropagationPixel));
-      if(!fullRegion.IsInside(potentialPropagationPixel))
-      {
-        // This check should be done in the NeighborFunctor
-        //std::cerr << "Pixel " << potentialPropagationPixel << " is outside of the image." << std::endl;
-        continue;
-      }
+//      if(!fullRegion.IsInside(potentialPropagationPixel))
+//      {
+//        // This check should be done in the NeighborFunctor
+//        //std::cerr << "Pixel " << potentialPropagationPixel << " is outside of the image." << std::endl;
+//        continue;
+//      }
 
       // The potential match is the opposite (hence the " - offset" in the following line)
       // of the offset of the neighbor. Consider the following case:
@@ -90,17 +73,10 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force)
       // - The best match to (3,4) is (10,10)
       // - potentialMatch should be (11,10), because since the current pixel is 1 to the right
       // of the neighbor, we need to consider the patch one to the right of the neighbors best match
-      if(nnField->GetPixel(potentialPropagationPixel).GetNumberOfMatches() == 0)
-      {
-        //throw std::runtime_error("potentialPropagationPixel has 0 matches!");
-        // This check should really be done in the NeighborFunctor, but the Forwards/BackwardsPropagationNeighbors
-        // classes do not have the target mask or the source mask, which they would need to check their hard-coded
-        // offsets for validity, so it is easier to do here for now.
-        continue;
-      }
-      itk::Index<2> potentialPropagationPixelNN =
-        ITKHelpers::GetRegionCenter(nnField->GetPixel(potentialPropagationPixel).GetMatch(0).GetRegion());
-      itk::Index<2> potentialMatchPixel = potentialPropagationPixelNN - potentialPropagationPixelOffset;
+
+      itk::Index<2> bestMatchPixel =
+        ITKHelpers::GetRegionCenter(nnField->GetPixel(targetPixel + propagationOffset).GetRegion());
+      itk::Index<2> potentialMatchPixel = bestMatchPixel - propagationOffset;
 
       itk::ImageRegion<2> potentialMatchRegion =
             ITKHelpers::GetRegionInRadiusAroundPixel(potentialMatchPixel, this->PatchRadius);
@@ -117,36 +93,17 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force)
 
         Match potentialMatch;
         potentialMatch.SetRegion(potentialMatchRegion);
-        potentialMatch.SetSSDScore(distance);
+        potentialMatch.SetScore(distance);
 
         // If there were previous matches, add this one if it is better
-        Match currentMatch = nnField->GetPixel(targetPixel).GetMatch(0);
+        Match currentMatch = nnField->GetPixel(targetPixel);
 
-        float verificationScore = 0.0f;
-
-        MatchSet matchSet = nnField->GetPixel(targetPixel);
-
-        if(this->AcceptanceTest->IsBetterWithScore(targetRegion, currentMatch, potentialMatch, verificationScore))
+        if(potentialMatch.GetScore() < currentMatch.GetScore())
         {
-          //std::cout << "Accepted new match for " << targetPixel << std::endl;
-          AcceptedSignal(targetPixel, potentialMatchPixel, verificationScore);
-
-          potentialMatch.SetVerified(true);
-          potentialMatch.SetVerificationScore(verificationScore);
-        }
-        else
-        {
-          acceptanceTestFailed++;
-          // DEBUG ONLY: Run this again so we can see what happened
-          //this->AcceptanceTest->IsBetterWithScore(targetRegion, currentMatch, potentialMatch, verificationScore); 
-          //std::cerr << "Acceptance test failed!" << std::endl;
+          nnField->SetPixel(targetPixel, potentialMatch);
         }
 
-        // This function handles adding or not adding the match based on the scores
-        matchSet.AddMatch(potentialMatch);
-
-        nnField->SetPixel(targetPixel, matchSet);
-        PropagatedSignal(nnField);
+        //PropagatedSignal(nnField);
         propagated = true;
 
       } // end else source region valid
@@ -154,17 +111,72 @@ Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force)
 
     if(propagated)
     {
-      propagatedPixels++;
-    }
-    {
-      //std::cerr << "Failed to propagate to " << targetPixel << std::endl;
+      numberOfPropagatedPixels++;
     }
 
   } // end loop over target pixels
 
+  // Reverse the propagation for the next iteration
+  this->Forward = !this->Forward;
+
   //std::cout << "Propagation() propagated " << propagatedPixels << " pixels." << std::endl;
   //std::cout << "AcceptanceTest failed " << acceptanceTestFailed << std::endl;
-  return propagatedPixels;
+  return numberOfPropagatedPixels;
+}
+
+template <typename TPatchDistanceFunctor>
+std::vector<itk::Index<2> > Propagator<TPatchDistanceFunctor>::
+GetTraversalPixels(const itk::ImageRegion<2>& region)
+{
+  std::vector<itk::Index<2> > traversalPixels;
+
+  typedef itk::Image<int, 2> DummyImageType;
+  DummyImageType::Pointer dummyImage = DummyImageType::New();
+  dummyImage->SetRegions(region);
+  dummyImage->Allocate();
+
+  itk::ImageRegionIteratorWithIndex<DummyImageType> imageIterator(dummyImage, region);
+
+  while(!imageIterator.IsAtEnd())
+  {
+    traversalPixels.push_back(imageIterator.GetIndex());
+    ++imageIterator;
+  }
+
+  if(this->Forward == false)
+  {
+      std::reverse(traversalPixels.begin(), traversalPixels.end());
+  }
+
+  return traversalPixels;
+}
+
+template <typename TPatchDistanceFunctor>
+std::vector<itk::Offset<2> > Propagator<TPatchDistanceFunctor>::
+GetPropagationOffsets()
+{
+  std::vector<itk::Offset<2> > propagationOffsets;
+  if(this->Forward)
+  {
+    itk::Offset<2> offset;
+    offset[0] = -1;
+    offset[1] = 0;
+    propagationOffsets.push_back(offset);
+    offset[0] = 0;
+    offset[1] = -1;
+    propagationOffsets.push_back(offset);
+  }
+  else
+  {
+    itk::Offset<2> offset;
+    offset[0] = 1;
+    offset[1] = 0;
+    propagationOffsets.push_back(offset);
+    offset[0] = 0;
+    offset[1] = 1;
+    propagationOffsets.push_back(offset);
+  }
+  return propagationOffsets;
 }
 
 #endif

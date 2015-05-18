@@ -16,39 +16,9 @@
  *
  *=========================================================================*/
 
-/** This program computes the NN field of an image. */
+#ifndef NNField_H
+#define NNField_H
 
-// STL
-#include <iostream>
+typedef itk::Image<Match, 2> NNFieldType;
 
-// ITK
-#include "itkImage.h"
-
-// Submodules
-#include "Mask/Mask.h"
-#include "Mask/ITKHelpers/ITKHelpers.h"
-
-// Custom
-#include "PatchMatchHelpers.h"
-
-// Helpers
-template <typename TImage>
-void OutputPixelsLinear(const TImage* const image);
-
-int main(int, char*[])
-{
-
-  return EXIT_SUCCESS;
-}
-
-template <typename TImage>
-void OutputPixelsLinear(const TImage* const image)
-{
-  itk::ImageRegionConstIterator<TImage> imageIterator(image, image->GetLargestPossibleRegion());
-
-  while(!imageIterator.IsAtEnd())
-  {
-    std::cout << imageIterator.Get() << std::endl;
-    ++imageIterator;
-  }
-}
+#endif

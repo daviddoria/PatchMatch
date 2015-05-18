@@ -39,22 +39,20 @@
 #include <ctime>
 
 // Custom
-#include "Neighbors.h"
-#include "AcceptanceTestAcceptAll.h"
 #include "PatchMatchHelpers.h"
-#include "Process.h"
 #include "RandomSearch.h"
 
-template<typename TPropagation, typename TRandomSearch>
-void PatchMatch::Compute(PatchMatchHelpers::NNFieldType* nnField,
-                         TPropagation* const propagationFunctor,
-                         TRandomSearch* const randomSearch,
-                         Process* const processFunctor)
+template<typename TImage, typename TPropagation, typename TRandomSearch>
+PatchMatch<TImage, TPropagation, TRandomSearch>::PatchMatch()
 {
-  assert(nnField);
-  assert(propagationFunctor);
-  assert(randomSearch);
-  assert(processFunctor);
+    RandomlyInitializeNNField();
+}
+
+template<typename TImage, typename TPropagation, typename TRandomSearch>
+void PatchMatch<TImage, TPropagation, TRandomSearch>::Compute()
+{
+  assert(this->PropagationFunctor);
+  assert(this->RandomSearchFunctor);
 
   // For the number of iterations specified, perform the appropriate propagation and then a random search
   for(unsigned int iteration = 0; iteration < this->Iterations; ++iteration)
@@ -62,30 +60,63 @@ void PatchMatch::Compute(PatchMatchHelpers::NNFieldType* nnField,
     //std::cout << "PatchMatch iteration " << iteration << std::endl;
 
     // We can propagate before random search because we are hoping the the random initialization gave us something good enough to propagate
-    propagationFunctor->SetProcessFunctor(processFunctor);
-    propagationFunctor->Propagate(nnField);
+    this->PropagationFunctor->Propagate(this->NNField);
 
-    UpdatedSignal(nnField);
+    UpdatedSignal(this->NNField);
 
-    PatchMatchHelpers::WriteNNField(nnField,
+    PatchMatchHelpers::WriteNNField(this->NNField,
                                     Helpers::GetSequentialFileName("AfterPropagation", iteration, "mha"));
 
-    randomSearch->SetProcessFunctor(processFunctor);
-    randomSearch->Search(nnField);
+    this->RandomSearchFunctor->Search(this->NNField);
 
-    UpdatedSignal(nnField);
+    UpdatedSignal(this->NNField);
 
-    PatchMatchHelpers::WriteNNField(nnField,
+    PatchMatchHelpers::WriteNNField(this->NNField,
                                     Helpers::GetSequentialFileName("AfterRandomSearch", iteration, "mha"));
 
     { // Debug only
     std::string sequentialFileName = Helpers::GetSequentialFileName("PatchMatch", iteration, "mha", 2);
-    PatchMatchHelpers::WriteNNField(nnField, sequentialFileName);
+    PatchMatchHelpers::WriteNNField(this->NNField, sequentialFileName);
     }
   } // end iteration loop
 
   std::cout << "PatchMatch finished." << std::endl;
 }
 
+template<typename TImage, typename TPropagation, typename TRandomSearch>
+void PatchMatch<TImage, TPropagation, TRandomSearch>::RandomlyInitializeNNField()
+{
+    itk::ImageRegion<2> internalRegion = ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(),
+                                              this->PatchRadius);
+
+    itk::ImageRegionIteratorWithIndex<NNFieldType> nnFieldIterator(this->NNField, internalRegion);
+
+    while(!nnFieldIterator.IsAtEnd())
+    {
+      itk::ImageRegion<2> targetRegion = ITKHelpers::GetRegionInRadiusAroundPixel(nnFieldIterator.GetIndex(), this->PatchRadius);
+      itk::ImageRegion<2> randomRegion = GetRandomRegion();
+      Match randomMatch;
+      randomMatch.SetRegion(randomRegion);
+      randomMatch.SetScore(this->RandomSearchFunctor->GetPatchDistanceFunctor()->Distance(randomRegion, targetRegion));
+
+      nnFieldIterator.Set(randomMatch);
+      ++nnFieldIterator;
+    }
+}
+
+template<typename TImage, typename TPropagation, typename TRandomSearch>
+itk::ImageRegion<2> PatchMatch<TImage, TPropagation, TRandomSearch>::GetRandomRegion()
+{
+    itk::ImageRegion<2> internalRegion = ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(),
+                                              this->PatchRadius);
+
+    itk::Index<2> randomPixel;
+    randomPixel[0] = Helpers::RandomInt(internalRegion.GetIndex()[0], internalRegion.GetIndex()[0] + internalRegion.GetSize()[0]);
+    randomPixel[1] = Helpers::RandomInt(internalRegion.GetIndex()[1], internalRegion.GetIndex()[1] + internalRegion.GetSize()[1]);
+
+    itk::ImageRegion<2> randomRegion = ITKHelpers::GetRegionInRadiusAroundPixel(randomPixel, this->PatchRadius);
+
+    return randomRegion;
+}
 
 #endif

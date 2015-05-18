@@ -22,7 +22,6 @@
 // ITK
 #include "itkImage.h"
 #include "itkImageRegion.h"
-#include "itkVectorImage.h"
 
 // Boost
 #include <boost/signals2/signal.hpp>
@@ -33,23 +32,21 @@
 #include <PatchComparison/PatchDistance.h>
 
 // Custom
-#include "AcceptanceTest.h"
-#include "MatchSet.h"
-#include "PatchMatchHelpers.h"
-#include "Process.h"
+#include "Match.h"
+#include "NNField.h"
 
 /** This class computes a nearest neighbor field using the PatchMatch algorithm.
   * Note that this class does not actually need the image, as the acceptance test
   * and the patch distance functor already have the images that they need.*/
+template <typename TImage, typename TPropagation, typename TRandomSearch>
 class PatchMatch
 {
 public:
-  typedef itk::Image<MatchSet, 2> NNFieldType;
+
+  PatchMatch();
 
   /** Perform multiple iterations of propagation and random search.*/
-  template<typename TPropagation, typename TRandomSearch>
-  void Compute(TPropagation* const propagation,
-               TRandomSearch* const randomSearch, Process* const processFunctor);
+  void Compute();
 
   /** Set the number of iterations to perform. */
   void SetIterations(const unsigned int iterations)
@@ -57,16 +54,62 @@ public:
     this->Iterations = iterations;
   }
 
-  boost::signals2::signal<void (PatchMatchHelpers::NNFieldType*)> UpdatedSignal;
+  /** Set the patch radius. */
+  void SetPatchRadius(const unsigned int patchRadius)
+  {
+    this->PatchRadius = patchRadius;
+  }
+
+  /** Set the propagation functor. */
+  void SetPropagationFunctor(TPropagation* const propagationFunctor)
+  {
+      this->PropagationFunctor = propagationFunctor;
+  }
+
+  /** Set the random search functor. */
+  void SetRandomSearchFunctor(TRandomSearch* const randomSearchFunctor)
+  {
+      this->RandomSearchFunctor = randomSearchFunctor;
+  }
+
+  /** Set the image. */
+  void SetImage(TImage* const image)
+  {
+      this->Image = image;
+  }
+
+  /** Set the image. */
+  NNFieldType* GetNNField()
+  {
+      return this->NNField;
+  }
+
+  /** Get a random region in the image. */
+  itk::ImageRegion<2> GetRandomRegion();
+
+  boost::signals2::signal<void (NNFieldType*)> UpdatedSignal;
 
 protected:
 
   /** The number of iterations to perform. */
-  unsigned int Iterations;
+  unsigned int Iterations = 5;
 
-  /** The number of iterations to perform. */
-  PatchMatchHelpers::NNFieldType* nnField;
+  /** The nearest neighbor field. */
+  NNFieldType* NNField = nullptr;
 
+  /** Randomly initialize the NNField. */
+  void RandomlyInitializeNNField();
+
+  /** The radius of patches to compare. (Patch side length = 2*radius + 1)*/
+  unsigned int PatchRadius = 5;
+
+  /** Set the propagation functor. */
+  TPropagation* PropagationFunctor = nullptr;
+
+  /** Set the random search functor. */
+  TRandomSearch* RandomSearchFunctor = nullptr;
+
+  TImage* Image = nullptr;
 }; // end PatchMatch class
 
 #include "PatchMatch.hpp"

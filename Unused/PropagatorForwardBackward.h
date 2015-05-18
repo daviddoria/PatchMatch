@@ -21,65 +21,44 @@
 
 // Custom
 #include "Propagator.h"
-#include "PropagatorInterface.h"
 
 // Boost
 #include <boost/signals2/signal.hpp>
 
-/** A class that traverses a target region and propagates good matches. */
-template <typename TPatchDistanceFunctor,
-          typename TAcceptanceTest>
-class PropagatorForwardBackward : public PropagatorInterface<TPatchDistanceFunctor, TAcceptanceTest>
+/** This class propagates good matches. The propagation alternates between forward and backwards propagation
+    on successive passes.*/
+template <typename TPatchDistanceFunctor>
+class PropagatorForwardBackward
 {
 public:
-  PropagatorForwardBackward() : PropagatorInterface<TPatchDistanceFunctor, TAcceptanceTest>(),
-                                Forward(true) {}
 
   /** Propagate good matches from specified offsets. Returns the number of pixels
     * that were propagated to. */
-  unsigned int Propagate(PatchMatchHelpers::NNFieldType* const nnField, const bool force = false)
+  unsigned int Propagate(NNFieldType* const nnField)
   {
     assert(nnField);
     assert(this->PatchRadius > 0);
-    assert(this->ProcessFunctor);
-    assert(this->AcceptanceTest);
     assert(this->PatchDistanceFunctor);
-    assert(this->ForwardNeighborFunctor);
-    assert(this->BackwardNeighborFunctor);
 
     unsigned int numberOfPropagatedPixels = 0;
     if(this->Forward)
     {
       std::cout << "Propagating forward." << std::endl;
-      this->ProcessFunctor->SetForward(true);
 
-      Propagator<TPatchDistanceFunctor, TAcceptanceTest> propagator;
+      Propagator<TPatchDistanceFunctor> propagator;
       propagator.SetPatchRadius(this->PatchRadius);
-      propagator.SetNeighborFunctor(this->ForwardNeighborFunctor);
-      propagator.SetAcceptanceTest(this->AcceptanceTest);
       propagator.SetPatchDistanceFunctor(this->PatchDistanceFunctor);
-      propagator.SetProcessFunctor(this->ProcessFunctor);
-
-      propagator.AcceptedSignal.connect(this->AcceptedSignal);
-      propagator.ProcessPixelSignal.connect(this->ProcessPixelSignal);
-
+      propagator.SetForward(true);
       numberOfPropagatedPixels = propagator.Propagate(nnField, force);
     }
     else
     {
       std::cout << "Propagating backward." << std::endl;
-      this->ProcessFunctor->SetForward(false);
 
-      Propagator<TPatchDistanceFunctor, TAcceptanceTest> propagator;
+      Propagator<TPatchDistanceFunctor> propagator;
       propagator.SetPatchRadius(this->PatchRadius);
-      propagator.SetNeighborFunctor(this->BackwardNeighborFunctor);
-      propagator.SetAcceptanceTest(this->AcceptanceTest);
       propagator.SetPatchDistanceFunctor(this->PatchDistanceFunctor);
-      propagator.SetProcessFunctor(this->ProcessFunctor);
-
-      propagator.AcceptedSignal.connect(this->AcceptedSignal);
-      propagator.ProcessPixelSignal.connect(this->ProcessPixelSignal);
-
+      propagator.SetForward(false);
       numberOfPropagatedPixels = propagator.Propagate(nnField, force);
     }
 
@@ -88,26 +67,14 @@ public:
     return numberOfPropagatedPixels;
   }
 
-  void SetForwardNeighborFunctor(Neighbors* const forwardNeighborFunctor)
-  {
-    this->ForwardNeighborFunctor = forwardNeighborFunctor;
-  }
-
-  void SetBackwardNeighborFunctor(Neighbors* const backwardNeighborFunctor)
-  {
-    this->BackwardNeighborFunctor = backwardNeighborFunctor;
-  }
-
   boost::signals2::signal<void (const itk::Index<2>& queryCenter, const itk::Index<2>& matchCenter, const float)> AcceptedSignal;
-  boost::signals2::signal<void (PatchMatchHelpers::NNFieldType*)> PropagatedSignal;
+  boost::signals2::signal<void (NNFieldType*)> PropagatedSignal;
   boost::signals2::signal<void (const itk::Index<2>&)> ProcessPixelSignal;
 
 protected:
 
-  bool Forward;
 
-  Neighbors* ForwardNeighborFunctor;
-  Neighbors* BackwardNeighborFunctor;
+
 };
 
 #endif

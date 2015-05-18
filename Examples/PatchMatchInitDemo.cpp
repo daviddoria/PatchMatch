@@ -34,8 +34,7 @@
 
 // Custom
 #include "PatchMatch.h"
-#include "InitializerRandom.h"
-#include "InitializerBoundary.h"
+#include "Propagator.h"
 
 typedef itk::Image<itk::CovariantVector<float, 3>, 2> ImageType;
 
@@ -68,39 +67,26 @@ int main(int argc, char*argv[])
 
   unsigned int patchRadius = 3;
 
-  SSD<ImageType>* patchDistanceFunctor = new SSD<ImageType>;
+  typedef SSD<ImageType> DistanceFunctorType;
+  DistanceFunctorType* patchDistanceFunctor = new DistanceFunctorType;
   patchDistanceFunctor->SetImage(imageReader->GetOutput());
 
-  PatchMatch patchMatch;
-//  patchMatch.SetImage(imageReader->GetOutput());
-//  patchMatch.SetTargetMask(targetMask);
-//  patchMatch.SetSourceMask(sourceMask);
-//  patchMatch.SetIterations(10);
-//  patchMatch.SetPatchRadius(patchRadius);
-//  patchMatch.SetPatchDistanceFunctor(patchDistanceFunctor);
+  typedef Propagator<DistanceFunctorType> PropagatorType;
+  PropagatorType* propagationFunctor = new PropagatorType;
 
-//  PatchMatch<ImageType>::CoordinateImageType::Pointer output =
-//    PatchMatch<ImageType>::CoordinateImageType::New();
+  typedef RandomSearch<ImageType, DistanceFunctorType> RandomSearchType;
+  RandomSearchType* randomSearchFunctor = new RandomSearchType;
 
-//  {
-//  InitializerRandom<ImageType> initializer(imageReader->GetOutput(), patchRadius);
-//  patchMatch.SetInitializer(&initializer);
-//  std::cout << "Starting randomInit..." << std::endl;
-//  patchMatch.Initialize();
+  PatchMatch<ImageType, PropagatorType, RandomSearchType> patchMatch;
+  patchMatch.SetImage(imageReader->GetOutput());
+  patchMatch.SetIterations(5);
+  patchMatch.SetPatchRadius(patchRadius);
+  patchMatch.SetPropagationFunctor(propagationFunctor);
+  patchMatch.SetRandomSearchFunctor(randomSearchFunctor);
+  patchMatch.Compute();
 
-//  PatchMatch<ImageType>::GetPatchCentersImage(patchMatch.GetOutput(), output);
-//  ITKHelpers::WriteImage(output.GetPointer(), "randomInit.mha");
-//  }
-
-//   {
-//   std::cout << "Starting boundaryInit..." << std::endl;
-//   InitializerBoundary<ImageType> initializer(imageReader->GetOutput(), patchRadius);
-//   patchMatch.SetInitializer(&initializer);
-//   patchMatch.Initialize();
-// 
-//   PatchMatch<ImageType>::GetPatchCentersImage(patchMatch.GetOutput(), output);
-//   ITKHelpers::WriteImage(output.GetPointer(), "boundaryInit.mha");
-//   }
+  NNFieldType::Pointer output = patchMatch.GetNNField();
+  PatchMatchHelpers::WriteNNField(output.GetPointer(), "nnfield.mha");
 
   return EXIT_SUCCESS;
 }

@@ -31,27 +31,15 @@
 // Submodules
 #include <ITKHelpers/ITKHelpers.h>
 
-template <typename TImage, typename TPatchDistanceFunctor,
-          typename TAcceptanceTest>
-RandomSearch<TImage, TPatchDistanceFunctor, TAcceptanceTest>::RandomSearch() :
-Image(NULL), SourceMask(NULL), PatchRadius(0), PatchDistanceFunctor(NULL),
-ProcessFunctor(NULL), AcceptanceTest(NULL), Random(true)
-{
-
-}
-
-template <typename TImage, typename TPatchDistanceFunctor,
-          typename TAcceptanceTest>
-void RandomSearch<TImage, TPatchDistanceFunctor, TAcceptanceTest>::
-Search(PatchMatchHelpers::NNFieldType* const nnField)
+template <typename TImage, typename TPatchDistanceFunctor>
+void RandomSearch<TImage, TPatchDistanceFunctor>::
+Search(NNFieldType* const nnField)
 {
   assert(nnField);
   assert(this->Image);
   assert(this->SourceMask);
-  assert(this->PatchRadius >0);
+  assert(this->PatchRadius > 0);
   assert(this->PatchDistanceFunctor);
-  assert(this->ProcessFunctor);
-  assert(this->AcceptanceTest);
 
   assert(nnField->GetLargestPossibleRegion().GetSize()[0] > 0);
   assert(this->Image->GetLargestPossibleRegion().GetSize()[0] > 0);
@@ -65,7 +53,7 @@ Search(PatchMatchHelpers::NNFieldType* const nnField)
 
   unsigned int numberOfUpdatedPixels = 0;
 
-  std::vector<itk::Index<2> > pixelsToProcess = this->ProcessFunctor->GetPixelsToProcess();
+  std::vector<itk::Index<2> > pixelsToProcess = this->GetAllPixelIndices(region);
   for(size_t pixelId = 0; pixelId < pixelsToProcess.size(); ++pixelId)
   {
     itk::Index<2> queryPixel = pixelsToProcess[pixelId];
@@ -74,10 +62,10 @@ Search(PatchMatchHelpers::NNFieldType* const nnField)
       ITKHelpers::GetRegionInRadiusAroundPixel(queryPixel, this->PatchRadius);
 
     if(!region.IsInside(queryRegion))
-      {
-        //std::cerr << "Pixel " << potentialPropagationPixel << " is outside of the image." << std::endl;
-        continue;
-      }
+    {
+      //std::cerr << "Pixel " << potentialPropagationPixel << " is outside of the image." << std::endl;
+      continue;
+    }
 
     unsigned int width = region.GetSize()[0];
     unsigned int height = region.GetSize()[1];
@@ -120,25 +108,18 @@ Search(PatchMatchHelpers::NNFieldType* const nnField)
       // Construct a match object
       Match potentialMatch;
       potentialMatch.SetRegion(randomValidRegion);
-      potentialMatch.SetSSDScore(dist);
+      potentialMatch.SetScore(dist);
 
       // Store this match as the best match if it meets the criteria.
       // In this class, the criteria is simply that it is
       // better than the current best patch. In subclasses (i.e. GeneralizedPatchMatch),
       // it must be better than the worst patch currently stored.
 
-      Match currentMatch = nnField->GetPixel(queryPixel).GetMatch(0);
-      float verificationScore = 0.0f;
-      if(this->AcceptanceTest->IsBetterWithScore(queryRegion, currentMatch, potentialMatch, verificationScore))
-      {
-        AcceptedSignal(queryPixel, ITKHelpers::GetRegionCenter(randomValidRegion), verificationScore);
+      Match currentMatch = nnField->GetPixel(queryPixel);
 
-        potentialMatch.SetVerified(true);
-        potentialMatch.SetAllowPropagation(true);
-        potentialMatch.SetVerificationScore(verificationScore);
-        MatchSet matchSet = nnField->GetPixel(queryPixel);
-        matchSet.AddMatch(potentialMatch);
-        nnField->SetPixel(queryPixel, matchSet);
+      if(potentialMatch.GetScore() < currentMatch.GetScore())
+      {
+        nnField->SetPixel(queryPixel, potentialMatch);
         numberOfUpdatedPixels++;
       }
 
@@ -151,9 +132,8 @@ Search(PatchMatchHelpers::NNFieldType* const nnField)
   //std::cout << "RandomSearch: already exact match " << exactMatchPixels << std::endl;
 }
 
-template <typename TImage, typename TPatchDistanceFunctor,
-          typename TAcceptanceTest>
-void RandomSearch<TImage, TPatchDistanceFunctor, TAcceptanceTest>::InitRandom()
+template <typename TImage, typename TPatchDistanceFunctor>
+void RandomSearch<TImage, TPatchDistanceFunctor>::InitRandom()
 {
   if(this->Random)
   {
@@ -163,6 +143,28 @@ void RandomSearch<TImage, TPatchDistanceFunctor, TAcceptanceTest>::InitRandom()
   {
     srand(0);
   }
+}
+
+template <typename TImage, typename TPatchDistanceFunctor>
+std::vector<itk::Index<2> > RandomSearch<TImage, TPatchDistanceFunctor>::
+GetAllPixelIndices(const itk::ImageRegion<2>& region)
+{
+  std::vector<itk::Index<2> > pixelIndices;
+
+  typedef itk::Image<int, 2> DummyImageType;
+  DummyImageType::Pointer dummyImage = DummyImageType::New();
+  dummyImage->SetRegions(region);
+  dummyImage->Allocate();
+
+  itk::ImageRegionIteratorWithIndex<DummyImageType> imageIterator(dummyImage, region);
+
+  while(!imageIterator.IsAtEnd())
+  {
+    pixelIndices.push_back(imageIterator.GetIndex());
+    ++imageIterator;
+  }
+
+  return pixelIndices;
 }
 
 #endif

@@ -35,9 +35,6 @@
 // Custom
 #include "PatchMatch.h"
 #include "Propagator.h"
-#include "Process.h"
-#include "InitializerRandom.h"
-#include "AcceptanceTestAcceptAll.h"
 #include "RandomSearch.h"
 
 int main(int argc, char*argv[])
@@ -97,47 +94,23 @@ int main(int argc, char*argv[])
   PatchDistanceFunctorType* patchDistanceFunctor = new PatchDistanceFunctorType;
   patchDistanceFunctor->SetImage(image);
 
-  typedef AcceptanceTestAcceptAll AcceptanceTestType;
-  AcceptanceTestType acceptanceTest;
+  typedef Propagator<PatchDistanceFunctorType> PropagatorType;
+  PropagatorType* propagator = new PropagatorType;
 
-  typedef AllowedPropagationNeighbors NeighborFunctorType;
-  typedef ProcessInvalid ProcessFunctorType;
+  typedef RandomSearch<ImageType, PatchDistanceFunctorType> RandomSearchType;
+  RandomSearchType* randomSearchFunctor = new RandomSearchType;
+  randomSearchFunctor->SetPatchDistanceFunctor(patchDistanceFunctor);
 
-  typedef Propagator<NeighborFunctorType, ProcessFunctorType, AcceptanceTestType> PropagatorType;
-  PropagatorType propagator;
-
-  typedef RandomSearch<ImageType> RandomSearchType;
-
-  typedef PatchMatch<PatchDistanceFunctorType, AcceptanceTestType,
+  typedef PatchMatch<ImageType,
                      PropagatorType, RandomSearchType> PatchMatchType;
   PatchMatchType patchMatch;
   patchMatch.SetPatchRadius(patchRadius);
-  patchMatch.SetPropagationFunctor(&propagator);
-  patchMatch.SetPatchDistanceFunctor(patchDistanceFunctor);
-  patchMatch.SetAcceptanceTest(&acceptanceTest);
+  patchMatch.SetPropagationFunctor(propagator);
+  patchMatch.SetRandomSearchFunctor(randomSearchFunctor);
 
-  PatchMatchType::MatchImageType::Pointer initialNNField = PatchMatchType::MatchImageType::New();
-  initialNNField->SetRegions(image->GetLargestPossibleRegion());
-  initialNNField->Allocate();
-
-  InitializerRandom<PatchDistanceFunctorType> initializer;
-  initializer.SetTargetMask(targetMask);
-  initializer.SetPatchRadius(patchRadius);
-  initializer.SetSourceMask(sourceMask);
-  initializer.SetPatchDistanceFunctor(patchDistanceFunctor);
-  initializer.Initialize(initialNNField);
-
-  patchMatch.SetInitialNNField(initialNNField);
-
-  patchMatch.SetPatchDistanceFunctor(patchDistanceFunctor);
-
-  patchMatch.SetTargetMask(targetMask);
-  patchMatch.SetSourceMask(sourceMask);
-  patchMatch.SetIterations(5);
-  patchMatch.SetRandom(false); // for repeatable testing
   patchMatch.Compute();
 
-  PatchMatchHelpers::WriteNNField(patchMatch.GetOutput(), outputFilename);
+  PatchMatchHelpers::WriteNNField(patchMatch.GetNNField(), outputFilename);
 
   return EXIT_SUCCESS;
 }

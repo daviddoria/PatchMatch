@@ -34,6 +34,8 @@
 
 // Custom
 #include "PatchMatch.h"
+#include "Propagator.h"
+#include "RandomSearch.h"
 
 typedef itk::Image<itk::CovariantVector<float, 3>, 2> ImageType;
 
@@ -66,34 +68,28 @@ int main(int argc, char*argv[])
   targetMask->Allocate();
   ITKHelpers::SetImageToConstant(targetMask.GetPointer(), HoleMaskPixelTypeEnum::VALID);
 
-  SSD<ImageType>* patchDistanceFunctor = new SSD<ImageType>;
+  typedef SSD<ImageType> DistanceFunctorType;
+  DistanceFunctorType* patchDistanceFunctor = new DistanceFunctorType;
   patchDistanceFunctor->SetImage(imageReader->GetOutput());
 
-  typedef PatchMatch PatchMatchType;
+  typedef Propagator<DistanceFunctorType> PropagatorType;
+  PropagatorType* propagationFunctor = new PropagatorType;
+
+  typedef RandomSearch<ImageType, DistanceFunctorType> RandomSearchType;
+  RandomSearchType* randomSearchFunctor = new RandomSearchType;
+
+  typedef PatchMatch<ImageType, PropagatorType, RandomSearchType> PatchMatchType;
   PatchMatchType patchMatch;
   patchMatch.SetImage(imageReader->GetOutput());
   patchMatch.SetPatchRadius(3);
   
-  patchMatch.SetPatchDistanceFunctor(patchDistanceFunctor);
-
-//   patchMatch.SetDistanceType(PatchMatch::PCA);
-//   patchMatch.ComputeProjectionMatrix();
-
-  patchMatch.SetTargetMask(targetMask);
-  patchMatch.SetSourceMask(sourceMask);
-  patchMatch.SetIterations(10);
+  patchMatch.SetPropagationFunctor(propagationFunctor);
+  patchMatch.SetRandomSearchFunctor(randomSearchFunctor);
 
   patchMatch.Compute();
 
-  PatchMatchType::CoordinateImageType::Pointer output = PatchMatchType::CoordinateImageType::New();
-
-  patchMatch.GetPatchCentersImage(patchMatch.GetOutput(), output.GetPointer());
-
-  typedef itk::ImageFileWriter<PatchMatchType::CoordinateImageType> WriterType;
-  WriterType::Pointer writer = WriterType::New();
-  writer->SetFileName(outputFilename);
-  writer->SetInput(output);
-  writer->Update();
+  NNFieldType::Pointer output = patchMatch.GetNNField();
+  PatchMatchHelpers::WriteNNField(output.GetPointer(), "nnfield.mha");
 
   return EXIT_SUCCESS;
 }

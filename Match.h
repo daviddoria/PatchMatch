@@ -25,75 +25,20 @@
 // STL
 #include <limits>
 
-// Submodules
-#include <Helpers/Helpers.h>
-
-/** A simple container to pair a region with its patch difference value/score. */
+/** A simple container to pair a region with its patch difference value/score.
+ *  It is convenient to store the value along with the location of the match
+ *  so that we don't ever have to recompute it.
+ */
 class Match
 {
 public:
 
-  Match() : SSDScore(InvalidScore), VerificationScore(InvalidScore), Verified(false), AllowPropagation(false)
+  Match() : Score(0)
   {
     itk::Index<2> index = {{0,0}};
     itk::Size<2> size = {{0,0}};
     this->Region.SetIndex(index);
     this->Region.SetSize(size);
-  }
-
-  /** Determine if the score is valid. */
-  bool IsValid() const
-  {
-    if(Helpers::IsNaN(this->SSDScore))
-    {
-      return false;
-    }
-
-    if(this->Region.GetSize()[0] == 0 || this->Region.GetSize()[1] == 0)
-    {
-      return false;
-    }
-
-    return true;
-  }
-
-  /** Determine if the match is valid. */
-  bool IsVerified() const
-  {
-    return this->Verified;
-  }
-
-  /** Set if the match has been verified. */
-  void SetVerified(const bool verified)
-  {
-    this->Verified = verified;
-  }
-
-  /** Get if the match is allowed to be propagated. */
-  bool GetAllowPropagation()
-  {
-    return this->AllowPropagation;
-  }
-
-  /** Set if the match is allowed to be propagated. */
-  void SetAllowPropagation(const bool allowPropagation)
-  {
-    this->AllowPropagation = allowPropagation;
-  }
-
-  /** Set the Match to be invalid. */
-  void MakeInvalid()
-  {
-    this->SSDScore = this->InvalidScore;
-    this->VerificationScore = this->InvalidScore;
-
-    itk::Index<2> invalidIndex = {{0,0}};
-    itk::Size<2> invalidSize = {{0,0}};
-    itk::ImageRegion<2> invalidRegion(invalidIndex, invalidSize);
-
-    this->Region = invalidRegion;
-
-    this->Verified = false;
   }
 
   void SetRegion(const itk::ImageRegion<2>& region)
@@ -106,63 +51,19 @@ public:
     return this->Region;
   }
 
-  void SetSSDScore(const float& ssdScore)
+  void SetScore(const float& score)
   {
-    this->SSDScore = ssdScore;
+    this->Score = score;
   }
 
-  float GetSSDScore() const
+  float GetScore() const
   {
-    return this->SSDScore;
-  }
-
-  float GetVerificationScore() const
-  {
-    return this->VerificationScore;
-  }
-
-  void SetVerificationScore(const float& verificationScore)
-  {
-    this->VerificationScore = verificationScore;
+    return this->Score;
   }
 
   bool operator==(const Match &other) const
   {
-    // Take special care in comparing scores because they could be NaN (which doesn't compare as expected).
-
-    // If one score is NaN and the other is not
-    if(Helpers::IsNaN(this->SSDScore) != Helpers::IsNaN(other.SSDScore))
-    {
-      return false;
-    }
-
-    // If one score is not NaN, the other must also not be NaN (or the previous test would have failed), so we can compare them normally
-    if(!Helpers::IsNaN(this->SSDScore))
-    {
-      if(this->SSDScore != other.SSDScore)
-      {
-        return false;
-      }
-    }
-
-    // If one score is NaN and the other is not
-    if(Helpers::IsNaN(this->VerificationScore) != Helpers::IsNaN(other.VerificationScore))
-    {
-      return false;
-    }
-
-    // If one score is not NaN, the other must also not be NaN (or the previous test would have failed), so we can compare them normally
-    if(!Helpers::IsNaN(this->VerificationScore))
-    {
-      if(this->VerificationScore != other.VerificationScore)
-      {
-        return false;
-      }
-    }
-
-    // Compare normal members
-    if((this->Verified != other.Verified) ||
-       (this->Region == other.Region))
+    if((this->Region != other.GetRegion()) || (this->Score != other.GetScore()))
     {
       return false;
     }
@@ -175,19 +76,7 @@ private:
   itk::ImageRegion<2> Region;
 
   /** The score according to which ever PatchDistanceFunctor is being used. */
-  float SSDScore;
-
-  /** The score according to a verification test being used. */
-  float VerificationScore;
-
-  /** A constant making it easier to define an invalid score.*/
-  static constexpr float InvalidScore = std::numeric_limits< float >::quiet_NaN();
-
-  /** A flag to determine if the Match has passed some sort of test (histogram, etc). */
-  bool Verified;
-
-  /** A flag to determine if the information at this pixel can be propagated. */
-  bool AllowPropagation;
+  float Score;
 };
 
 #endif

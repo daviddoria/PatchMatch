@@ -27,25 +27,22 @@
 
 // Submodules
 #include <Mask/Mask.h>
-
 #include <ITKHelpers/ITKHelpers.h>
 
 // Custom
 #include "Match.h"
-#include "MatchSet.h"
+#include "NNField.h"
 
 namespace PatchMatchHelpers
 {
+///////// Types //////////
+//typedef itk::Image<itk::CovariantVector<float, 3>, 2> CoordinateImageType;
+typedef itk::VectorImage<float, 2> CoordinateImageType;
 
 //typedef itk::Image<itk::CovariantVector<float, 3>, 2> CoordinateImageType;
 typedef itk::VectorImage<float, 2> CoordinateImageType;
 
-itk::Offset<2> RandomNeighborNonZeroOffset();
-
-//typedef itk::Image<itk::CovariantVector<float, 3>, 2> CoordinateImageType;
-typedef itk::VectorImage<float, 2> CoordinateImageType;
-
-/////////// Non-template functions (defined in PatchMatchHelpers.hpp) /////////////
+///////// Function templates (defined in PatchMatchHelpers.hpp) //////////
 template <typename NNFieldType, typename CoordinateImageType>
 void GetPatchCentersImage(const NNFieldType* const matchImage, CoordinateImageType* const output);
 
@@ -54,40 +51,11 @@ void GetPatchCentersImage(const NNFieldType* const matchImage, CoordinateImageTy
 template <typename NNFieldType>
 void WriteNNField(const NNFieldType* const nnField, const std::string& fileName);
 
-/** Count how many pixels in the 'nnField' which are Valid in the 'mask' pass (return true) the testFunctor. */
-template <typename NNFieldType, typename TTestFunctor>
-unsigned int CountTestedPixels(const NNFieldType* const nnField, const Mask* const mask,
-                               TTestFunctor testFunctor);
-
-/** Get the pixels in the 'nnField' which are Valid in the 'mask' pass (return true) the testFunctor. */
-template <typename NNFieldType, typename TTestFunctor>
-std::vector<itk::Index<2> > GetTestedPixels(const NNFieldType* const nnField, const Mask* const mask,
-                                            TTestFunctor testFunctor);
-
-template <typename NNFieldType>
-unsigned int CountInvalidPixels(const NNFieldType* const nnField, const Mask* const mask);
-
-template <typename NNFieldType>
-unsigned int CountUnverifiedPixels(const NNFieldType* const nnField, const Mask* const mask);
-
-template <typename NNFieldType>
-std::vector<itk::Index<2> > GetUnverifiedPixels(const NNFieldType* const nnField,
-                                                const Mask* const mask);
-
-template <typename TImage, typename TTestFunction>
-void CopyPixelsIf(const TImage* const oldImage, const TImage* const possibleNewImage,
-                  TTestFunction testFunction, TImage* const output);
-
 /////////// Non-template functions (defined in PatchMatchHelpers.cpp) /////////////
-void WriteValidPixels(const NNFieldType* const nnField, const std::string& fileName);
-
-void WriteVerifiedPixels(const NNFieldType* const nnField, const std::string& fileName);
-
-void WriteConsistentRegions(const NNFieldType* const nnField, const Mask* const regionMask,
-                            const std::string& fileName);
-
 void ReadNNField(const std::string& fileName, const unsigned int patchRadius,
                  NNFieldType* const nnField);
+
+itk::Offset<2> RandomNeighborNonZeroOffset();
 
 } // end PatchMatchHelpers namespace
 
