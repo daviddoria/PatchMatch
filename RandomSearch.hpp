@@ -37,7 +37,6 @@ Search(NNFieldType* const nnField)
 {
   assert(nnField);
   assert(this->Image);
-  assert(this->SourceMask);
   assert(this->PatchRadius > 0);
   assert(this->PatchDistanceFunctor);
 
@@ -49,11 +48,12 @@ Search(NNFieldType* const nnField)
   InitRandom();
 
   // The full region - so we can refer to this without specifying an image/mask that it is associated with
-  itk::ImageRegion<2> region = nnField->GetLargestPossibleRegion();
+  //itk::ImageRegion<2> region = nnField->GetLargestPossibleRegion();
+  itk::ImageRegion<2> internalRegion = ITKHelpers::GetInternalRegion(nnField->GetLargestPossibleRegion(), this->PatchRadius);
 
   unsigned int numberOfUpdatedPixels = 0;
 
-  std::vector<itk::Index<2> > pixelsToProcess = this->GetAllPixelIndices(region);
+  std::vector<itk::Index<2> > pixelsToProcess = this->GetAllPixelIndices(internalRegion);
   for(size_t pixelId = 0; pixelId < pixelsToProcess.size(); ++pixelId)
   {
     itk::Index<2> queryPixel = pixelsToProcess[pixelId];
@@ -61,14 +61,14 @@ Search(NNFieldType* const nnField)
     itk::ImageRegion<2> queryRegion =
       ITKHelpers::GetRegionInRadiusAroundPixel(queryPixel, this->PatchRadius);
 
-    if(!region.IsInside(queryRegion))
+    if(!internalRegion.IsInside(queryRegion))
     {
       //std::cerr << "Pixel " << potentialPropagationPixel << " is outside of the image." << std::endl;
       continue;
     }
 
-    unsigned int width = region.GetSize()[0];
-    unsigned int height = region.GetSize()[1];
+    unsigned int width = internalRegion.GetSize()[0];
+    unsigned int height = internalRegion.GetSize()[1];
 
     // The maximum (first) search radius, as prescribed in PatchMatch paper section 3.2
     unsigned int radius = std::max(width, height);
@@ -82,25 +82,9 @@ Search(NNFieldType* const nnField)
     while (radius > this->PatchRadius) // while there is more than just the current patch to search
     {
       itk::ImageRegion<2> searchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(queryPixel, radius);
-      searchRegion.Crop(region);
+      searchRegion.Crop(internalRegion);
 
-      unsigned int maxNumberOfAttempts = 5; // How many random patches to test for validity before giving up
-
-      itk::ImageRegion<2> randomValidRegion;
-      try
-      {
-        // This function throws an exception if no valid patch was found
-        randomValidRegion =
-                  MaskOperations::GetRandomValidPatchInRegion(this->SourceMask,
-                                                              searchRegion, this->PatchRadius,
-                                                              maxNumberOfAttempts);
-      }
-      catch (...) // If no suitable region is found, move on
-      {
-        //std::cout << "No suitable region found." << std::endl;
-        radius *= alpha;
-        continue;
-      }
+      itk::ImageRegion<2> randomValidRegion = ITKHelpers::GetRegionInRadiusAroundPixel(GetRandomPixelInRegion(searchRegion), this->PatchRadius);
 
       // Compute the patch difference
       float dist = this->PatchDistanceFunctor->Distance(randomValidRegion, queryRegion);
@@ -165,6 +149,17 @@ GetAllPixelIndices(const itk::ImageRegion<2>& region)
   }
 
   return pixelIndices;
+}
+
+template <typename TImage, typename TPatchDistanceFunctor>
+itk::Index<2> RandomSearch<TImage, TPatchDistanceFunctor>::
+GetRandomPixelInRegion(const itk::ImageRegion<2>& region)
+{
+    itk::Index<2> pixel;
+    pixel[0] = region.GetIndex()[0] + Helpers::RandomInt(0, region.GetSize()[0] - 1);
+    pixel[1] = region.GetIndex()[1] + Helpers::RandomInt(0, region.GetSize()[1] - 1);
+
+    return pixel;
 }
 
 #endif

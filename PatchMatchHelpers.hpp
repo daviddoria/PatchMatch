@@ -29,8 +29,6 @@ template <typename NNFieldType, typename CoordinateImageType>
 void GetPatchCentersImage(const NNFieldType* const matchImage, CoordinateImageType* const output)
 {
   output->SetRegions(matchImage->GetLargestPossibleRegion());
-  unsigned int numberOfComponents = 2; // (x,y) of the best match
-  output->SetNumberOfComponentsPerPixel(numberOfComponents);
   output->Allocate();
 
   itk::ImageRegionConstIterator<NNFieldType> imageIterator(matchImage,
@@ -39,7 +37,6 @@ void GetPatchCentersImage(const NNFieldType* const matchImage, CoordinateImageTy
   while(!imageIterator.IsAtEnd())
   {
     typename CoordinateImageType::PixelType pixel;
-    pixel.SetSize(numberOfComponents);
 
     Match match = imageIterator.Get();
 

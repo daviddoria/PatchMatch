@@ -40,9 +40,9 @@
 int main(int argc, char*argv[])
 {
   // Verify arguments
-  if(argc < 5)
+  if(argc < 4)
   {
-    std::cerr << "Required arguments: image mask patchRadius output" << std::endl;
+    std::cerr << "Required arguments: image patchRadius output" << std::endl;
     return EXIT_FAILURE;
   }
 
@@ -53,15 +53,13 @@ int main(int argc, char*argv[])
     ss << argv[i] << " ";
   }
   std::string imageFilename;
-  std::string maskFilename;
   unsigned int patchRadius;
   std::string outputFilename;
 
-  ss >> imageFilename >> maskFilename >> patchRadius >> outputFilename;
+  ss >> imageFilename >> patchRadius >> outputFilename;
 
   // Output arguments
   std::cout << "imageFilename: " << imageFilename << std::endl;
-  std::cout << "maskFilename: " << maskFilename << std::endl;
   std::cout << "patchRadius: " << patchRadius << std::endl;
   std::cout << "outputFilename: " << outputFilename << std::endl;
 
@@ -73,22 +71,6 @@ int main(int argc, char*argv[])
   imageReader->Update();
 
   ImageType* image = imageReader->GetOutput();
-
-  // Read the source mask
-  Mask::Pointer sourceMask = Mask::New();
-  sourceMask->Read(maskFilename);
-
-  // Read or create the target mask
-  Mask::Pointer targetMask = Mask::New();
-
-  // Compute the entire NN-field
-//   targetMask->SetRegions(sourceMask->GetLargestPossibleRegion());
-//   targetMask->Allocate();
-//   ITKHelpers::SetImageToConstant(targetMask.GetPointer(), targetMask->GetValidValue());
-
-  // Only compute the NN-field in the hole
-  targetMask->Read(maskFilename);
-  targetMask->InvertData();
 
   typedef SSD<ImageType> PatchDistanceFunctorType;
   PatchDistanceFunctorType* patchDistanceFunctor = new PatchDistanceFunctorType;

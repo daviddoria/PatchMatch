@@ -44,11 +44,6 @@ struct RandomSearch
     this->Image = image;
   }
 
-  void SetSourceMask(Mask* const mask)
-  {
-    this->SourceMask = mask;
-  }
-
   void SetPatchDistanceFunctor(TPatchDistanceFunctor* const patchDistanceFunctor)
   {
     this->PatchDistanceFunctor = patchDistanceFunctor;
@@ -68,9 +63,13 @@ struct RandomSearch
   }
 
 private:
+  /** The image on which to operate. */
   TImage* Image = nullptr;
-  Mask* SourceMask = nullptr;
+
+  /** The patch radius we are using to define regions to compare. */
   unsigned int PatchRadius = 0;
+
+  /** The functor used to compare patches. */
   TPatchDistanceFunctor* PatchDistanceFunctor = nullptr;
 
   /** Determine if the result should be randomized. This should only be false for testing purposes. */
@@ -79,7 +78,11 @@ private:
   /** Seed the random number generator if we are supposed to. */
   void InitRandom();
 
+  /** Get a list of the pixels in a region in raster scan order. */
   std::vector<itk::Index<2> > GetAllPixelIndices(const itk::ImageRegion<2>& region);
+
+  /** Get a random pixel in the specified region. */
+  itk::Index<2> GetRandomPixelInRegion(const itk::ImageRegion<2>& region);
 };
 
 #include "RandomSearch.hpp"

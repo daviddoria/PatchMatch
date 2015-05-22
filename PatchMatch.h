@@ -43,8 +43,6 @@ class PatchMatch
 {
 public:
 
-  PatchMatch();
-
   /** Perform multiple iterations of propagation and random search.*/
   void Compute();
 
@@ -95,7 +93,7 @@ protected:
   unsigned int Iterations = 5;
 
   /** The nearest neighbor field. */
-  NNFieldType* NNField = nullptr;
+  NNFieldType::Pointer NNField = NNFieldType::New();
 
   /** Randomly initialize the NNField. */
   void RandomlyInitializeNNField();

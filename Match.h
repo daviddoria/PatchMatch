@@ -76,7 +76,7 @@ private:
   itk::ImageRegion<2> Region;
 
   /** The score according to which ever PatchDistanceFunctor is being used. */
-  float Score;
+  float Score = 0;
 };
 
 #endif

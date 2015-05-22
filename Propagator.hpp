@@ -31,11 +31,9 @@ Propagate(NNFieldType* const nnField)
 {
   assert(this->PatchDistanceFunctor);
 
-  itk::ImageRegion<2> fullRegion = nnField->GetLargestPossibleRegion();
+  itk::ImageRegion<2> internalRegion = ITKHelpers::GetInternalRegion(nnField->GetLargestPossibleRegion(), this->PatchRadius);
 
-  assert(nnField->GetLargestPossibleRegion().GetSize()[0] > 0); // An initialization must be provided
-
-  std::vector<itk::Index<2> > targetPixels = GetTraversalPixels(fullRegion);
+  std::vector<itk::Index<2> > targetPixels = GetTraversalPixels(internalRegion);
 
 //  std::cout << "Propagation(): There are " << targetPixels.size()
 //            << " pixels that would like to be processed." << std::endl;
@@ -74,39 +72,47 @@ Propagate(NNFieldType* const nnField)
       // - potentialMatch should be (11,10), because since the current pixel is 1 to the right
       // of the neighbor, we need to consider the patch one to the right of the neighbors best match
 
+      itk::Index<2> nnFieldLocation = targetPixel + propagationOffset;
+
+      if(!internalRegion.IsInside(nnFieldLocation))
+      {
+          continue; // We don't want to propagate information from outside of the
+                    // viable NN field region
+      }
+
+      NNFieldType::PixelType nnFieldPixel = nnField->GetPixel(nnFieldLocation);
       itk::Index<2> bestMatchPixel =
-        ITKHelpers::GetRegionCenter(nnField->GetPixel(targetPixel + propagationOffset).GetRegion());
+        ITKHelpers::GetRegionCenter(nnFieldPixel.GetRegion());
+
       itk::Index<2> potentialMatchPixel = bestMatchPixel - propagationOffset;
+
+      if(!internalRegion.IsInside(potentialMatchPixel))
+      {
+          continue; // We don't want to propagate information from outside of the
+                    // viable NN field region
+      }
 
       itk::ImageRegion<2> potentialMatchRegion =
             ITKHelpers::GetRegionInRadiusAroundPixel(potentialMatchPixel, this->PatchRadius);
 
-      if(!fullRegion.IsInside(potentialMatchRegion))
+
+      float distance = this->PatchDistanceFunctor->Distance(potentialMatchRegion, targetRegion);
+
+      Match potentialMatch;
+      potentialMatch.SetRegion(potentialMatchRegion);
+      potentialMatch.SetScore(distance);
+
+      // If there were previous matches, add this one if it is better
+      Match currentMatch = nnField->GetPixel(targetPixel);
+
+      if(potentialMatch.GetScore() < currentMatch.GetScore())
       {
-        // do nothing - we don't want to propagate information that is not originally valid
-        //std::cerr << "Cannot propagate from this source region " << potentialMatchRegion
-        //          << " - it is outside of the image!" << std::endl;
+        nnField->SetPixel(targetPixel, potentialMatch);
       }
-      else
-      {
-        float distance = this->PatchDistanceFunctor->Distance(potentialMatchRegion, targetRegion);
 
-        Match potentialMatch;
-        potentialMatch.SetRegion(potentialMatchRegion);
-        potentialMatch.SetScore(distance);
+      //PropagatedSignal(nnField);
+      propagated = true;
 
-        // If there were previous matches, add this one if it is better
-        Match currentMatch = nnField->GetPixel(targetPixel);
-
-        if(potentialMatch.GetScore() < currentMatch.GetScore())
-        {
-          nnField->SetPixel(targetPixel, potentialMatch);
-        }
-
-        //PropagatedSignal(nnField);
-        propagated = true;
-
-      } // end else source region valid
     } // end loop over potentialPropagationPixels
 
     if(propagated)

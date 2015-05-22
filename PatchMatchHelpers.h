@@ -36,11 +36,7 @@
 namespace PatchMatchHelpers
 {
 ///////// Types //////////
-//typedef itk::Image<itk::CovariantVector<float, 3>, 2> CoordinateImageType;
-typedef itk::VectorImage<float, 2> CoordinateImageType;
-
-//typedef itk::Image<itk::CovariantVector<float, 3>, 2> CoordinateImageType;
-typedef itk::VectorImage<float, 2> CoordinateImageType;
+typedef itk::Image<itk::CovariantVector<unsigned int, 2>, 2> CoordinateImageType;
 
 ///////// Function templates (defined in PatchMatchHelpers.hpp) //////////
 template <typename NNFieldType, typename CoordinateImageType>

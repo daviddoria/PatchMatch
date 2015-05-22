@@ -19,6 +19,10 @@
 #ifndef NNField_H
 #define NNField_H
 
+#include "Match.h"
+
+#include "itkImage.h"
+
 typedef itk::Image<Match, 2> NNFieldType;
 
 #endif
