@@ -59,6 +59,9 @@ ENDIF()
 
 UseSubmodule(PatchComparison PatchMatch)
 
+add_library(PatchMatch PatchMatchHelpers.cpp)
+set(PatchMatch_libraries ${PatchMatch_libraries} PatchMatch)
+
 CreateSubmodule(PatchMatch)
 
 SET(PatchMatch_BuildExamples OFF CACHE BOOL "Build examples?")
@@ -75,5 +78,3 @@ SET(PatchMatch_BuildDrivers OFF CACHE BOOL "Build drivers?")
 if(PatchMatch_BuildDrivers)
  add_subdirectory(Drivers)
 endif()
-
-add_library(PatchMatchHelpers PatchMatchHelpers.cpp)

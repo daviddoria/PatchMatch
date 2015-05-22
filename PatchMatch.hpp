@@ -42,12 +42,6 @@
 #include "PatchMatchHelpers.h"
 #include "RandomSearch.h"
 
-//template<typename TImage, typename TPropagation, typename TRandomSearch>
-//PatchMatch<TImage, TPropagation, TRandomSearch>::PatchMatch()
-//{
-//    this->NNField = NNFieldType::New();
-//}
-
 template<typename TImage, typename TPropagation, typename TRandomSearch>
 void PatchMatch<TImage, TPropagation, TRandomSearch>::Compute()
 {
@@ -99,7 +93,8 @@ void PatchMatch<TImage, TPropagation, TRandomSearch>::RandomlyInitializeNNField(
     while(!nnFieldIterator.IsAtEnd())
     {
       itk::ImageRegion<2> targetRegion = ITKHelpers::GetRegionInRadiusAroundPixel(nnFieldIterator.GetIndex(), this->PatchRadius);
-      itk::ImageRegion<2> randomRegion = GetRandomRegion();
+
+      itk::ImageRegion<2> randomRegion = PatchMatchHelpers::GetRandomRegionInRegion(internalRegion, this->PatchRadius);
       Match randomMatch;
       randomMatch.SetRegion(randomRegion);
       randomMatch.SetScore(this->RandomSearchFunctor->GetPatchDistanceFunctor()->Distance(randomRegion, targetRegion));
@@ -109,19 +104,5 @@ void PatchMatch<TImage, TPropagation, TRandomSearch>::RandomlyInitializeNNField(
     }
 }
 
-template<typename TImage, typename TPropagation, typename TRandomSearch>
-itk::ImageRegion<2> PatchMatch<TImage, TPropagation, TRandomSearch>::GetRandomRegion()
-{
-    itk::ImageRegion<2> internalRegion = ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(),
-                                              this->PatchRadius);
-
-    itk::Index<2> randomPixel;
-    randomPixel[0] = Helpers::RandomInt(internalRegion.GetIndex()[0], internalRegion.GetIndex()[0] + internalRegion.GetSize()[0]);
-    randomPixel[1] = Helpers::RandomInt(internalRegion.GetIndex()[1], internalRegion.GetIndex()[1] + internalRegion.GetSize()[1]);
-
-    itk::ImageRegion<2> randomRegion = ITKHelpers::GetRegionInRadiusAroundPixel(randomPixel, this->PatchRadius);
-
-    return randomRegion;
-}
 
 #endif

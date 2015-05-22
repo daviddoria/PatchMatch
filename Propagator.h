@@ -49,13 +49,16 @@ public:
   }
 
 private:
+  /** A flag indicating whether we are in the forward (true) or backward (false) pass case. */
   bool Forward = true;
 
-  std::vector<itk::Index<2> > GetTraversalPixels(const itk::ImageRegion<2>& region);
+  /** Return either the top and left pixel offsets or bottom and right pixel offsets depending on the Forward flag. */
   std::vector<itk::Offset<2> > GetPropagationOffsets();
 
+  /** The radius of the patches. */
   unsigned int PatchRadius = 5;
 
+  /** The functor used to compare patches. */
   TPatchDistanceFunctor* PatchDistanceFunctor = nullptr;
 };
 

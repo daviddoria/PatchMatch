@@ -39,6 +39,7 @@ namespace PatchMatchHelpers
 typedef itk::Image<itk::CovariantVector<unsigned int, 2>, 2> CoordinateImageType;
 
 ///////// Function templates (defined in PatchMatchHelpers.hpp) //////////
+
 template <typename NNFieldType, typename CoordinateImageType>
 void GetPatchCentersImage(const NNFieldType* const matchImage, CoordinateImageType* const output);
 
@@ -48,10 +49,19 @@ template <typename NNFieldType>
 void WriteNNField(const NNFieldType* const nnField, const std::string& fileName);
 
 /////////// Non-template functions (defined in PatchMatchHelpers.cpp) /////////////
+
+/** Read a nearest neighbor field from a file. */
 void ReadNNField(const std::string& fileName, const unsigned int patchRadius,
                  NNFieldType* const nnField);
 
-itk::Offset<2> RandomNeighborNonZeroOffset();
+/** Get a random region inside of a specified 'region'. */
+itk::ImageRegion<2> GetRandomRegionInRegion(const itk::ImageRegion<2>& region, const unsigned int patchRadius);
+
+/** Get a random pixel index in a 'region'. */
+itk::Index<2> GetRandomPixelInRegion(const itk::ImageRegion<2>& region);
+
+/** Get a list of all of the indices in a 'region' in raster scan order. */
+std::vector<itk::Index<2> > GetAllPixelIndices(const itk::ImageRegion<2>& region);
 
 } // end PatchMatchHelpers namespace
 

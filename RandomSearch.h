@@ -32,23 +32,28 @@
 template <typename TImage, typename TPatchDistanceFunctor>
 struct RandomSearch
 {
+  /** Look for a better matching patch in a region of decreasing radius. */
   void Search(NNFieldType* const nnField);
 
+  /** Set the patch radius. */
   void SetPatchRadius(const unsigned int patchRadius)
   {
     this->PatchRadius = patchRadius;
   }
 
+  /** Set the image on which to operate. */
   void SetImage(TImage* const image)
   {
     this->Image = image;
   }
 
+  /** Set the functor used to compare patches. */
   void SetPatchDistanceFunctor(TPatchDistanceFunctor* const patchDistanceFunctor)
   {
     this->PatchDistanceFunctor = patchDistanceFunctor;
   }
 
+  /** Get the functor used to compare patches. */
   TPatchDistanceFunctor* GetPatchDistanceFunctor() const
   {
     return this->PatchDistanceFunctor;
@@ -78,11 +83,12 @@ private:
   /** Seed the random number generator if we are supposed to. */
   void InitRandom();
 
-  /** Get a list of the pixels in a region in raster scan order. */
-  std::vector<itk::Index<2> > GetAllPixelIndices(const itk::ImageRegion<2>& region);
-
   /** Get a random pixel in the specified region. */
   itk::Index<2> GetRandomPixelInRegion(const itk::ImageRegion<2>& region);
+
+  /** The fraction by which to reduce the search radius at each iteration,
+      given by 'alpha' in PatchMatch paper section 3.2 */
+  float RegionReductionRatio = 0.5;
 };
 
 #include "RandomSearch.hpp"

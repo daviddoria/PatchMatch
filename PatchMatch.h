@@ -64,10 +64,22 @@ public:
       this->PropagationFunctor = propagationFunctor;
   }
 
+  /** Get the propagation functor. */
+  TPropagation* GetPropagationFunctor()
+  {
+      return this->PropagationFunctor;
+  }
+
   /** Set the random search functor. */
   void SetRandomSearchFunctor(TRandomSearch* const randomSearchFunctor)
   {
       this->RandomSearchFunctor = randomSearchFunctor;
+  }
+
+  /** Get the random search functor. */
+  TRandomSearch* GetRandomSearchFunctor()
+  {
+      return this->RandomSearchFunctor;
   }
 
   /** Set the image. */

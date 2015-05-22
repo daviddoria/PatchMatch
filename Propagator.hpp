@@ -33,8 +33,12 @@ Propagate(NNFieldType* const nnField)
 
   itk::ImageRegion<2> internalRegion = ITKHelpers::GetInternalRegion(nnField->GetLargestPossibleRegion(), this->PatchRadius);
 
-  std::vector<itk::Index<2> > targetPixels = GetTraversalPixels(internalRegion);
+  std::vector<itk::Index<2> > targetPixels = PatchMatchHelpers::GetAllPixelIndices(internalRegion);
 
+  if(this->Forward == false)
+  {
+      std::reverse(targetPixels.begin(), targetPixels.end());
+  }
 //  std::cout << "Propagation(): There are " << targetPixels.size()
 //            << " pixels that would like to be processed." << std::endl;
 
@@ -130,32 +134,6 @@ Propagate(NNFieldType* const nnField)
   return numberOfPropagatedPixels;
 }
 
-template <typename TPatchDistanceFunctor>
-std::vector<itk::Index<2> > Propagator<TPatchDistanceFunctor>::
-GetTraversalPixels(const itk::ImageRegion<2>& region)
-{
-  std::vector<itk::Index<2> > traversalPixels;
-
-  typedef itk::Image<int, 2> DummyImageType;
-  DummyImageType::Pointer dummyImage = DummyImageType::New();
-  dummyImage->SetRegions(region);
-  dummyImage->Allocate();
-
-  itk::ImageRegionIteratorWithIndex<DummyImageType> imageIterator(dummyImage, region);
-
-  while(!imageIterator.IsAtEnd())
-  {
-    traversalPixels.push_back(imageIterator.GetIndex());
-    ++imageIterator;
-  }
-
-  if(this->Forward == false)
-  {
-      std::reverse(traversalPixels.begin(), traversalPixels.end());
-  }
-
-  return traversalPixels;
-}
 
 template <typename TPatchDistanceFunctor>
 std::vector<itk::Offset<2> > Propagator<TPatchDistanceFunctor>::

@@ -22,21 +22,17 @@
 namespace PatchMatchHelpers
 {
 
-itk::Offset<2> RandomNeighborNonZeroOffset()
+itk::ImageRegion<2> GetRandomRegionInRegion(const itk::ImageRegion<2>& region, const unsigned int patchRadius)
 {
-  int randomOffsetX = 0;
-  int randomOffsetY = 0;
-  while((randomOffsetX == 0) && (randomOffsetY == 0) ) // We don't want the random offset to be (0,0), because the histogram difference would be zero!
-  {
-    // Generate random numbers in the set (-1,0,1) by generating a number in (0,1,2) and then subtracting 1
-    randomOffsetX = rand()%3 - 1;
-    randomOffsetY = rand()%3 - 1;
-  }
+    itk::Index<2> randomPixel;
+    randomPixel[0] = Helpers::RandomInt(region.GetIndex()[0], region.GetIndex()[0] + region.GetSize()[0]);
+    randomPixel[1] = Helpers::RandomInt(region.GetIndex()[1], region.GetIndex()[1] + region.GetSize()[1]);
 
-  itk::Offset<2> randomNeighborNonZeroOffset = {{randomOffsetX, randomOffsetY}};
+    itk::ImageRegion<2> randomRegion = ITKHelpers::GetRegionInRadiusAroundPixel(randomPixel, patchRadius);
 
-  return randomNeighborNonZeroOffset;
+    return randomRegion;
 }
+
 
 void ReadNNField(const std::string& fileName, const unsigned int patchRadius, NNFieldType* const nnField)
 {
@@ -61,6 +57,35 @@ void ReadNNField(const std::string& fileName, const unsigned int patchRadius, NN
 
     ++imageIterator;
   }
+}
+
+itk::Index<2> GetRandomPixelInRegion(const itk::ImageRegion<2>& region)
+{
+    itk::Index<2> pixel;
+    pixel[0] = region.GetIndex()[0] + Helpers::RandomInt(0, region.GetSize()[0] - 1);
+    pixel[1] = region.GetIndex()[1] + Helpers::RandomInt(0, region.GetSize()[1] - 1);
+
+    return pixel;
+}
+
+std::vector<itk::Index<2> > GetAllPixelIndices(const itk::ImageRegion<2>& region)
+{
+  std::vector<itk::Index<2> > pixelIndices;
+
+  typedef itk::Image<int, 2> DummyImageType;
+  DummyImageType::Pointer dummyImage = DummyImageType::New();
+  dummyImage->SetRegions(region);
+  dummyImage->Allocate();
+
+  itk::ImageRegionIteratorWithIndex<DummyImageType> imageIterator(dummyImage, region);
+
+  while(!imageIterator.IsAtEnd())
+  {
+    pixelIndices.push_back(imageIterator.GetIndex());
+    ++imageIterator;
+  }
+
+  return pixelIndices;
 }
 
 } // namespace PatchMatchHelpers

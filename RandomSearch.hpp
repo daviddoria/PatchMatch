@@ -53,7 +53,7 @@ Search(NNFieldType* const nnField)
 
   unsigned int numberOfUpdatedPixels = 0;
 
-  std::vector<itk::Index<2> > pixelsToProcess = this->GetAllPixelIndices(internalRegion);
+  std::vector<itk::Index<2> > pixelsToProcess = PatchMatchHelpers::GetAllPixelIndices(internalRegion);
   for(size_t pixelId = 0; pixelId < pixelsToProcess.size(); ++pixelId)
   {
     itk::Index<2> queryPixel = pixelsToProcess[pixelId];
@@ -73,18 +73,15 @@ Search(NNFieldType* const nnField)
     // The maximum (first) search radius, as prescribed in PatchMatch paper section 3.2
     unsigned int radius = std::max(width, height);
 
-    // The fraction by which to reduce the search radius at each iteration,
-    // as prescribed in PatchMatch paper section 3.2
-    float alpha = 1.0f/2.0f;
+
 
     // Search an exponentially smaller window each time through the loop
-
     while (radius > this->PatchRadius) // while there is more than just the current patch to search
     {
       itk::ImageRegion<2> searchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(queryPixel, radius);
       searchRegion.Crop(internalRegion);
 
-      itk::ImageRegion<2> randomValidRegion = ITKHelpers::GetRegionInRadiusAroundPixel(GetRandomPixelInRegion(searchRegion), this->PatchRadius);
+      itk::ImageRegion<2> randomValidRegion = ITKHelpers::GetRegionInRadiusAroundPixel(PatchMatchHelpers::GetRandomPixelInRegion(searchRegion), this->PatchRadius);
 
       // Compute the patch difference
       float dist = this->PatchDistanceFunctor->Distance(randomValidRegion, queryRegion);
@@ -107,7 +104,7 @@ Search(NNFieldType* const nnField)
         numberOfUpdatedPixels++;
       }
 
-      radius *= alpha;
+      radius *= this->RegionReductionRatio;
     } // end decreasing radius loop
 
   } // end loop over target pixels
@@ -129,37 +126,7 @@ void RandomSearch<TImage, TPatchDistanceFunctor>::InitRandom()
   }
 }
 
-template <typename TImage, typename TPatchDistanceFunctor>
-std::vector<itk::Index<2> > RandomSearch<TImage, TPatchDistanceFunctor>::
-GetAllPixelIndices(const itk::ImageRegion<2>& region)
-{
-  std::vector<itk::Index<2> > pixelIndices;
 
-  typedef itk::Image<int, 2> DummyImageType;
-  DummyImageType::Pointer dummyImage = DummyImageType::New();
-  dummyImage->SetRegions(region);
-  dummyImage->Allocate();
 
-  itk::ImageRegionIteratorWithIndex<DummyImageType> imageIterator(dummyImage, region);
-
-  while(!imageIterator.IsAtEnd())
-  {
-    pixelIndices.push_back(imageIterator.GetIndex());
-    ++imageIterator;
-  }
-
-  return pixelIndices;
-}
-
-template <typename TImage, typename TPatchDistanceFunctor>
-itk::Index<2> RandomSearch<TImage, TPatchDistanceFunctor>::
-GetRandomPixelInRegion(const itk::ImageRegion<2>& region)
-{
-    itk::Index<2> pixel;
-    pixel[0] = region.GetIndex()[0] + Helpers::RandomInt(0, region.GetSize()[0] - 1);
-    pixel[1] = region.GetIndex()[1] + Helpers::RandomInt(0, region.GetSize()[1] - 1);
-
-    return pixel;
-}
 
 #endif
