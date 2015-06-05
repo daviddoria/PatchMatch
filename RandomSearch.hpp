@@ -45,43 +45,50 @@ Search(NNFieldType* const nnField)
   assert(nnField->GetLargestPossibleRegion().GetSize() ==
          this->Image->GetLargestPossibleRegion().GetSize());
 
-  InitRandom();
+  InitializeRandomGenerator();
 
-  // The full region - so we can refer to this without specifying an image/mask that it is associated with
-  //itk::ImageRegion<2> region = nnField->GetLargestPossibleRegion();
-  itk::ImageRegion<2> internalRegion = ITKHelpers::GetInternalRegion(nnField->GetLargestPossibleRegion(), this->PatchRadius);
+  itk::ImageRegion<2> fullRegion = nnField->GetLargestPossibleRegion();
+  itk::ImageRegion<2> internalRegion = ITKHelpers::GetInternalRegion(fullRegion, this->PatchRadius);
 
   unsigned int numberOfUpdatedPixels = 0;
 
-  std::vector<itk::Index<2> > pixelsToProcess = PatchMatchHelpers::GetAllPixelIndices(internalRegion);
-  for(size_t pixelId = 0; pixelId < pixelsToProcess.size(); ++pixelId)
+  if(this->PixelsToProcess.size() == 0)
   {
-    itk::Index<2> queryPixel = pixelsToProcess[pixelId];
+    this->PixelsToProcess = PatchMatchHelpers::GetAllPixelIndices(internalRegion);
+  }
+
+  unsigned int width = internalRegion.GetSize()[0];
+  unsigned int height = internalRegion.GetSize()[1];
+
+  // The maximum (first) search radius, as prescribed in PatchMatch paper section 3.2
+  unsigned int initialRadius = std::max(width, height);
+
+  for(size_t pixelId = 0; pixelId < this->PixelsToProcess.size(); ++pixelId)
+  {
+    std::cout << "Searching for a better match for pixel " << pixelId << std::endl;
+
+    itk::Index<2> queryPixel = this->PixelsToProcess[pixelId];
 
     itk::ImageRegion<2> queryRegion =
       ITKHelpers::GetRegionInRadiusAroundPixel(queryPixel, this->PatchRadius);
 
-    if(!internalRegion.IsInside(queryRegion))
-    {
-      //std::cerr << "Pixel " << potentialPropagationPixel << " is outside of the image." << std::endl;
-      continue;
-    }
+    assert(fullRegion.IsInside(queryRegion));
 
-    unsigned int width = internalRegion.GetSize()[0];
-    unsigned int height = internalRegion.GetSize()[1];
-
-    // The maximum (first) search radius, as prescribed in PatchMatch paper section 3.2
-    unsigned int radius = std::max(width, height);
-
-
+    unsigned int radius = initialRadius;
 
     // Search an exponentially smaller window each time through the loop
-    while (radius > this->PatchRadius) // while there is more than just the current patch to search
+    while(radius > this->PatchRadius) // while there is more than just the current patch to search
     {
       itk::ImageRegion<2> searchRegion = ITKHelpers::GetRegionInRadiusAroundPixel(queryPixel, radius);
       searchRegion.Crop(internalRegion);
 
-      itk::ImageRegion<2> randomValidRegion = ITKHelpers::GetRegionInRadiusAroundPixel(PatchMatchHelpers::GetRandomPixelInRegion(searchRegion), this->PatchRadius);
+      itk::ImageRegion<2> randomValidRegion;
+      bool hasPixels = GetRandomValidRegion(searchRegion, randomValidRegion);
+
+      if(!hasPixels)
+      {
+          break;
+      }
 
       // Compute the patch difference
       float dist = this->PatchDistanceFunctor->Distance(randomValidRegion, queryRegion);
@@ -114,7 +121,28 @@ Search(NNFieldType* const nnField)
 }
 
 template <typename TImage, typename TPatchDistanceFunctor>
-void RandomSearch<TImage, TPatchDistanceFunctor>::InitRandom()
+bool RandomSearch<TImage, TPatchDistanceFunctor>::
+GetRandomValidRegion(const itk::ImageRegion<2>& region, itk::ImageRegion<2>& randomValidRegion)
+{
+    std::vector<itk::Index<2> > truePixels = ITKHelpers::GetPixelsWithValueInRegion(this->ValidPatchCentersImage, region, true);
+
+    if(truePixels.size() == 0)
+    {
+        return false;
+    }
+
+    unsigned int randomIndex = Helpers::RandomInt(0, truePixels.size() - 1);
+
+    itk::Index<2> randomPixel = truePixels[randomIndex];
+
+    // This is filled instead of returned since it is passed by reference
+    randomValidRegion = ITKHelpers::GetRegionInRadiusAroundPixel(randomPixel, this->PatchRadius);
+
+    return true;
+}
+
+template <typename TImage, typename TPatchDistanceFunctor>
+void RandomSearch<TImage, TPatchDistanceFunctor>::InitializeRandomGenerator()
 {
   if(this->Random)
   {
@@ -125,8 +153,5 @@ void RandomSearch<TImage, TPatchDistanceFunctor>::InitRandom()
     srand(0);
   }
 }
-
-
-
 
 #endif

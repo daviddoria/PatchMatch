@@ -48,7 +48,14 @@ void PatchMatch<TImage, TPropagation, TRandomSearch>::Compute()
   assert(this->PropagationFunctor);
   assert(this->RandomSearchFunctor);
 
-  RandomlyInitializeNNField();
+  // If the NNField is not already initialized, initialize it
+  if(this->NNField->GetLargestPossibleRegion() != this->Image->GetLargestPossibleRegion())
+  {
+    RandomlyInitializeNNField();
+  }
+
+  this->RandomSearchFunctor->SetValidPatchCentersImage(this->ValidPatchCentersImage);
+  this->RandomSearchFunctor->SetPixelsToProcess(this->TargetPixels);
 
   // For the number of iterations specified, perform the appropriate propagation and then a random search
   for(unsigned int iteration = 0; iteration < this->Iterations; ++iteration)
@@ -56,6 +63,7 @@ void PatchMatch<TImage, TPropagation, TRandomSearch>::Compute()
     std::cout << "PatchMatch iteration " << iteration << std::endl;
 
     // We can propagate before random search because we are hoping the the random initialization gave us something good enough to propagate
+    std::cout << "PatchMatch: Propagating..." << std::endl;
     this->PropagationFunctor->Propagate(this->NNField);
 
     UpdatedSignal(this->NNField);
@@ -63,6 +71,7 @@ void PatchMatch<TImage, TPropagation, TRandomSearch>::Compute()
     PatchMatchHelpers::WriteNNField(this->NNField.GetPointer(),
                                     Helpers::GetSequentialFileName("AfterPropagation", iteration, "mha"));
 
+    std::cout << "PatchMatch: Random searching..." << std::endl;
     this->RandomSearchFunctor->Search(this->NNField);
 
     UpdatedSignal(this->NNField);
@@ -104,5 +113,29 @@ void PatchMatch<TImage, TPropagation, TRandomSearch>::RandomlyInitializeNNField(
     }
 }
 
+template<typename TImage, typename TPropagation, typename TRandomSearch>
+void PatchMatch<TImage, TPropagation, TRandomSearch>::CorrectValidPatchCentersImage()
+{
+    itk::ImageRegion<2> internalRegion = ITKHelpers::GetInternalRegion(this->Image->GetLargestPossibleRegion(),
+                                              this->PatchRadius);
+
+    itk::ImageRegionIteratorWithIndex<BoolImageType> boolImageIterator(this->ValidPatchCentersImage, internalRegion);
+
+    while(!boolImageIterator.IsAtEnd())
+    {
+      if(boolImageIterator.Get()) // if the pixel is marked as valid
+      {
+        itk::ImageRegion<2> queryRegion =
+              ITKHelpers::GetRegionInRadiusAroundPixel(boolImageIterator.GetIndex(), this->PatchRadius);
+
+        if(!internalRegion.IsInside(queryRegion))
+        {
+          boolImageIterator.Set(false);
+        }
+      }
+
+      ++boolImageIterator;
+    }
+}
 
 #endif

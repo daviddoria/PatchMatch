@@ -99,6 +99,17 @@ public:
 
   boost::signals2::signal<void (NNFieldType*)> UpdatedSignal;
 
+  void SetTargetPixels(const std::vector<itk::Index<2> > targetPixels)
+  {
+    this->TargetPixels = targetPixels;
+  }
+
+  void SetValidPatchCentersImage(itk::Image<bool, 2>* const validPatchCentersImage)
+  {
+    this->ValidPatchCentersImage = validPatchCentersImage;
+    CorrectValidPatchCentersImage();
+  }
+
 protected:
 
   /** The number of iterations to perform. */
@@ -119,7 +130,20 @@ protected:
   /** Set the random search functor. */
   TRandomSearch* RandomSearchFunctor = nullptr;
 
+  /** The image for which to compute the NNField. */
   TImage* Image = nullptr;
+
+  /** The pixel indices at which to compute the NNField. */
+  std::vector<itk::Index<2> > TargetPixels;
+
+  /** An image where if a pixel is 'true', it is the center of a valid region. */
+  typedef itk::Image<bool, 2> BoolImageType;
+  BoolImageType* ValidPatchCentersImage = nullptr;
+
+  /** Since the ValidPatchCentersImage can be constructed externally, this function ensures
+    * that the pixels marked as valid are the centers of patches of radius PatchRadius that are fully inside the image. */
+  void CorrectValidPatchCentersImage();
+
 }; // end PatchMatch class
 
 #include "PatchMatch.hpp"

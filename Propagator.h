@@ -48,6 +48,11 @@ public:
       this->PatchDistanceFunctor = patchDistanceFunctor;
   }
 
+  void SetTargetPixels(const std::vector<itk::Index<2> > targetPixels)
+  {
+      this->TargetPixels = targetPixels;
+  }
+
 private:
   /** A flag indicating whether we are in the forward (true) or backward (false) pass case. */
   bool Forward = true;
@@ -60,6 +65,9 @@ private:
 
   /** The functor used to compare patches. */
   TPatchDistanceFunctor* PatchDistanceFunctor = nullptr;
+
+  /** The pixels at which to compute the NNField. */
+  std::vector<itk::Index<2> > TargetPixels;
 };
 
 #include "Propagator.hpp"

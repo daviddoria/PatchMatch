@@ -31,14 +31,21 @@ Propagate(NNFieldType* const nnField)
 {
   assert(this->PatchDistanceFunctor);
 
+  // Pixels near the border do not have fully defined patches (the patches that they are the center of are not fully inside the image)
   itk::ImageRegion<2> internalRegion = ITKHelpers::GetInternalRegion(nnField->GetLargestPossibleRegion(), this->PatchRadius);
 
-  std::vector<itk::Index<2> > targetPixels = PatchMatchHelpers::GetAllPixelIndices(internalRegion);
-
-  if(this->Forward == false)
+  if(this->TargetPixels.size() == 0)
   {
-      std::reverse(targetPixels.begin(), targetPixels.end());
+    this->TargetPixels = PatchMatchHelpers::GetAllPixelIndices(internalRegion);
   }
+
+  std::vector<itk::Index<2> > targetPixels = this->TargetPixels;
+
+  if(!this->Forward)
+  {
+    std::reverse(targetPixels.begin(), targetPixels.end());
+  }
+
 //  std::cout << "Propagation(): There are " << targetPixels.size()
 //            << " pixels that would like to be processed." << std::endl;
 
@@ -60,14 +67,6 @@ Propagate(NNFieldType* const nnField)
         ++propagationOffsetId)
     {
       itk::Offset<2> propagationOffset = propagationOffsets[propagationOffsetId];
-
-      //assert(this->Image->GetLargestPossibleRegion().IsInside(potentialPropagationPixel));
-//      if(!fullRegion.IsInside(potentialPropagationPixel))
-//      {
-//        // This check should be done in the NeighborFunctor
-//        //std::cerr << "Pixel " << potentialPropagationPixel << " is outside of the image." << std::endl;
-//        continue;
-//      }
 
       // The potential match is the opposite (hence the " - offset" in the following line)
       // of the offset of the neighbor. Consider the following case:

@@ -59,12 +59,23 @@ struct RandomSearch
     return this->PatchDistanceFunctor;
   }
 
+  /** A signal to indicate that we accepted a new patch. */
   boost::signals2::signal<void (const itk::Index<2>& queryCenter, const itk::Index<2>& matchCenter, const float)> AcceptedSignal;
 
   /** Set if the results are truly randomized. */
   void SetRandom(const bool random)
   {
     this->Random = random;
+  }
+
+  void SetPixelsToProcess(const std::vector<itk::Index<2> >& pixelsToProcess)
+  {
+      this->PixelsToProcess = pixelsToProcess;
+  }
+
+  void SetValidPatchCentersImage(itk::Image<bool, 2>* const validPatchCentersImage)
+  {
+    this->ValidPatchCentersImage = validPatchCentersImage;
   }
 
 private:
@@ -81,7 +92,7 @@ private:
   bool Random = true;
 
   /** Seed the random number generator if we are supposed to. */
-  void InitRandom();
+  void InitializeRandomGenerator();
 
   /** Get a random pixel in the specified region. */
   itk::Index<2> GetRandomPixelInRegion(const itk::ImageRegion<2>& region);
@@ -89,6 +100,16 @@ private:
   /** The fraction by which to reduce the search radius at each iteration,
       given by 'alpha' in PatchMatch paper section 3.2 */
   float RegionReductionRatio = 0.5;
+
+  /** The pixels for which we are trying to randomly find a better match. */
+  std::vector<itk::Index<2> > PixelsToProcess;
+
+  /** An image where if a pixel is 'true', it is the center of a valid region. */
+  typedef itk::Image<bool, 2> BoolImageType;
+  BoolImageType* ValidPatchCentersImage;
+
+  bool GetRandomValidRegion(const itk::ImageRegion<2>& region, itk::ImageRegion<2>& randomValidRegion);
+
 };
 
 #include "RandomSearch.hpp"
